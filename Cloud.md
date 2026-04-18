@@ -79,6 +79,10 @@ docker exec -it kafka kafka-console-consumer \
 docker exec -it postgres-database psql -U postgres -d fuel_prices -c \
   "SELECT COUNT(*) as total_records FROM fuel_prices_raw;"
 ```
+
+#### Một số output metrics view trong PostgreSQL
+![alt text](image-1.png)
+
 ### Check Flink job 's status (http://localhost:8081
 )
 ![alt text](image.png)
