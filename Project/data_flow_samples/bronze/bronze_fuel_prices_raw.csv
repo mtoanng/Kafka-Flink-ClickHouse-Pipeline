@@ -1,0 +1,3 @@
+timestamp,fuel_type,price_per_liter,price_unit,location,region,source,ingested_at
+2026-04-18T10:30:00Z,RON_95,22150.0,VND,Ho Chi Minh,South,mock-generator,2026-04-18T10:30:01Z
+2026-04-18T10:30:00Z,DIESEL,18500.0,VND,Ha Noi,North,mock-generator,2026-04-18T10:30:01Z

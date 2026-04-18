@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-04-18T10:30:00Z",
+    "fuel_type": "RON_95",
+    "price_per_liter": 22150.0,
+    "price_unit": "VND",
+    "location": "Ho Chi Minh",
+    "region": "South",
+    "source": "mock-generator"
+  },
+  {
+    "timestamp": "2026-04-18T10:30:00Z",
+    "fuel_type": "DIESEL",
+    "price_per_liter": 18500.0,
+    "price_unit": "VND",
+    "location": "Ha Noi",
+    "region": "North",
+    "source": "mock-generator"
+  }
+]

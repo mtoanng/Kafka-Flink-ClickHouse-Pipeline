@@ -1,0 +1,3 @@
+window_start,window_end,fuel_type,location,region,avg_price,min_price,max_price,record_count
+2026-04-18T10:30:00Z,2026-04-18T10:31:00Z,RON_95,Ho Chi Minh,South,22150.0,22100.0,22200.0,6
+2026-04-18T10:30:00Z,2026-04-18T10:31:00Z,DIESEL,Ha Noi,North,18500.0,18450.0,18550.0,6

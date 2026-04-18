@@ -1,0 +1,12 @@
+[
+  {
+    "alert_timestamp": "2026-04-18T10:35:00Z",
+    "fuel_type": "RON_95",
+    "location": "Ho Chi Minh",
+    "region": "South",
+    "previous_price": 22150.0,
+    "current_price": 23300.0,
+    "change_percent": 5.2,
+    "alert_type": "increase"
+  }
+]
