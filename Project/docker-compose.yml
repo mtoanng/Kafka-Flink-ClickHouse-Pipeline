@@ -16,10 +16,10 @@ services:
     networks:
       - realtime_network
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep imok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "zookeeper-shell", "localhost:2181", "ls", "/"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
 
   # ═══════════════════════════════════════════════════
   # KAFKA — Message broker nhận dữ liệu từ Producer
@@ -109,12 +109,68 @@ services:
       retries: 10
       start_period: 60s
 
+  # ═══════════════════════════════════════════════════
+  # FLINK JOBMANAGER — Điều phối stream processing jobs
+  # ═══════════════════════════════════════════════════
+  flink-jobmanager:
+    image: flink:1.17.0-scala_2.12-java11
+    container_name: flink-jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.rpc.port: 6123
+        taskmanager.rpc.port: 6124
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+    volumes:
+      - flink_data:/tmp/flink
+    networks:
+      - realtime_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════
+  # FLINK TASKMANAGER — Xử lý stream data
+  # ═══════════════════════════════════════════════════
+  flink-taskmanager:
+    image: flink:1.17.0-scala_2.12-java11
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.rpc.port: 6123
+        taskmanager.rpc.port: 6124
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+    volumes:
+      - flink_data:/tmp/flink
+    networks:
+      - realtime_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://flink-jobmanager:8081/overview"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   zk_data:
   zk_logs:
   kafka_data:
   pgdata:
   metabase_data:
+  flink_data:
 
 networks:
   realtime_network:

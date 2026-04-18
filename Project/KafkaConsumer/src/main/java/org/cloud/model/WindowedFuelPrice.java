@@ -12,8 +12,8 @@ public class WindowedFuelPrice implements Serializable {
 
     public String  windowStart;    // "2025-04-12T10:30:00"
     public String  windowEnd;      // "2025-04-12T10:31:00"
-    public String  fuelType;       // RON_95
-    public String  location;       // Ho Chi Minh
+    public String  fuelType;       // WTI_CRUDE | BRENT_CRUDE | ...
+    public String  location;       // New York (NYMEX)
     public String  region;
     public double  avgPrice;
     public double  minPrice;

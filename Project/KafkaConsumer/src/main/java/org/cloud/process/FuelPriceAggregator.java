@@ -1,7 +1,9 @@
 package org.cloud.process;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
 import org.cloud.model.FuelPrice;
 import org.cloud.model.WindowedFuelPrice;
 
@@ -73,14 +75,13 @@ public class FuelPriceAggregator
 
     // ── Window Function: bổ sung thông tin window time ─────────────────────
     public static class WindowResultMapper
-            implements org.apache.flink.streaming.api.functions.windowing
-                           .ProcessWindowFunction<Accumulator, WindowedFuelPrice, String, TimeWindow> {
+            extends ProcessWindowFunction<Accumulator, WindowedFuelPrice, String, TimeWindow> {
 
         @Override
         public void process(String key,
                             Context ctx,
                             Iterable<Accumulator> elements,
-                            org.apache.flink.util.Collector<WindowedFuelPrice> out) {
+                            Collector<WindowedFuelPrice> out) {
 
             Accumulator acc = elements.iterator().next();
             if (acc.count == 0) return;

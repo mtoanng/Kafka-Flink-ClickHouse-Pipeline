@@ -4,6 +4,7 @@ public class Constant {
 
     public static final String TIMESTAMP_FORMAT  = "yyyy-MM-dd'T'HH:mm:ss";
     public static final String DATE_STRING_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    public static final String KAFKA_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
 
     public static final class KafkaSourceConfig {
         public static final String TOPIC_NAME         = ConfigLoader.get("kafka.topic");

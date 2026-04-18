@@ -1,4 +1,4 @@
-# IS402.P21 — Real-time Global Oil Price Monitor
+# Real-time Global Oil Price Monitor
 
 ## 📋 Yêu cầu hệ thống
 - **OS:** Ubuntu 22.04 LTS (hoặc Windows 10/11 + Docker Desktop)
@@ -11,7 +11,7 @@
 
 ### Bước 1: Clone project
 ```bash
-git clone <repo-url>
+git clone https://github.com/mtoanng/Real-time-processing-with-Kafka-Flink-Postgres.git
 cd Project
 ```
 
@@ -19,7 +19,13 @@ cd Project
 ```bash
 docker-compose up -d
 ```
-→ Tự động khởi động: Zookeeper, Kafka, Flink, PostgreSQL, Metabase
+→ Tự động khởi động: Zookeeper, Kafka, Flink (JobManager + TaskManager), PostgreSQL, Metabase
+
+Kiểm tra bằng:
+```bash
+docker-compose ps
+# Sẽ hiển thị 6 services: zookeeper, kafka, flink-jobmanager, flink-taskmanager, postgres-database, metabase
+```
 
 ### Bước 3: Build producer
 ```bash
@@ -34,16 +40,56 @@ mvn clean package -DskipTests
 ```
 
 ### Bước 5: Submit Flink job
-- Vào http://localhost:8081
-- Submit New Job → Upload JAR: `target/KafkaConsumer-1.0-SNAPSHOT-jar-with-dependencies.jar`
+```bash
+# Build Consumer
+cd Project/KafkaConsumer
+mvn clean package -DskipTests
+
+# Copy JAR vào Flink container
+docker cp target/KafkaConsumer-v1.1.1.jar flink-jobmanager:/job.jar
+
+# Submit job
+docker exec flink-jobmanager flink run \
+  -c org.cloud.KafkaConsumerApplication /job.jar
+```
+
+**Quan trọng:** Consumer dùng Docker service names:
+- Kafka: `kafka:29092` (internal Docker bootstrap)
+- PostgreSQL: `postgres-database:5432` (Docker service name)
+
+Configured in `src/main/resources/application.properties`
 
 ### Bước 6: Start producer
 ```bash
 cd Project/KafkaProducer/FuelPriceProducer
-java -jar target/FuelPriceProducer-1.0-SNAPSHOT.jar
+java -jar target/FuelPriceProducer-1.0.0.jar
 ```
 
-### Bước 7: Metabase dashboard
+### Bước 7: Kiểm tra State của các Services
+#### Check Kafka messages
+```bash
+docker exec -it kafka kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic fuel-prices \
+  --from-beginning \
+  --max-messages 10
+```
+#### Monitor PostgreSQL (raw data)
+```bash
+docker exec -it postgres-database psql -U postgres -d fuel_prices -c \
+  "SELECT COUNT(*) as total_records FROM fuel_prices_raw;"
+```
+### Check Flink job 's status (http://localhost:8081
+)
+![alt text](image.png)
+
+#### Monitor PostgreSQL (aggregated data) - after ~1 minute
+```bash
+docker exec -it postgres-database psql -U postgres -d fuel_prices -c \
+  "SELECT COUNT(*) as aggregated_records FROM fuel_price_window_agg;"
+```
+
+### Bước 8: Metabase dashboard
 - Vào http://localhost:3000
 - Setup: Database Host = `postgres` (tên service Docker), Port = 5432, User = `postgres`, Pass = `123456`, DB = `fuel_prices`
 
@@ -153,6 +199,26 @@ ps aux | grep FuelPriceProducer
 docker logs flink-taskmanager
 ```
 
+### Flink can't connect to PostgreSQL (Connection refused)
+**Cause:** Using `localhost:5432` instead of Docker service name  
+**Fix:** Application properties must use Docker service names:
+```properties
+# WRONG:
+jdbc.url=jdbc:postgresql://localhost:5432/fuel_prices
+kafka.bootstrap.servers=localhost:9092
+
+# CORRECT:
+jdbc.url=jdbc:postgresql://postgres-database:5432/fuel_prices
+kafka.bootstrap.servers=kafka:29092
+```
+
+Rebuild and redeploy the Flink job after fixing:
+```bash
+mvn clean package -DskipTests
+docker cp target/KafkaConsumer-v1.1.1-shaded.jar flink-jobmanager:/job.jar
+docker exec flink-jobmanager flink run -c org.cloud.KafkaConsumerApplication /job.jar
+```
+
 ---
 
 ## 📚 Tài liệu quan trọng
@@ -198,6 +264,27 @@ watch 'docker exec postgres psql -U postgres -d fuel_prices -c "SELECT COUNT(*) 
 
 # Terminal 3: View Metabase
 # http://localhost:3000
+```
+
+## 🔄 Git Commit & Push (After Testing)
+
+**Files to commit (already fixed):**
+```bash
+git add Project/docker-compose.yml  # Flink services added
+git add Project/KafkaConsumer/src/main/resources/application.properties  # Docker service names fixed
+git add Cloud.md  # Updated guide
+git commit -m "fix: Add Flink containers to Docker Compose & fix Docker service names for Kafka/PostgreSQL connection"
+git push origin main
+```
+
+**Teammates** - After pulling, just run:
+```bash
+cd Project
+docker-compose up -d
+cd KafkaConsumer && mvn clean package -DskipTests && cd ..
+docker cp KafkaConsumer/target/KafkaConsumer-v*.jar flink-jobmanager:/job.jar
+docker exec flink-jobmanager flink run -c org.cloud.KafkaConsumerApplication /job.jar
+cd KafkaProducer/FuelPriceProducer && java -jar target/FuelPriceProducer-1.0.0.jar
 ```
 
 ---
