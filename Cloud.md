@@ -26,25 +26,28 @@ Kiểm tra bằng:
 docker-compose ps
 # Sẽ hiển thị 6 services: zookeeper, kafka, flink-jobmanager, flink-taskmanager, postgres-database, metabase
 ```
+![alt text](image-2.png)
 
 ### Bước 3: Build producer
 ```bash
 cd KafkaProducer/FuelPriceProducer
 mvn clean package -DskipTests
 ```
+![alt text](image-3.png)
+![alt text](image-4.png)
 
 ### Bước 4: Build Flink consumer
 ```bash
 cd Project/KafkaConsumer
 mvn clean package -DskipTests
 ```
+![alt text](image-5.png)
+![alt text](image-6.png)
 
 ### Bước 5: Submit Flink job
 ```bash
 # Build Consumer
 cd Project/KafkaConsumer
-mvn clean package -DskipTests
-
 # Copy JAR vào Flink container
 docker cp target/KafkaConsumer-v1.1.1.jar flink-jobmanager:/job.jar
 
@@ -52,6 +55,8 @@ docker cp target/KafkaConsumer-v1.1.1.jar flink-jobmanager:/job.jar
 docker exec flink-jobmanager flink run \
   -c org.cloud.KafkaConsumerApplication /job.jar
 ```
+
+![alt text](image-7.png)
 
 **Quan trọng:** Consumer dùng Docker service names:
 - Kafka: `kafka:29092` (internal Docker bootstrap)
@@ -64,7 +69,7 @@ Configured in `src/main/resources/application.properties`
 cd Project/KafkaProducer/FuelPriceProducer
 java -jar target/FuelPriceProducer-1.0.0.jar
 ```
-
+![alt text](image-8.png)
 ### Bước 7: Kiểm tra State của các Services
 #### Check Kafka messages
 ```bash
