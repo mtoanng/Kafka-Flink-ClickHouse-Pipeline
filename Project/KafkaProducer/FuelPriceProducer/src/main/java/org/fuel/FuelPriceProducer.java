@@ -51,6 +51,15 @@ public class FuelPriceProducer {
             TOPIC_NAME        = "fuel-prices";
             INTERVAL_MS       = 10_000L;
         }
+        // Cho phép override interval qua JVM system property để demo linh hoạt
+        // Ví dụ: java -Dproducer.interval.ms=3000 -jar ...
+        String sysProp = System.getProperty("producer.interval.ms");
+        if (sysProp != null) {
+            try {
+                INTERVAL_MS = Long.parseLong(sysProp);
+                log.info("Override interval từ system property: {}ms", INTERVAL_MS);
+            } catch (NumberFormatException ignored) { /* giữ giá trị cũ */ }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
