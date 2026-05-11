@@ -4,18 +4,19 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.fuel</groupId>
-    <artifactId>FuelPriceProducer</artifactId>
+    <parent>
+        <groupId>vn.edu.ves</groupId>
+        <artifactId>ves-monitor-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fuel-price-producer</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kafka.version>3.5.1</kafka.version>
-        <jackson.version>2.15.2</jackson.version>
-    </properties>
+    <name>Fuel Price Kafka Producer</name>
+    <description>Sinh dữ liệu giá nhiên liệu mock + HTTP, đẩy lên Kafka topic fuel-prices.</description>
 
     <dependencies>
         <!-- Kafka Client -->

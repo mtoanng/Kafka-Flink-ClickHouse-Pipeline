@@ -1,141 +1,170 @@
-## IS402.P21 — Real-time Global Oil Price Monitor
+# 🛢️ VES — Real-time Fuel Price Monitoring System
 
-# 🎯 Bài toán
-Xây dựng hệ thống **giám sát giá dầu thế giới thời gian thực** từ Kafka → Flink → PostgreSQL → Metabase.
+> Hệ thống giám sát giá nhiên liệu thời gian thực qua **Kafka + Flink + PostgreSQL**, kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn, thêm UI Java + Spring Boot REST API + Android client.
 
-# 🎯 Mục tiêu
-- Thiết kế và triển khai hệ thống xử lý dữ liệu thời gian thực.
-- Thu thập, tổng hợp, phân tích giá dầu từ nhiều sàn giao dịch.
-- Phát hiện biến động giá (alerts) tự động.
-- Hiển thị dashboard trực quan, realtime.
-- Hệ thống có khả năng mở rộng, tin cậy cao, hiệu suất tốt.
-
-# 🏗️ Kiến trúc hệ thống
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                           REALTIME DATA PIPELINE                          │
-│                                                                             │
-│ [Java Producer]  ──► [Kafka]  ──► [Flink]  ──► [PostgreSQL]  ──► [Metabase]│
-│ MockDataGenerator     Topic        3 jobs       3 tables       Dashboard   │
-│ (realtime)        fuel-prices    window agg     + 4 views      (port 3000) │
-│                                   alert detect                             │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-# 📦 Stack công nghệ
-- **Message Broker:** Apache Kafka 7.6.0
-- **Stream Processing:** Apache Flink 1.17.0 (Java 11)
-- **Database:** PostgreSQL 15
-- **BI Dashboard:** Metabase (latest)
-- **Containerization:** Docker Compose v3.8
-- **Build Tool:** Maven 3.x
-
-# 📊 Dữ liệu: Giá dầu thế giới
-- **WTI Crude** (USD/barrel) — NYMEX, New York
-- **Brent Crude** (USD/barrel) — ICE, London
-- **Gasoline Futures** (USD/gallon) — NYMEX
-- **Diesel** (USD/gallon) — US market
-- **Natural Gas** (USD/MMBtu) — Henry Hub, Houston
-
-6 sàn giao dịch mock: New York, London, Singapore, Houston, Rotterdam, Tokyo
-
-# 👥 Phân công công việc
-
-| Thành viên | Phạm vi | Deliverables |
-|---|---|---|
-| **Người 1** | Java Producer + MockDataGenerator | Uber-JAR, log, Kafka messages |
-| **Người 2** | Docker Compose, deploy stack | 6 containers running, Flink job |
-| **Người 3** | PostgreSQL schema, queries | 3 tables, 4 views, metabase_queries.sql |
-| **Người 4** | Metabase dashboard | 5+ charts, auto-refresh |
-| **Lead** | Tích hợp, demo, báo cáo | End-to-end test, presentation |
-
-**Chi tiết xem:** [Project/PHAN_CONG_CONG_VIEC.md](Project/PHAN_CONG_CONG_VIEC.md)
-
-# 🚀 Quick Start
-
-**Bước 1: Start infrastructure**
-```bash
-cd Project
-docker-compose up -d
-```
-
-**Bước 2: Build & submit Flink job**
-```bash
-cd KafkaConsumer
-mvn clean package -DskipTests
-# → Submit JAR tại http://localhost:8081
-```
-
-**Bước 3: Start producer**
-```bash
-cd KafkaProducer/FuelPriceProducer
-mvn clean package -DskipTests
-java -jar target/FuelPriceProducer-1.0-SNAPSHOT.jar
-```
-
-**Bước 4: Dashboard**
-- Metabase: http://localhost:3000
-- Flink UI: http://localhost:8081
-
-# 📚 Tài liệu quan trọng
-
-| File | Mô tả |
-|---|---|
-| [Project/PHAN_CONG_CONG_VIEC.md](Project/PHAN_CONG_CONG_VIEC.md) | Phân công chi tiết + checklist cho 4 người |
-| [Project/script/presentation_script.md](Project/script/presentation_script.md) | Script thuyết trình báo cáo tiến độ |
-| [Project/docker-compose.yml](Project/docker-compose.yml) | Cấu hình Docker stack |
-| [Project/script/init_fuel_schema.sql](Project/script/init_fuel_schema.sql) | Schema PostgreSQL |
-| [Project/script/metabase_queries.sql](Project/script/metabase_queries.sql) | SQL queries cho Metabase |
-
-# 📁 Cấu trúc project
-
-```
-Project/
-├── docker-compose.yml               ← cấu hình stack
-├── PHAN_CONG_CONG_VIEC.md          ← phân công chi tiết
-├── script/
-│   ├── init_fuel_schema.sql         ← schema PostgreSQL
-│   ├── metabase_queries.sql         ← queries cho Metabase
-│   └── presentation_script.md       ← script thuyết trình
-├── KafkaProducer/
-│   └── FuelPriceProducer/           ← Java producer module
-│       ├── pom.xml
-│       └── src/main/java/org/fuel/
-│           ├── FuelPriceProducer.java
-│           ├── MockDataGenerator.java
-│           ├── HttpApiSource.java   ← optional: Alpha Vantage API
-│           └── model/FuelPrice.java
-└── KafkaConsumer/                   ← Flink consumer module
-    ├── pom.xml
-    └── src/main/java/org/cloud/
-        ├── KafkaConsumerApplication.java
-        ├── Constant.java
-        ├── process/ (FuelPriceAggregator, PriceChangeDetector)
-        └── model/ (FuelPrice, WindowedFuelPrice, PriceAlert)
-```
-
-# ⚙️ Cấu hình mặc định
-
-| Thành phần | Host | Port | Cấu hình |
-|---|---|---|---|
-| Zookeeper | localhost | 2181 | - |
-| Kafka | localhost | 9092 | broker.id=1 |
-| Flink JobManager | localhost | 8081 | parallelism=2 |
-| PostgreSQL | localhost | 5432 | user=postgres, pass=123456, db=fuel_prices |
-| Metabase | localhost | 3000 | - |
-
-# 🐛 Troubleshooting
-
-| Vấn đề | Giải pháp |
-|---|---|
-| Kafka connection refused | `docker logs kafka` → chờ 30s thêm |
-| Flink job failed | Check `pom.xml` shade plugin, verify JAR classpath |
-| Postgres table not found | Verify SQL init script chạy: `docker logs postgres` |
-| Metabase can't connect DB | Host phải là `postgres` (tên service Docker), không phải localhost |
-| No data in dashboard | Verify producer đang chạy, topic name = `fuel-prices` |
+[![Status](https://img.shields.io/badge/status-WIP%20Phase%200-yellow)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
 
 ---
 
-**Môn học:** IS402.P21  
-**Cập nhật lần cuối:** Tháng 4/2026
+## 📦 Stack tổng quan
+
+| Tầng | Công nghệ | Vai trò |
+|------|-----------|---------|
+| **Data Source** | Java Producer (Mock + Alpha Vantage API) | Sinh dữ liệu giá 5 loại nhiên liệu × 5 địa điểm |
+| **Message Broker** | Apache Kafka 7.5.0 | Topic `fuel-prices` |
+| **Stream Processing** | Apache Flink 1.17.0 | 3 luồng song song: raw / window 1-phút / alert |
+| **Storage** | PostgreSQL 15 | 3 bảng + 6 view + (Phase 2 thêm: users/regions/alerts/rules) |
+| **BI** | Metabase 0.47 | Dashboard tự thiết lập |
+| **REST API** | Spring Boot 3 (Phase 4) | JWT + 8 endpoint cho Desktop + Mobile |
+| **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, 5 màn, JUnit |
+| **Mobile UI** | Android Studio (Phase 6) | Retrofit + MPAndroidChart, 4 màn |
+| **Orchestration** | Docker Compose | One-click stack 6 service |
+
+---
+
+## 🚀 Quick Start (3 lệnh)
+
+```bash
+git clone <repo-url>
+cd Real-time-processing-with-Kafka-Flink-Postgres
+bash scripts/run.sh        # hoặc .\scripts\run.ps1 trên Windows
+```
+
+Sau ~60s tất cả service sẽ healthy:
+- **Flink UI**: http://localhost:8081
+- **Metabase**: http://localhost:3000
+- **PostgreSQL**: `localhost:5432` (user=`postgres`, pass=`123456`, db=`fuel_prices`)
+- **Kafka**: `localhost:9092`, topic `fuel-prices`
+
+Verify health: `bash scripts/healthcheck.sh`
+Dừng stack: `bash scripts/stop.sh`
+
+---
+
+## 🏗️ Kiến trúc
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       VES REAL-TIME FUEL PIPELINE                       │
+│                                                                          │
+│  [Producer]  ─► [Kafka]  ─► [Flink Job]  ─► [Postgres]  ─► [Metabase]  │
+│  data-gens/    fuel-prices  fuel-flink-     fuel_prices       (BI)     │
+│  fuel-price-                 job (3 luồng    DB                          │
+│  producer                    + alert Phase3)                             │
+│                                                                          │
+│                                                  ▲                       │
+│                                                  │ JDBC + REST           │
+│                                                  │                       │
+│                              ┌───────────────────┴────────────────┐     │
+│                              │   Spring Boot API (Phase 4)        │     │
+│                              │   8 endpoint + JWT + SSE           │     │
+│                              └───────┬───────────────────┬────────┘     │
+│                                      │ REST              │ REST          │
+│                                ┌─────▼─────┐       ┌─────▼─────┐        │
+│                                │  JavaFX   │       │  Android  │        │
+│                                │  Desktop  │       │  App      │        │
+│                                │ (Phase 5) │       │ (Phase 6) │        │
+│                                └───────────┘       └───────────┘        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📁 Cấu trúc thư mục
+
+```
+Real-time-processing-with-Kafka-Flink-Postgres/
+├── infra/                              # Hạ tầng Docker
+│   ├── docker-compose.yml              # Stack 6 service
+│   └── script/                         # SQL init schema + seed
+│       ├── init_fuel_schema.sql        # Schema hiện tại
+│       └── PostgreSQL.sql              # SQL legacy (reference)
+│
+├── data-generators/                    # Module gửi data lên Kafka
+│   └── fuel-price-producer/            # Java Producer (Mock + HTTP)
+│       ├── pom.xml
+│       └── src/main/java/org/fuel/     # FuelPriceProducer, MockDataGenerator, HttpApiSource
+│
+├── flink-jobs/                         # Module Flink stream processing
+│   └── fuel-flink-job/                 # 3 luồng: raw / window agg / alert
+│       ├── pom.xml
+│       └── src/main/java/org/cloud/    # KafkaConsumerApplication + process/* + source/*
+│
+├── backend-api/                        # Phase 4 — Spring Boot REST API (chưa có)
+├── desktop-admin/                      # Phase 5 — JavaFX Admin Desktop (chưa có)
+├── android-app/                        # Phase 6 — Android App (chưa có)
+│
+├── scripts/                            # Bootstrap scripts
+│   ├── run.sh / run.ps1                # One-click start
+│   ├── stop.sh / stop.ps1
+│   └── healthcheck.sh                  # Verify stack health
+│
+├── docs/                               # Tài liệu
+│   ├── data-flow-samples/              # Mẫu data ở mỗi tầng (bronze/silver/gold)
+│   └── (Phase 8 sẽ thêm: AI_USAGE_LOG, DEPLOY, DEMO_RUNBOOK, TROUBLESHOOTING)
+│
+├── pom.xml                             # Parent Maven (multi-module)
+├── .env.example                        # Template biến môi trường
+├── .gitignore
+├── .gitattributes                      # Đảm bảo line endings nhất quán
+├── README.md                           # File này
+├── UPGRADE_PLAN.md                     # Kế hoạch nâng cấp chi tiết (§24 = plan thực thi)
+└── JAVA_FINAL_PROJECT_REQUIREMENT.md   # Yêu cầu đồ án Java
+```
+
+---
+
+## 📊 Dữ liệu
+
+| Loại nhiên liệu | Đơn vị | Địa điểm |
+|------------------|--------|----------|
+| WTI Crude | USD/barrel | New York, Houston |
+| Brent Crude | USD/barrel | London, Dubai, Singapore |
+| Gasoline | USD/gallon | New York, Houston |
+| Diesel | USD/gallon | New York, London |
+| Natural Gas | USD/MMBtu | Houston |
+
+---
+
+## 🛣️ Lộ trình build (Minimalist Plan — §24 UPGRADE_PLAN.md)
+
+| Phase | Mục tiêu | Status |
+|-------|----------|--------|
+| **0** | Foundation — restructure repo + verify code có sẵn | 🟡 In progress |
+| **1** | Docker Lite — tối ưu RAM ~2.7GB | ⬜ |
+| **2** | Schema mở rộng — thêm 4 bảng (`users`, `regions`, `alerts`, `alert_rules`) | ⬜ |
+| **3** | Flink Alert PF — thêm 1 process function vào Flink job | ⬜ |
+| **4** | Spring Boot REST API — 1 module, 8 endpoint, JWT, SSE | ⬜ |
+| **5** | JavaFX Admin Desktop ⭐ — 5 màn, 3-layer, JDBC, 10+ JUnit | ⬜ |
+| **6** | Android App — 4 activity, Retrofit, MPAndroidChart | ⬜ |
+| **7** | Deploy + Cloudflared Tunnel | ⬜ |
+| **8** | Documentation + Demo prep | ⬜ |
+
+Chi tiết: [`UPGRADE_PLAN.md`](./UPGRADE_PLAN.md) §24.
+
+---
+
+## 🐛 Troubleshooting
+
+| Vấn đề | Giải pháp |
+|--------|-----------|
+| Kafka connection refused | `docker logs kafka` → chờ 30s thêm. Hoặc `bash scripts/stop.sh --volumes && bash scripts/run.sh` để reset |
+| Flink job failed | Check pom.xml shade plugin, verify JAR classpath. Xem log: `docker logs flink-jobmanager` |
+| Postgres table not found | Verify SQL init script đã chạy: `docker logs postgres-database | grep init_fuel_schema` |
+| Metabase can't connect DB | Trong Metabase, **Host** phải là `postgresql` (tên service Docker), KHÔNG phải `localhost` |
+| Port 5432/9092/8081/3000 bị chiếm | Đổi port trong `.env` (sau khi copy từ `.env.example`) |
+
+---
+
+## 📚 Tài liệu
+
+| File | Mô tả |
+|------|-------|
+| [UPGRADE_PLAN.md](./UPGRADE_PLAN.md) | Kế hoạch nâng cấp chi tiết, §24 = Minimalist Plan (thực thi) |
+| [JAVA_FINAL_PROJECT_REQUIREMENT.md](./JAVA_FINAL_PROJECT_REQUIREMENT.md) | Yêu cầu đồ án môn Java |
+| [docs/PHAN_CONG_CONG_VIEC_legacy.md](./docs/PHAN_CONG_CONG_VIEC_legacy.md) | Phân công công việc (legacy, sẽ thay bằng §22 UPGRADE_PLAN) |
+
+---
+
+**Môn học:** IS402.P21 + Lập trình Java + Phát triển ứng dụng di động
+**Tài liệu liên quan:** [UPGRADE_PLAN.md](./UPGRADE_PLAN.md)

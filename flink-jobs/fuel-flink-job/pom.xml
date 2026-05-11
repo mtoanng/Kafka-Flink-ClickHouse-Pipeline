@@ -4,16 +4,21 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.cloud</groupId>
-    <artifactId>KafkaConsumer</artifactId>
-    <version>v1.1.1</version>
+    <parent>
+        <groupId>vn.edu.ves</groupId>
+        <artifactId>ves-monitor-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fuel-flink-job</artifactId>
+    <version>1.1.1</version>
+    <packaging>jar</packaging>
+
+    <name>Fuel Price Flink Stream Processing Job</name>
+    <description>Đọc topic fuel-prices từ Kafka, xử lý 3 luồng (raw / window agg / alert) và ghi vào PostgreSQL.</description>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <flink.version>1.17.0</flink.version>
-        <java.version>11</java.version>
         <scala.binary.version>2.12</scala.binary.version>
     </properties>
 

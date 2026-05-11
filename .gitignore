@@ -1,0 +1,74 @@
+# =============================================================
+#  VES Real-time Fuel Price Monitoring — Root .gitignore
+# =============================================================
+
+# ── Build outputs ──────────────────────────────────────────
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# ── IDE / Editor ───────────────────────────────────────────
+.idea/
+.idea./
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.swp
+*.swo
+
+# ── OS files ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python (legacy) ────────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+
+# ── Metabase volume ────────────────────────────────────────
+metabase.db/
+metabase-data/
+
+# ── Logs ───────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Environment / Secrets ──────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Docker ─────────────────────────────────────────────────
+.docker/
+
+# ── Maven Wrapper download cache ───────────────────────────
+.mvn/wrapper/maven-wrapper.properties.copy
+.mvn/timing.properties
+
+# ── Android (sẽ dùng ở Phase 6) ────────────────────────────
+android-app/local.properties
+android-app/.gradle/
+android-app/app/build/
+android-app/build/
+android-app/captures/
+android-app/.externalNativeBuild/
+android-app/.cxx/
+
+# ── Test / Coverage ────────────────────────────────────────
+coverage/
+*.exec
+
+# ── Large temporary files ──────────────────────────────────
+*.tmp
+*.bak

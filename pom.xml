@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>vn.edu.ves</groupId>
+    <artifactId>ves-monitor-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>VES Real-time Fuel Price Monitoring (Parent)</name>
+    <description>
+        Parent POM cho hệ thống giám sát giá nhiên liệu thời gian thực.
+        Tập hợp các module: data-generators, flink-jobs, backend-api, desktop-admin.
+        (android-app là Gradle project, không nằm trong Maven build).
+    </description>
+
+    <modules>
+        <module>data-generators/fuel-price-producer</module>
+        <module>flink-jobs/fuel-flink-job</module>
+        <!-- backend-api sẽ thêm ở Phase 4 -->
+        <!-- desktop-admin sẽ thêm ở Phase 5 -->
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+
+        <!-- Versions dùng chung -->
+        <flink.version>1.17.0</flink.version>
+        <kafka.version>3.5.1</kafka.version>
+        <jackson.version>2.15.2</jackson.version>
+        <postgresql.version>42.7.3</postgresql.version>
+        <lombok.version>1.18.30</lombok.version>
+        <slf4j.version>2.0.7</slf4j.version>
+        <logback.version>1.4.11</logback.version>
+        <junit.version>5.10.1</junit.version>
+
+        <!-- Plugin versions -->
+        <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
+        <maven.shade.plugin.version>3.4.0</maven.shade.plugin.version>
+        <maven.surefire.plugin.version>3.2.2</maven.surefire.plugin.version>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${maven.shade.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven.surefire.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
