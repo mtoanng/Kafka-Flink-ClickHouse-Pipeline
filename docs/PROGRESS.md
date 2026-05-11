@@ -8,7 +8,7 @@
 |---|-------|--------|-----|------|------------|-------|
 | 0 | Foundation & Verify | ✅ | v0.0-foundation | 2026-05-11 | Pass (4/4 file struct) | 47 files restructured, rename 88-100% preserved |
 | 1 | Docker Lite + Scripts | ✅ | v0.1-docker-lite | 2026-05-11 | Pass 4/4 + memory 918MB/2.85GB | Lite Profile working; BI overlay separated; --wait flag added |
-| 2 | Schema mở rộng (4 bảng) | ⬜ | — | — | — | |
+| 2 | Schema mở rộng (4 bảng) | ✅ | v0.2-schema | 2026-05-12 | Pass 7 tables + 7 views + 3 bcrypt OK | users, regions, alert_rules, alerts + v_active_alerts view |
 | 3 | Flink Alert Process Function | ⬜ | — | — | — | |
 | 4 | Spring Boot REST API | ⬜ | — | — | — | |
 | 5 | JavaFX Admin Desktop ⭐ | ⬜ | — | — | — | |
