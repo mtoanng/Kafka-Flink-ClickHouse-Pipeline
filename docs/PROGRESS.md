@@ -6,8 +6,8 @@
 
 | # | Phase | Status | Tag | Date | Smoke test | Notes |
 |---|-------|--------|-----|------|------------|-------|
-| 0 | Foundation & Verify | 🟡 In progress | — | 2026-05-11 | — | Restructure repo + parent pom + scripts |
-| 1 | Docker Lite + Scripts | ⬜ | — | — | — | |
+| 0 | Foundation & Verify | ✅ | v0.0-foundation | 2026-05-11 | Pass (4/4 file struct) | 47 files restructured, rename 88-100% preserved |
+| 1 | Docker Lite + Scripts | ✅ | v0.1-docker-lite | 2026-05-11 | Pass 4/4 + memory 918MB/2.85GB | Lite Profile working; BI overlay separated; --wait flag added |
 | 2 | Schema mở rộng (4 bảng) | ⬜ | — | — | — | |
 | 3 | Flink Alert Process Function | ⬜ | — | — | — | |
 | 4 | Spring Boot REST API | ⬜ | — | — | — | |

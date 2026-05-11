@@ -37,11 +37,19 @@ echo "============================================="
 echo "  VES Healthcheck"
 echo "============================================="
 
+# Bypass corporate proxy cho localhost (curl trong corporate network sẽ đi proxy mặc định)
+export NO_PROXY="localhost,127.0.0.1,::1"
+export no_proxy="localhost,127.0.0.1,::1"
+
 check "PostgreSQL"       "docker exec postgres-database pg_isready -U postgres -d fuel_prices"
 check "Kafka"            "docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092"
 check "Zookeeper"        "docker exec zookeeper zookeeper-shell localhost:2181 ls /"
-check "Flink JobManager" "curl -sf http://localhost:${FLINK_UI_PORT}/overview"
-check "Metabase"         "curl -sf http://localhost:${METABASE_PORT}/api/health"
+check "Flink JobManager" "curl --noproxy '*' -sf http://localhost:${FLINK_UI_PORT}/overview"
+
+# Metabase optional (chỉ check nếu container đang chạy)
+if docker ps --filter "name=metabase" --format "{{.Names}}" 2>/dev/null | grep -q metabase; then
+    check "Metabase"     "curl --noproxy '*' -sf http://localhost:${METABASE_PORT}/api/health"
+fi
 
 echo ""
 echo "Tổng: ${PASS} OK, ${FAIL} FAIL"
