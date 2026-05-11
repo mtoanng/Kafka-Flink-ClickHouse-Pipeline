@@ -1,8 +1,19 @@
-# 🛢️ VES — Real-time Fuel Price Monitoring System
+# ⚡ VES-Monitor — Vietnam Energy Security Real-time Monitor
 
-> Hệ thống giám sát giá nhiên liệu thời gian thực qua **Kafka + Flink + PostgreSQL**, kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn, thêm UI Java + Spring Boot REST API + Android client.
+> Nền tảng **giám sát an ninh năng lượng Việt Nam** thời gian thực qua **Kafka + Flink + PostgreSQL**, bao quát **4 pillars** (Nguồn cung, Biến động Kinh tế, Phụ tải, Chuyển đổi & Môi trường) — kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn cho Pillar 2 (giá nhiên liệu thế giới), bổ sung light coverage cho 3 pillars còn lại.
 
-[![Status](https://img.shields.io/badge/status-WIP%20Phase%200-yellow)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+[![Status](https://img.shields.io/badge/status-WIP%20Phase%202.5-yellow)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+
+---
+
+## 🛡️ 4 Pillars An ninh năng lượng
+
+| # | Pillar | Mô tả | Data nguồn | Status |
+|---|--------|-------|-----------|--------|
+| **1** | **Nguồn cung & Hạ tầng** | Trữ lượng, hạ tầng truyền tải, **dự trữ chiến lược 90 ngày** | Seed `fuel_inventory_raw` theo 6 region VN/Intl | ✅ Phase 2.5 |
+| **2** | **Biến động Kinh tế** | **Giá NL thế giới** (WTI/Brent/Gasoline/Diesel/Natural Gas × 5 sàn quốc tế) | Producer real-time → Kafka → Flink → `fuel_prices_raw` | ✅ Phase 0-1 (code có sẵn) |
+| **3** | **Phụ tải & Tiêu thụ** | Biểu đồ phụ tải điện (MW), tỷ lệ tải/công suất | Generator real-time → `grid_load_raw` | 🟡 Phase 4 (sẽ làm) |
+| **4** | **Chuyển đổi & Môi trường** | Tỷ lệ năng lượng sạch (solar/wind), phát thải CO2 | Generator real-time → `renewable_output_raw` + `emission_raw` | 🟡 Phase 4 (sẽ làm) |
 
 ---
 
@@ -10,15 +21,15 @@
 
 | Tầng | Công nghệ | Vai trò |
 |------|-----------|---------|
-| **Data Source** | Java Producer (Mock + Alpha Vantage API) | Sinh dữ liệu giá 5 loại nhiên liệu × 5 địa điểm |
-| **Message Broker** | Apache Kafka 7.5.0 | Topic `fuel-prices` |
-| **Stream Processing** | Apache Flink 1.17.0 | 3 luồng song song: raw / window 1-phút / alert |
-| **Storage** | PostgreSQL 15 | 3 bảng + 6 view + (Phase 2 thêm: users/regions/alerts/rules) |
-| **BI** | Metabase 0.47 | Dashboard tự thiết lập |
-| **REST API** | Spring Boot 3 (Phase 4) | JWT + 8 endpoint cho Desktop + Mobile |
-| **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, 5 màn, JUnit |
-| **Mobile UI** | Android Studio (Phase 6) | Retrofit + MPAndroidChart, 4 màn |
-| **Orchestration** | Docker Compose | One-click stack 6 service |
+| **Data Source** | 3 Java Producer (Pillar 2/3/4) + SQL seed (Pillar 1) | Sinh dữ liệu real-time cho 4 pillars |
+| **Message Broker** | Apache Kafka 7.5.0 | Topics: `fuel-prices`, `grid-load`, `renewable-output` |
+| **Stream Processing** | Apache Flink 1.17.0 | 4 luồng song song: raw / window 1-phút / **alert rule-based** / cross-pillar |
+| **Storage** | PostgreSQL 15 | 10 bảng + 8 views (3 fuel + 4 users/regions/alerts + 3 pillar 1/3/4) |
+| **BI** | Metabase 0.47 (overlay) | Dashboard 4-pillar |
+| **REST API** | Spring Boot 3 (Phase 4) | JWT + ~12 endpoint cover 4 pillars cho Desktop + Mobile |
+| **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, **Dashboard 4-tab pillars**, 5 màn, JUnit |
+| **Mobile UI** | Android Studio (Phase 6) | Retrofit + MPAndroidChart, **bottom nav 4 pillars**, 4 màn |
+| **Orchestration** | Docker Compose | One-click stack Lite ~2.85 GB |
 
 ---
 
@@ -126,17 +137,18 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 
 ---
 
-## 🛣️ Lộ trình build (Minimalist Plan — §24 UPGRADE_PLAN.md)
+## 🛣️ Lộ trình build (Minimalist + Light 4-pillars — §24 UPGRADE_PLAN.md)
 
 | Phase | Mục tiêu | Status |
 |-------|----------|--------|
-| **0** | Foundation — restructure repo + verify code có sẵn | 🟡 In progress |
-| **1** | Docker Lite — tối ưu RAM ~2.7GB | ⬜ |
-| **2** | Schema mở rộng — thêm 4 bảng (`users`, `regions`, `alerts`, `alert_rules`) | ⬜ |
-| **3** | Flink Alert PF — thêm 1 process function vào Flink job | ⬜ |
-| **4** | Spring Boot REST API — 1 module, 8 endpoint, JWT, SSE | ⬜ |
-| **5** | JavaFX Admin Desktop ⭐ — 5 màn, 3-layer, JDBC, 10+ JUnit | ⬜ |
-| **6** | Android App — 4 activity, Retrofit, MPAndroidChart | ⬜ |
+| **0** | Foundation — restructure repo + verify code có sẵn | ✅ `v0.0-foundation` |
+| **1** | Docker Lite — tối ưu RAM ~2.85 GB | ✅ `v0.1-docker-lite` |
+| **2** | Schema users/regions/alert_rules/alerts (Pillar 2 ops) | ✅ `v0.2-schema` |
+| **2.5** | Pillar 1/3/4 raw tables + seed (Light 4-pillar coverage) | 🟡 In progress |
+| **3** | Flink Alert PF — rule-based detection vào table `alerts` | ⬜ |
+| **4** | Spring Boot REST API + **2 generator mới** (grid-load + renewable) | ⬜ |
+| **5** | JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard | ⬜ |
+| **6** | Android App — 4 activity, bottom nav 4 pillars | ⬜ |
 | **7** | Deploy + Cloudflared Tunnel | ⬜ |
 | **8** | Documentation + Demo prep | ⬜ |
 
