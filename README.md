@@ -6,14 +6,17 @@
 
 ---
 
-## 🛡️ 4 Pillars An ninh năng lượng
+## 🛡️ 4 Pillars An ninh năng lượng — Actionable Features
 
-| # | Pillar | Mô tả | Data nguồn | Status |
-|---|--------|-------|-----------|--------|
-| **1** | **Nguồn cung & Hạ tầng** | Trữ lượng, hạ tầng truyền tải, **dự trữ chiến lược 90 ngày** | Seed `fuel_inventory_raw` theo 6 region VN/Intl | ✅ Phase 2.5 |
-| **2** | **Biến động Kinh tế** | **Giá NL thế giới** (WTI/Brent/Gasoline/Diesel/Natural Gas × 5 sàn quốc tế) | Producer real-time → Kafka → Flink → `fuel_prices_raw` | ✅ Phase 0-1 (code có sẵn) |
-| **3** | **Phụ tải & Tiêu thụ** | Biểu đồ phụ tải điện (MW), tỷ lệ tải/công suất | Generator real-time → `grid_load_raw` | 🟡 Phase 4 (sẽ làm) |
-| **4** | **Chuyển đổi & Môi trường** | Tỷ lệ năng lượng sạch (solar/wind), phát thải CO2 | Generator real-time → `renewable_output_raw` + `emission_raw` | 🟡 Phase 4 (sẽ làm) |
+| # | Pillar | Detect | Predict | Recommend | Score |
+|---|--------|--------|---------|-----------|-------|
+| **1** | **Nguồn cung** | `alert_rules` INVENTORY_DAYS < 30/60 | `v_pillar1_supply_outlook` (days_to_critical) | Tự sinh `recommendation_text` điều chuyển từ region thừa sang region thiếu | P1 = stock_days / 90 × 100 |
+| **2** | **Biến động Kinh tế** | `alert_rules` FUEL_PRICE breaches | `v_pillar2_volatility_signal` (σ rolling 1h) + `v_pillar2_cross_exchange_divergence` (chênh sàn) | Action: hedge nhập khẩu, cảnh báo địa chính trị | P2 = 100 - σ% × 10 |
+| **3** | **Phụ tải** | `alert_rules` GRID_LOAD_PCT > 80/90 | (load_pct trend by region) | `v_pillar3_load_shedding_plan` — ordered priority list + suggested MW to shed | P3 = 100 - max_load × 1.1 |
+| **4** | **Chuyển đổi & MT** | `alert_rules` EMISSION_INTENSITY > 600 | `v_pillar4_net_zero_progress` (vs roadmap VN 2026/2030/2050) | Action: dispatch ưu tiên nguồn xanh | P4 = renewable_share × 2 |
+| **0** | **Cross-pillar** | `v_cascade_risks` (Pillar 2 spike + Pillar 1 low = FUEL_SHORTAGE_RISK, v.v.) | — | `recommendations` audit trail (PENDING/ACK/DISMISSED) | **`v_security_score` 0-100** (4 status: SECURE / STABLE / AT_RISK / CRITICAL) |
+
+> 💡 **Triết lý:** Không chỉ "vẽ số liệu" — mọi view trả về `*_text` cột recommendation human-readable, `*_action_type` machine-readable, và severity để UI render badge/button hành động.
 
 ---
 
@@ -24,7 +27,7 @@
 | **Data Source** | 3 Java Producer (Pillar 2/3/4) + SQL seed (Pillar 1) | Sinh dữ liệu real-time cho 4 pillars |
 | **Message Broker** | Apache Kafka 7.5.0 | Topics: `fuel-prices`, `grid-load`, `renewable-output` |
 | **Stream Processing** | Apache Flink 1.17.0 | 4 luồng song song: raw / window 1-phút / **alert rule-based** / cross-pillar |
-| **Storage** | PostgreSQL 15 | 10 bảng + 8 views (3 fuel + 4 users/regions/alerts + 3 pillar 1/3/4) |
+| **Storage** | PostgreSQL 15 | **13 bảng + 19 views** (3 fuel + 4 ops + 4 pillar + 2 security) — toàn bộ logic actionable nằm trong SQL views |
 | **BI** | Metabase 0.47 (overlay) | Dashboard 4-pillar |
 | **REST API** | Spring Boot 3 (Phase 4) | JWT + ~12 endpoint cover 4 pillars cho Desktop + Mobile |
 | **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, **Dashboard 4-tab pillars**, 5 màn, JUnit |
@@ -144,8 +147,9 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 | **0** | Foundation — restructure repo + verify code có sẵn | ✅ `v0.0-foundation` |
 | **1** | Docker Lite — tối ưu RAM ~2.85 GB | ✅ `v0.1-docker-lite` |
 | **2** | Schema users/regions/alert_rules/alerts (Pillar 2 ops) | ✅ `v0.2-schema` |
-| **2.5** | Pillar 1/3/4 raw tables + seed (Light 4-pillar coverage) | 🟡 In progress |
-| **3** | Flink Alert PF — rule-based detection vào table `alerts` | ⬜ |
+| **2.5** | Pillar 1/3/4 raw tables + seed (Light 4-pillar coverage) | ✅ `v0.2.5-pillars` |
+| **2.6** | Security output features (recommendations + 8 action views + ESI score) | ✅ `v0.2.6-security-features` |
+| **3** | Flink Alert PF — đọc alert_rules đa pillar → `alerts` + tự sinh `recommendations` | ⬜ |
 | **4** | Spring Boot REST API + **2 generator mới** (grid-load + renewable) | ⬜ |
 | **5** | JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard | ⬜ |
 | **6** | Android App — 4 activity, bottom nav 4 pillars | ⬜ |

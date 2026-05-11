@@ -2253,9 +2253,11 @@ Mỗi PR Leader merge phải pass 5 gate:
 - Xử lý real-time bằng Kafka + Flink. **3 generator song song** đẩy data vào 3 topic riêng → 3 luồng Flink song song (raw + window + alert rule-based) → PostgreSQL (10 bảng + 8 views).
 - Trực quan hóa qua **JavaFX Admin Desktop** (dashboard 4-tab pillars + CRUD) + **Android App** (bottom-nav 4 pillars) + **Metabase** (BI 4-pillar tổng quan).
 
-### 24.2.1 Light 4-pillar Strategy — Coverage chiều rộng, không chiều sâu
+### 24.2.1 Light 4-pillar Strategy — Coverage chiều rộng + Actionable Output Layer
 
-> 💡 **Triết lý:** Show **đủ 4 pillars** trong báo cáo nhưng mỗi pillar chỉ là **1 bảng raw + 1 view dashboard + 1 chart**. Không làm ESI Calculator, không broadcast state phức tạp, không star schema. Pillar 2 (giá NL) là pillar chính (code có sẵn, deep coverage), 3 pillar còn lại là light coverage.
+> 💡 **Triết lý:** Show **đủ 4 pillars** + **mỗi pillar phải có output features hỗ trợ an ninh năng lượng, không chỉ vẽ số liệu**. Stack 4 lớp: **DETECT** (alert_rules đa pillar) → **PREDICT** (forecast views) → **RECOMMEND** (recommendations + recommendation_text trong views) → **SCORE** (Energy Security Score 0-100).
+>
+> Không làm Flink broadcast state ESI phức tạp (giữ ESI ở SQL view), không star schema. Pillar 2 (giá NL) là pillar chính (code có sẵn), 3 pillar còn lại là light coverage **với đầy đủ actionable views**.
 
 | Pillar | KPIs chính | Implementation Light | Effort thêm |
 |--------|-----------|----------------------|-------------|
@@ -2357,11 +2359,11 @@ GET  /api/stream/fuel-prices          # SSE realtime
 4. AlertListActivity → List + filter alert theo severity
 ```
 
-### 24.5 Lộ trình 10 phase Minimalist + Light 4-pillar (thay cho 14 phase §23)
+### 24.5 Lộ trình 11 phase Minimalist + Light 4-pillar (thay cho 14 phase §23)
 
 > Mỗi phase vẫn theo nguyên tắc atomic + smoke test + rollback (§23.1) nhưng GỌN HỞN.
 >
-> **10 phase** = 8 phase gốc + Phase 2.5 (schema 4-pillar) + Phase 4 mới (2 generator Pillar 3/4). Phase 4 cũ (REST API) đẩy thành Phase 4.5.
+> **11 phase** = 8 phase gốc + **Phase 2.5** (schema 4-pillar) + **Phase 2.6** (security features layer: detect/predict/recommend/score) + **Phase 4** mới (2 generator Pillar 3/4). Phase 4 cũ (REST API) đẩy thành Phase 4.5.
 
 ---
 
@@ -2416,15 +2418,32 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
-#### 🚨 Phase 3 — Flink Alert Process Function (3-4h)
+#### 🛡️ Phase 2.6 — Security Output Features Layer (2-3h) — Actionable, không chỉ vẽ số liệu
 
 | Field | Value |
 |-------|-------|
-| **Mục tiêu** | Thêm 1 stream nhánh thứ 4 vào Flink job hiện tại: detect alert |
-| **Action** | Trong `KafkaConsumerApplication.java`, thêm 1 nhánh DataStream: `parsedStream.process(new AlertDetectionFunction())` rồi `.addSink(alertJdbcSink)`. Alert rules **hard-code** trong code (không cần broadcast state phức tạp) — load 1 lần lúc job start từ DB. |
-| **Files mới** | `process/AlertDetectionFunction.java`, `source/AlertRulesLoader.java`, sink mới `AlertJdbcSink.java` |
-| **Smoke test** | Manually `UPDATE alert_rules SET threshold = 0.01 WHERE id = 1` để dễ trigger → đợi 1 phút → `SELECT COUNT(*) FROM alerts` > 0. Sau đó reset threshold. |
-| **Common pitfalls** | Reload rules dynamic phức tạp → giữ static load lúc start, restart job khi đổi rule (đủ cho demo). |
+| **Mục tiêu** | Biến 4 pillars thành **platform an ninh thực sự**: detect → predict → recommend → score. Tất cả implement bằng SQL views + 2 bảng action audit (không cần Flink phức tạp). |
+| **Files tạo** | `infra/script/07_init_security_features.sql` (extend alert_rules + 2 tables + 8 views), `08_seed_security_features.sql` (5 multi-pillar rules + 3 sample recommendations) |
+| **Schema thay đổi** | `alert_rules`: ADD COLUMN `metric_type` (FUEL_PRICE/INVENTORY_DAYS/GRID_LOAD_PCT/RENEWABLE_PCT/EMISSION_INTENSITY) + `region_code` FK. Relax `fuel_type` NOT NULL. Backward-compat: rules cũ tự lấy `FUEL_PRICE` default. |
+| **Tables mới** | `recommendations` (id, pillar 0-4, action_type, severity, title, message, suggested_data JSONB, status PENDING/ACK/DISMISSED, expires_at) — audit trail action; `daily_briefings` (security_score, headline, 4 pillar summaries, key_risks JSONB) — bản tin daily |
+| **Action views (8)** | `v_pillar1_supply_outlook` (forecast days_to_critical + dynamic recommendation_text + suggested_donor_region); `v_pillar2_volatility_signal` (σ rolling 1h, signal STABLE/ELEVATED/VOLATILE); `v_pillar2_cross_exchange_divergence` (chênh giá giữa các sàn — tín hiệu địa chính trị); `v_pillar3_load_shedding_plan` (ordered priority list khi overload + suggested_shed_mw + recommendation_text); `v_pillar4_net_zero_progress` (% renewable vs roadmap VN 2026/2030/2050); `v_security_score` (**Light ESI 0-100** weighted 25%% mỗi pillar, status SECURE/STABLE/AT_RISK/CRITICAL); `v_cascade_risks` (compound risks multi-pillar: FUEL_SHORTAGE_RISK, GENERATION_DEFICIT_RISK, CARBON_COST_RISK); `v_active_recommendations` (PENDING list cho dashboard) |
+| **Seed** | 5 alert_rules multi-pillar (Pillar 1: 2 rules INVENTORY_DAYS; Pillar 3: 2 rules GRID_LOAD_PCT; Pillar 4: 1 rule EMISSION_INTENSITY). 3 recommendations PENDING (TRANSFER_STOCK CRITICAL, INCREASE_RESERVE WARNING, PEAK_SHAVING_PREP INFO) — UI có data demo ngay. |
+| **Smoke test** | Sau apply 8 SQL: 13 tables + 19 views. `SELECT * FROM v_security_score` trả 1 row score ≈ 76 (STABLE) khi data sparse. `SELECT * FROM v_pillar1_supply_outlook` trả 6 row có cột `recommendation_text` chứa tiếng Việt human-readable. `SELECT metric_type, COUNT(*) FROM alert_rules GROUP BY metric_type` trả 4 row đa pillar. Fresh boot `stop --volumes && run --wait` load đủ 8 SQL files thứ tự. |
+| **Common pitfalls** | (1) `GREATEST(0, NULL)` trả 0 không NULL → COALESCE không fallback được; phải dùng `CASE WHEN max(col) IS NULL THEN baseline END`. (2) `ALTER TABLE ADD COLUMN IF NOT EXISTS` chỉ hoạt động PostgreSQL 9.6+. (3) Constraint `chk_alert_rules_metric_type` phải wrap trong `DO $$ ... IF NOT EXISTS` để idempotent. |
+| **Tag** | `v0.2.6-security-features` |
+
+---
+
+#### 🚨 Phase 3 — Flink Alert Detection (multi-pillar) + Recommendation Generator (4-5h)
+
+| Field | Value |
+|-------|-------|
+| **Mục tiêu** | Thêm `AlertDetectionFunction` đa-metric vào Flink job. Tự sinh `recommendations` khi alert CRITICAL trigger. |
+| **Multi-pillar logic** | Function đọc `alert_rules` lúc start, filter theo `metric_type`. Cho fuel-prices stream → filter rules `metric_type='FUEL_PRICE'`. Sau Phase 4, mở rộng tương tự cho `grid-load`, `renewable-output`, `emission` streams. |
+| **Recommendation auto-gen** | Khi alert CRITICAL được tạo → insert kèm 1 row vào `recommendations` với `action_type` derive từ pillar: Pillar 1 → TRANSFER_STOCK; Pillar 2 → HEDGE_IMPORT; Pillar 3 → PEAK_SHAVING; Pillar 4 → DISPATCH_RENEWABLE. `suggested_data` JSONB chứa context (region, threshold, current_value). |
+| **Files mới** | `process/AlertDetectionFunction.java`, `source/AlertRulesLoader.java`, `sink/AlertJdbcSink.java`, `sink/RecommendationJdbcSink.java` |
+| **Smoke test** | Manually `UPDATE alert_rules SET threshold = 0.01 WHERE id = 1` → đợi 1 phút → `SELECT COUNT(*) FROM alerts WHERE rule_id=1` > 0 + `SELECT COUNT(*) FROM recommendations WHERE pillar=2` tăng. Sau đó reset threshold. |
+| **Common pitfalls** | Reload rules dynamic phức tạp → giữ static load lúc start, restart job khi đổi rule (đủ cho demo). RecommendationJdbcSink phải có dedup logic (không spam 1 alert/giây), dùng cooldown 10 phút bằng cách check `WHERE NOT EXISTS ... suggested_at > NOW() - INTERVAL '10 minutes'`. |
 | **Tag** | `v0.3-flink-alert` |
 
 ---
@@ -2443,15 +2462,16 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
-#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars (5-7h)
+#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars + Security Actions (6-8h)
 
 | Field | Value |
 |-------|-------|
-| **Mục tiêu** | 1 module Spring Boot 3, JdbcTemplate, JWT, **~12 endpoint** (8 cốt lõi + 4 pillar), Swagger |
-| **Files tạo (~28 file Java + 2 config):** | Như Phase 4 cũ + thêm: `dao/PillarDao.java` (gộp 4 query đọc 4 view dashboard), `controller/PillarController.java` (4 endpoint), `dto/{Pillar1Status, Pillar3Load, Pillar4Renewable, Pillar4Emission}Dto.java` |
-| **Endpoint Pillar** | `GET /api/pillars/1/inventory` (Pillar 1 status), `GET /api/pillars/3/grid-load/latest` (Pillar 3 latest), `GET /api/pillars/4/renewable/hourly` (Pillar 4 share theo giờ), `GET /api/pillars/4/emission/intensity` (Pillar 4 CO2 24h) — tất cả trả về JSON list dùng cho dashboard 4-tab JavaFX + bottom-nav Android |
-| **Smoke test** | `mvn spring-boot:run`. `curl POST /api/auth/login admin/admin` → JWT. `curl -H "Bearer ..." /api/fuel-prices` → 100 row. `curl -H "..." /api/pillars/1/inventory` → 6 row. `curl -N /api/stream/fuel-prices` → SSE flowing. Swagger UI có đủ 12 endpoint. |
-| **Common pitfalls** | Khi không có data Pillar 3/4 (Phase 4 chưa chạy generator) → endpoint trả `[]`, KHÔNG được throw 500. CORS chặn Android emulator → `allowedOrigins("*")` cho dev. |
+| **Mục tiêu** | 1 module Spring Boot 3, JdbcTemplate, JWT, **~14 endpoint** (8 core + 4 pillar + 2 security actions), Swagger |
+| **Files tạo (~30 file Java + 2 config):** | Như Phase 4 cũ + thêm: `dao/PillarDao.java`, `dao/SecurityDao.java` (đọc `v_security_score`, `v_active_recommendations`, `v_cascade_risks`), `dao/RecommendationDao.java` (ACK/DISMISS), `controller/PillarController.java`, `controller/SecurityController.java`, `dto/{Pillar1Outlook, Pillar3Shedding, Pillar4NetZero, SecurityScore, Recommendation, CascadeRisk}Dto.java` |
+| **Endpoint Pillar (4)** | `GET /api/pillars/1/outlook` (đọc `v_pillar1_supply_outlook`), `GET /api/pillars/2/volatility` (`v_pillar2_volatility_signal`), `GET /api/pillars/3/shedding-plan` (`v_pillar3_load_shedding_plan`), `GET /api/pillars/4/net-zero` (`v_pillar4_net_zero_progress`) |
+| **Endpoint Security (4)** | `GET /api/security/score` (1 row từ `v_security_score`), `GET /api/security/cascade-risks` (`v_cascade_risks`), `GET /api/recommendations?status=PENDING` (`v_active_recommendations`), `POST /api/recommendations/{id}/acknowledge` (update status=ACKNOWLEDGED + acknowledged_by + note) |
+| **Smoke test** | `curl -H "..." /api/security/score` → JSON `{overall_score:76.4, pillar1_score:68.5, status:"STABLE"}`. `curl POST /api/recommendations/1/acknowledge` → status đổi từ PENDING → ACKNOWLEDGED trong DB. Swagger UI có đủ 14 endpoint. |
+| **Common pitfalls** | Khi không có data Pillar 3/4 (Phase 4 chưa chạy generator) → endpoint trả `[]`, KHÔNG được throw 500. JSONB `suggested_data` cần Jackson `@JsonRawValue` hoặc `JsonNode` để pass-through. CORS chặn Android emulator → `allowedOrigins("*")` cho dev. |
 | **Tag** | `v0.45-backend-api` |
 
 ---
@@ -2462,7 +2482,7 @@ GET  /api/stream/fuel-prices          # SSE realtime
 |-------|-------|
 | **Mục tiêu** | JavaFX 21 app 5 màn, 3-layer, JDBC trực tiếp, JUnit ≥ 10 test |
 | **Files tạo (~30 file Java + 5 FXML + 1 CSS):** | `pom.xml` (javafx-maven-plugin), `module-info.java`, `MainApp.java`, `presentation/controller/{LoginCtrl, DashboardCtrl, RegionCtrl, AlertRuleCtrl, UserCtrl}.java`, `presentation/view/{login, dashboard, region, alertRule, user}.fxml`, `service/{AuthService, RegionService, AlertRuleService, UserService, FuelPriceService}.java` (interface + impl), `dao/{BaseDao, UserDao, RegionDao, AlertRuleDao, FuelPriceDao}.java`, `model/{User, Region, AlertRule, FuelPrice}.java`, `util/{DatabaseConnection, PasswordUtils, Validator, SessionManager, ChartHelper, SseClient}.java`, `style/material.css`, `test/{UserDaoTest, AuthServiceTest, RegionServiceTest, ValidatorTest}.java` |
-| **Tính năng từng màn** | **Login**: form + validate + BCrypt check + lưu session. **Dashboard**: **TabPane 4 tab** mỗi tab 1 pillar (Tab Pillar 1: TableView inventory với badge status; Tab Pillar 2: LineChart giá NL realtime, đây là tab "chính" code có sẵn; Tab Pillar 3: BarChart load theo region + label peak/off-peak; Tab Pillar 4: PieChart solar/wind/hydro + Label intensity CO2) + auto-refresh 5s qua SSE hoặc poll. **Region/AlertRule/User**: form bên trái + TableView bên phải, full CRUD + search + validation. |
+| **Tính năng từng màn** | **Login**: form + validate + BCrypt check + lưu session. **Dashboard**: **Top bar Energy Security Score gauge 0-100** + **TabPane 4 tab** mỗi tab 1 pillar — Tab Pillar 1: TableView `v_pillar1_supply_outlook` (cột recommendation_text + button "Tạo recommendation"); Tab Pillar 2: LineChart giá NL realtime + panel volatility signal STABLE/ELEVATED/VOLATILE; Tab Pillar 3: BarChart load theo region + nếu critical hiển thị panel `v_pillar3_load_shedding_plan` với button "Acknowledge"; Tab Pillar 4: PieChart solar/wind/hydro + Label intensity CO2 + tracker Net Zero progress. **Sidebar Recommendations Panel** luôn hiển thị `v_active_recommendations` (3 row PENDING demo có ngay) với button ACK/DISMISS. **Region/AlertRule/User**: form bên trái + TableView bên phải, full CRUD + search + validation. |
 | **Design patterns áp dụng** | Singleton (DatabaseConnection, SessionManager), DAO, MVC, Builder (cho Alert filter), Strategy (cho Validator). |
 | **Smoke test** | `mvn javafx:run`. Login admin/admin → vào Dashboard → 5 chart vẽ data. Tạo region mới → table refresh. `mvn test` ≥ 10 test pass. |
 | **Common pitfalls** | JavaFX module path JDK 17+ → dùng `javafx-maven-plugin` config sẵn `<mainClass>` + `<options>`. FXML không nhận controller → check `fx:controller="full.package.Path"`. JUnit không chạy với JavaFX UI test → tách test pure service/DAO + dùng H2 in-memory cho DAO test. |
@@ -2529,19 +2549,23 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 | Metric | §23 Full | §24 Minimalist + Light 4-pillar | Tiết kiệm |
 |--------|----------|---------------------------------|-----------|
-| Số phase | 14 | **10** (8 + 2.5 + 4.5) | -29% |
+| Số phase | 14 | **11** (8 + 2.5 + 2.6 + 4.5) | -21% |
 | Số module Maven | ~8 | **5** (3 generator + consumer + backend + javafx + android) | -38% |
-| Số endpoint API | ~15 | **~12** (8 core + 4 pillar) | -20% |
-| Số entity DB mới | 10+ | **8** (4 ops + 4 pillar) | -33% |
+| Số endpoint API | ~15 | **~14** (8 core + 4 pillar + 2 security: score + recommendations) | -7% |
+| Số entity DB mới | 10+ | **10** (4 ops + 4 pillar + 2 security) | tương đương |
 | Số Flink job | 5 | **1 multi-source** (4 stream song song trong 1 job) | -80% |
-| Thời gian Leader | 172h | **~70-80h** | **-55%** |
-| Khối lượng code mới (LOC) | ~8000 | **~4500** | -44% |
-| Số file cần đọc khi debug | ~150 | **~80** | -47% |
-| Coverage 4 pillars an ninh NL | 4/4 deep + ESI | **4/4 light** (đủ cho báo cáo) | ⭐ |
+| Thời gian Leader | 172h | **~75-85h** | **-52%** |
+| Khối lượng code mới (LOC) | ~8000 | **~4800** (thêm SQL views thay vì Flink code) | -40% |
+| Số file cần đọc khi debug | ~150 | **~85** | -43% |
+| Coverage 4 pillars an ninh NL | 4/4 deep + ESI Flink | **4/4 light + ESI SQL view** (light ESI) | ⭐ tương đương báo cáo |
+| **Actionable features** (detect/predict/recommend/score) | Có (Flink) | **Có (SQL views)** — 8 action views, 2 audit tables | ⭐ |
 | Risk lỗi/phase | Trung bình | **Thấp** | ⭐ |
 | Khả năng pass deadline | 60-70% | **85-90%** | ⭐ |
 
-> 💡 **Kết luận**: Minimalist + Light 4-pillar giảm 55% công sức Leader vẫn đạt **100% coverage 4 pillars** (chiều rộng), match đề tài "An ninh năng lượng VN". Phần "wow" đến từ stack (Kafka+Flink hiếm SV dùng) + **multi-pillar architecture** (1 Flink job xử lý 4 topic song song).
+> 💡 **Kết luận**: Minimalist + Light 4-pillar giảm 52% công sức Leader vẫn đạt:
+> - **100% coverage 4 pillars** (chiều rộng) match đề tài "An ninh năng lượng VN".
+> - **Actionable features đầy đủ** thay vì chỉ "vẽ số liệu": detect (alert_rules đa pillar), predict (supply_outlook, volatility_signal), recommend (recommendation_text trong views + bảng `recommendations`), score (Light ESI `v_security_score`).
+> - Phần "wow" đến từ stack (Kafka+Flink hiếm SV dùng) + **multi-pillar architecture** + **Energy Security Score gauge** trên JavaFX dashboard.
 
 ### 24.8 Cấu trúc thư mục Minimalist (gọn)
 
@@ -2556,7 +2580,9 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 │       ├── 03_init_alerts.sql          # Phase 2
 │       ├── 04_seed_basic.sql           # Phase 2 (admin user, 6 region VN, 5 rule)
 │       ├── 05_init_pillars.sql         # Phase 2.5 (Pillar 1/3/4 tables + 4 views)
-│       └── 06_seed_pillars.sql         # Phase 2.5 (6 row inventory cho Pillar 1)
+│       ├── 06_seed_pillars.sql         # Phase 2.5 (6 row inventory cho Pillar 1)
+│       ├── 07_init_security_features.sql # Phase 2.6 (extend rules + 2 tables + 8 action views)
+│       └── 08_seed_security_features.sql  # Phase 2.6 (5 multi-pillar rules + 3 recommendations)
 ├── data-generators/
 │   ├── fuel-price-producer/            # Move từ KafkaProducer/ (Pillar 2)
 │   ├── grid-load-generator/            # Phase 4 - Pillar 3 (~150 LOC)
