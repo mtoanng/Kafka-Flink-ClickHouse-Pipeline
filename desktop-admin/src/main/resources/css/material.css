@@ -1,6 +1,6 @@
 /* =========================================================
    VES-Monitor Admin Desktop — Material-inspired theme
-   Sẽ mở rộng trong Phase 5.1+
+   Phase 5.1 — login form polish + placeholder dashboard
    ========================================================= */
 
 .root {
@@ -9,40 +9,116 @@
     -fx-background-color: #fafafa;
 }
 
-.login-pane {
-    -fx-background-color: linear-gradient(to bottom right, #1f77b4, #2196f3);
+/* ---------------- Login screen ---------------- */
+.login-root {
+    -fx-background-color: linear-gradient(to bottom right, #1565c0, #2196f3 60%, #64b5f6);
+}
+
+.login-card {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 16, 0.2, 0, 4);
 }
 
 .title {
-    -fx-font-size: 28px;
+    -fx-font-size: 30px;
     -fx-font-weight: bold;
-    -fx-text-fill: white;
+    -fx-text-fill: #0d47a1;
 }
 
 .subtitle {
-    -fx-font-size: 16px;
-    -fx-text-fill: #e3f2fd;
+    -fx-font-size: 14px;
+    -fx-text-fill: #455a64;
 }
 
-.hint {
+.form-label {
     -fx-font-size: 12px;
-    -fx-text-fill: #fce4ec;
-    -fx-font-style: italic;
+    -fx-text-fill: #546e7a;
+    -fx-font-weight: 600;
 }
 
-/* Primary button (Phase 5.1+) */
+.login-input {
+    -fx-background-color: #f5f5f5;
+    -fx-background-radius: 4;
+    -fx-border-color: #e0e0e0;
+    -fx-border-radius: 4;
+    -fx-padding: 8 12 8 12;
+    -fx-font-size: 14px;
+}
+
+.login-input:focused {
+    -fx-border-color: #1976d2;
+    -fx-background-color: white;
+}
+
 .btn-primary {
     -fx-background-color: #1976d2;
     -fx-text-fill: white;
-    -fx-padding: 8 24 8 24;
+    -fx-padding: 10 24 10 24;
     -fx-background-radius: 4;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
 }
 
 .btn-primary:hover {
     -fx-background-color: #1565c0;
 }
 
+.btn-primary:disabled {
+    -fx-background-color: #90caf9;
+    -fx-text-fill: #ffffff;
+    -fx-opacity: 0.85;
+}
+
+.btn-secondary {
+    -fx-background-color: white;
+    -fx-text-fill: #1976d2;
+    -fx-border-color: #1976d2;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 6 18 6 18;
+    -fx-cursor: hand;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: #e3f2fd;
+}
+
 .error-text {
     -fx-text-fill: #d32f2f;
     -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: #90a4ae;
+    -fx-font-style: italic;
+}
+
+/* ---------------- Dashboard placeholder (Phase 5.1) ---------------- */
+.dashboard-placeholder {
+    -fx-background-color: #fafafa;
+}
+
+.title-dark {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212121;
+}
+
+.subtitle-dark {
+    -fx-font-size: 13px;
+    -fx-text-fill: #757575;
+    -fx-font-style: italic;
+}
+
+.welcome-text {
+    -fx-font-size: 18px;
+    -fx-text-fill: #1976d2;
+}
+
+.role-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #455a64;
 }

@@ -1,22 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- Phase 5.0 placeholder — empty stage smoke test.
-     Phase 5.1 sẽ thay bằng full login form + LoginController. -->
+<!-- Phase 5.1 — Full login form. Wired to LoginController. -->
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
 <?import javafx.geometry.Pos?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<VBox xmlns="http://javafx.com/javafx/17"
-      xmlns:fx="http://javafx.com/fxml/1"
-      alignment="CENTER"
-      spacing="12.0"
-      styleClass="login-pane">
-    <padding>
-        <Insets bottom="32.0" left="32.0" right="32.0" top="32.0"/>
-    </padding>
-    <Label styleClass="title" text="VES-Monitor"/>
-    <Label styleClass="subtitle" text="Admin Desktop"/>
-    <Label styleClass="hint" text="Phase 5.0 — Foundation OK. Phase 5.1 sẽ wire login form."/>
-</VBox>
+<StackPane xmlns="http://javafx.com/javafx/17"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="vn.edu.ves.desktop.controller.LoginController"
+           styleClass="login-root">
+
+    <VBox alignment="CENTER" maxWidth="380.0" spacing="14.0" styleClass="login-card">
+        <padding>
+            <Insets bottom="32.0" left="32.0" right="32.0" top="32.0"/>
+        </padding>
+
+        <Label styleClass="title" text="VES-Monitor"/>
+        <Label styleClass="subtitle" text="Admin Desktop — Đăng nhập"/>
+
+        <Region prefHeight="8.0"/>
+
+        <Label styleClass="form-label" text="Tài khoản"/>
+        <TextField fx:id="txtUsername" promptText="vd: admin" styleClass="login-input"/>
+
+        <Label styleClass="form-label" text="Mật khẩu"/>
+        <PasswordField fx:id="txtPassword" promptText="••••••" styleClass="login-input"/>
+
+        <Region prefHeight="4.0"/>
+
+        <Button fx:id="btnLogin" maxWidth="Infinity" onAction="#handleLogin"
+                styleClass="btn-primary" text="Đăng nhập"/>
+
+        <Label fx:id="lblError" styleClass="error-text" wrapText="true"/>
+
+        <HBox alignment="CENTER" spacing="4.0">
+            <Label styleClass="hint" text="VES-Monitor v1.0 — Phase 5"/>
+        </HBox>
+    </VBox>
+</StackPane>
