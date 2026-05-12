@@ -36,9 +36,9 @@ public final class DatabaseConfig {
 
     private DatabaseConfig() {
         Properties props = loadProperties();
-        this.url = resolve(props, "db.url", "jdbc:postgresql://localhost:5432/fuel_db");
+        this.url = resolve(props, "db.url", "jdbc:postgresql://localhost:5432/fuel_prices");
         this.user = resolve(props, "db.user", "postgres");
-        this.password = resolve(props, "db.password", "postgres");
+        this.password = resolve(props, "db.password", "123456");
         this.queryTimeoutSec = Integer.parseInt(resolve(props, "db.query.timeout.s", "10"));
         log.info("DatabaseConfig loaded — url={}, user={}, queryTimeout={}s",
                 this.url, this.user, this.queryTimeoutSec);

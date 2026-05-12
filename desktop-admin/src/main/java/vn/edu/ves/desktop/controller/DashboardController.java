@@ -447,9 +447,11 @@ public class DashboardController {
             if (css != null) scene.getStylesheets().add(css.toExternalForm());
             stage.setScene(scene);
             stage.centerOnScreen();
-        } catch (IOException e) {
-            log.error("Load FXML {} fail", fxmlPath, e);
-            AlertHelper.showError("Lỗi", "Không mở được màn hình: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Load FXML {} fail: {}", fxmlPath, e.toString(), e);
+            String root = e.getCause() != null ? e.getCause().toString() : e.toString();
+            AlertHelper.showError("Lỗi mở màn hình",
+                    "Không mở được " + fxmlPath + "\n\nLỗi: " + root);
         }
     }
 
