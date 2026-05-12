@@ -52,7 +52,7 @@ mvn -pl desktop-admin javafx:run
 
 ```bash
 # Env vars
-DB_URL=jdbc:postgresql://192.168.1.100:5432/fuel_db DB_USER=demo DB_PASSWORD=xxx \
+DB_URL=jdbc:postgresql://192.168.1.100:5432/fuel_prices DB_USER=demo DB_PASSWORD=xxx \
     mvn -pl desktop-admin javafx:run
 
 # System properties

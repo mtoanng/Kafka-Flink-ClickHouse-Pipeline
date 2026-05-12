@@ -42,8 +42,8 @@ JavaFX desktop app upgraded from "Phase 5 functional" → "demo-grade":
 |------|-----------|---------|
 | **Data Source** | 3 Java Producer (Pillar 2/3/4) + SQL seed (Pillar 1) | Sinh dữ liệu real-time cho 4 pillars |
 | **Message Broker** | Apache Kafka 7.5.0 | 4 topic: `fuel-prices`, `grid-load`, `renewable-output`, `emission` (Phase 4) |
-| **Stream Processing** | Apache Flink 1.17.0 | **9 vertex / 4 luồng pillar** song song: 4 RAW sink + Window 1-phút + Price-change + 3 RULE detector (FUEL_PRICE / GRID_LOAD_PCT / EMISSION_INTENSITY) |
-| **Storage** | PostgreSQL 15 | **13 bảng + 19 views** (3 fuel + 4 ops + 4 pillar + 2 security) — toàn bộ logic actionable nằm trong SQL views. `alerts.metric_type` đa pillar (Phase 4). |
+| **Stream Processing** | Apache Flink 1.17.0 | **18 vertex / 4 luồng pillar** song song: 4 RAW sink + Window 1-phút + Price-change + 3 RULE detector (FUEL_PRICE / GRID_LOAD_PCT / EMISSION_INTENSITY) |
+| **Storage** | PostgreSQL 15 | **13 bảng + 17 views** (3 fuel + 4 ops + 4 pillar v2 IEA/APERC + 2 security + 4 legacy) — toàn bộ logic actionable nằm trong SQL views. `alerts.metric_type` đa pillar (Phase 4). |
 | **BI** | Metabase 0.47 (overlay) | Dashboard 4-pillar |
 | **REST API** | Spring Boot 2.7 (Phase 4.5 — code ready, build pending) | JWT + **14 endpoint** cover 4 pillars cho Desktop + Mobile, port `8090` |
 | **Desktop UI** | JavaFX 17.0.10 LTS (Phase 5, code-complete) | 3-layer, JDBC trực tiếp Postgres, **5 màn** (Login + Dashboard 4-pillar TabPane + Region CRUD + AlertRule CRUD + User CRUD admin-only), **62 JUnit 4 test** (H2 in-memory DAO + Mockito service + util) |
@@ -64,7 +64,7 @@ bash scripts/start_generators.sh    # chạy 3 generator song song (Pillar 2/3/4
 ```
 
 Sau ~60s tất cả service sẽ healthy + raw data đang chảy 4 pillar:
-- **Flink UI**: http://localhost:8081  (xem 9 vertex đều RUNNING)
+- **Flink UI**: http://localhost:8081  (xem 18 vertex đều RUNNING)
 - **Metabase**: http://localhost:3000  (BI overlay, optional)
 - **PostgreSQL**: `localhost:5432` (user=`postgres`, pass=`123456`, db=`fuel_prices`)
 - **Kafka**: `localhost:9092`, 4 topic: `fuel-prices`, `grid-load`, `renewable-output`, `emission`

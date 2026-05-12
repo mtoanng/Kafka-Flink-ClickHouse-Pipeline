@@ -128,6 +128,8 @@ computed_at   | 2026-05-12 18:09:12 UTC
 
 Light ESI is computed live — `pillar2` (volatility) drifted from 95.98 → 92.46 between the two snapshots as σ-rolling caught more price ticks, and `overall_score` re-weighted accordingly. Pillar 3 score is intentionally low (~21) because the grid-load generator deliberately fires `peak=true` batches, lighting up `v_active_alerts`.
 
+> **Phase 7.1 schema update (13 May 2026):** the formula changed to the IEA / APERC weighting `ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4`, and the status ladder is now `SECURE / ELEVATED / STRESSED / CRITICAL` (the legacy `STABLE / AT_RISK` labels above were captured *before* `08_pillars_v2.sql` was applied). Re-run the same `SELECT * FROM v_security_score;` after Phase 7.1 to see the new column shape; the sample QA snapshot taken at 13 May ~03:00 ICT was `pillar1=64.83 / pillar2=59.59 / pillar3=90.11 / pillar4=72.09 / overall=72.82 ELEVATED`.
+
 ### `v_active_alerts` / `v_active_recommendations`
 
 | View | Count |
@@ -152,6 +154,8 @@ Latest alert sample (most recent EMISSION_INTENSITY breach in `VN_SOUTH`):
 | 7 | `GET /api/health` | 200 | `db = UP`, `status = UP` |
 
 Full raw payloads saved to `build-logs/api_smoke.json`.
+
+> **⚠ Phase 7.1 regression (caught by Phase 7.5 QA pass, 13 May 2026):** the four `/api/pillars/{1..4}/...` endpoints and `/api/security/cascade-risks` now return **HTTP 500** because Phase 7.1 dropped the legacy views (`v_pillar1_supply_outlook`, `v_pillar2_volatility_signal`, `v_pillar3_load_shedding_plan`, `v_pillar4_net_zero_progress`, `v_cascade_risks`) but the backend `PillarDao` / `SecurityDao` / matching DTOs were not migrated to the new `v_pillar*_supply_security|market_resilience|grid_reliability|energy_transition` shape. **Workaround for the demo:** drive the dashboard from JavaFX (which *was* migrated in Phase 7.1 and reads the new views directly via JDBC), or stick to the 6 still-green endpoints (`/api/auth/*`, `/api/security/score`, `/api/alerts/active`, `/api/recommendations*`, `/api/fuel-prices/latest`, `/api/grid-load/latest`, `/api/health`). Backend pillar migration is tracked as the only post-demo blocker.
 
 ### Backend log
 
@@ -180,7 +184,8 @@ mvn -pl desktop-admin javafx:run
 ```
 
 * Login: `admin` / `admin` (also `manager` / `manager`, `user` / `user`).
-* Dashboard auto-refreshes every 30 s (4 tabs: Pillar 1-4 + Security Score gauge + recommendations sidebar).
+* Dashboard refresh cadence (post-Phase 7.2): live ticker every **3 s**, table reload every **10 s** (was 30 s).
+* 5 tabs (post-Phase 7.3): **Pillar 1-4 + Maps · Bản đồ** (3-zone Vietnam SVG + Leaflet world hubs) + Security Score gauge in the top bar + recommendations sidebar.
 * JDBC goes directly to `localhost:5432/fuel_prices` — does **not** require backend-api.
 
 ## How to shut everything down

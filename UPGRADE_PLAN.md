@@ -2385,7 +2385,7 @@ GET  /api/stream/fuel-prices          # SSE realtime
 | **Mục tiêu** | Verify code có sẵn chạy, restructure repo gọn |
 | **Action** | `docker compose up -d` → verify Kafka + Flink + Postgres + Metabase OK. `mvn package` producer + consumer. Submit consumer JAR lên Flink → thấy job RUNNING. |
 | **Restructure** | Move `Project/KafkaProducer/FuelPriceProducer/` → `data-generators/fuel-price-producer/`. Move `Project/KafkaConsumer/` → `flink-jobs/fuel-flink-job/`. Move `Project/script/` → `infra/script/`. Move `Project/docker-compose.yml` → `infra/docker-compose.yml`. |
-| **Smoke test** | `curl http://localhost:8081/jobs` → có 1 job RUNNING. `docker exec postgres-database psql -U postgres -d fuel_db -c 'SELECT COUNT(*) FROM fuel_prices'` > 0. Metabase mở `http://localhost:3000`. |
+| **Smoke test** | `curl http://localhost:8081/jobs` → có 1 job RUNNING. `docker exec postgres-database psql -U postgres -d fuel_prices -c 'SELECT COUNT(*) FROM fuel_prices_raw'` > 0. Metabase mở `http://localhost:3000`. |
 | **Tag** | `v0.0-verified` |
 
 ---

@@ -28,6 +28,7 @@
 | **7.1** | **Phase 7.1 — Pillar redesign (IEA/APERC framework)** | ✅ | — | 2026-05-13 | 62/62 desktop tests pass + 6 SQL views live (ESI=73.97 ELEVATED) | 4 pillars renamed: Supply Security / Market Resilience / Grid Reliability / Energy Transition. 16 sub-indicators (IDR, SFRI, HHI, N-1, σ30d, price gap, β-crude, affordability, reserve margin, peak factor, shed prob, freq stability, renewable %, CO2 intensity, curtailment, netzero progress). Composite ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4 (IEA weights). Status thresholds SECURE/ELEVATED/STRESSED/CRITICAL. `infra/script/08_pillars_v2.sql` applied live. Java models + DAO + UI rewired with bilingual EN · VI labels. Commit `6c48d1e`. |
 | **7.2** | **Phase 7.2 — Real-time visibility** | ✅ | — | 2026-05-13 | 71/71 desktop tests (9 new) | Live event ticker (Flink REST `/jobs/.../metrics`, EMA-smoothed 3s cadence), Sparkline canvas widget (3-min trailing window per pillar), PulseEffect drop-shadow on new CRITICAL rows, Toast widget for CRITICAL alerts, fade-in for new recommendations, refresh cadence split (live 3s / tables 10s, down from 30s), `FlinkClient` HttpURLConnection wrapper. Commit `08fb6c1`. |
 | **7.3** | **Phase 7.3 — Interactive maps** | ✅ | — | 2026-05-13 | 77/77 desktop tests (6 new) + `mvn package` clean | `VietnamMap` widget (3 SVGPath polygons coloured by Pillar 3 score, click-to-drill-down), `WorldMapView` (JavaFX WebView + Leaflet 1.9.4 + OpenStreetMap with offline overlay fallback), 7 hub markers tinted by Pillar 2 price delta, new "Maps · Bản đồ" 5th tab loaded via nested FXML. `pom.xml` adds `javafx-web` 17.0.10. Commit `837ddba`. |
+| **7.5** | **Phase 7.5 — Final QA pass** | ✅ | — | 2026-05-13 | 77/77 desktop tests + 8/13 backend endpoints OK; 5 doc fixes; backend pillar regression flagged | Re-verified full stack on `c7ef8bd`: branch in sync, lint clean, all FXML parse, 5 docker containers up, Flink 18/18 vertices RUNNING, 4 Kafka topics live, ESI=72.82 ELEVATED. Caught Phase 7.1 backend regression (4 `/api/pillars/*` + 1 cascade-risks endpoint return 500 because legacy views were dropped without migrating `PillarDao`/`SecurityDao`). Documented in DEMO_RUN_LOG.md. JavaFX desktop unaffected. |
 
 **Legend:** ⬜ Pending | 🟡 In progress | ✅ Done | ❌ Failed (rolled back)
 
@@ -867,4 +868,69 @@ Add geospatial context to the dashboard: a clickable 3-zone Vietnam map (Pillar 
 - `UPGRADE_PLAN.md` Phase 7 status set to ✅ with sub-phase checklist.
 - Root `README.md` gains a "Phase 7 features" callout.
 - Final commit `docs: Phase 7 progress log + UPGRADE_PLAN status`, push to `origin/main`.
+
+---
+
+## Phase 7.5 — Final QA pass (13 May 2026, 03:00 ICT)
+
+End-to-end re-verification on `origin/main @ c7ef8bd` while the Phase 6 stack was still up (5 docker containers, 3 generators in WSL, backend JVM PID 18220 on port 8090).
+
+### Scorecard
+
+| Check | Result |
+|---|---|
+| `git log origin/main..HEAD` / `HEAD..origin/main` | both empty — branch in sync |
+| `mvn -pl desktop-admin -am clean test` | **77 / 77 PASS** in 23.8 s (Maven 3.9.6, JDK 21) |
+| `mvn -pl backend-api test` | BUILD SUCCESS, 0 tests authored (no @Test in module — documented gap) |
+| `mvn -pl desktop-admin -am clean package -DskipTests` | BUILD SUCCESS, `ves-desktop-admin.jar` = **144 KB** thin JAR |
+| Backend JAR (in-use, not re-packaged) | `ves-backend-api.jar` = **30.30 MB** Spring Boot fat JAR |
+| `ReadLints` over all 4 source modules | **clean** (no errors) |
+| `[xml]` parse over 7 FXML files | **7 / 7 OK** |
+| `web/worldmap.{html,css}` (Phase 7.3) | both present |
+| Docker containers | **5 running** (zookeeper / kafka / postgres-database / flink-jobmanager healthy; flink-taskmanager `unhealthy` per docker healthcheck but Flink job 18 / 18 vertices `RUNNING` → false-positive healthcheck) |
+| Flink REST `GET /jobs` | 1 job `db7d0dd6…` `RUNNING` |
+| Kafka `--list` | `fuel-prices`, `grid-load`, `renewable-output`, `emission` (+ internal `__consumer_offsets`) |
+| Postgres `\dt` / `\dv` | **13 tables / 17 views** (Phase 7.1 dropped 5 legacy views + added 5 IEA/APERC views = net 0; the README's older "19 views" claim was corrected to 17) |
+| Live row-count snapshot | `fuel_prices_raw` = 26 930 (vs Phase 6 +19 650), `grid_load_raw` = 5 275, `renewable_output_raw` = 7 767, `emission_raw` = 872, `alerts` = 234, `recommendations` = 8, `users` = 3, `regions` = 6, `alert_rules` = 10 |
+| `v_security_score` | `overall=72.82 ELEVATED` (P1 64.83 / P2 59.59 / P3 90.11 / P4 72.09) — IEA weighting active, status ladder = `SECURE/ELEVATED/STRESSED/CRITICAL` |
+| Phase 7.1 view counts | P1=6, P2=5, P3=3, P4=3, `v_active_alerts`=234, `v_active_recommendations`=8 — all > 0 |
+
+### Backend REST smoke (7 + 5 paths re-tested)
+
+| # | Endpoint | Status |
+|---|---|---|
+| 1 | `POST /api/auth/login` (admin/admin) | **200**, JWT 8 h, role `ADMIN` |
+| 2 | `GET /api/security/score` | **200** — overall 72.15 ELEVATED |
+| 3 | `GET /api/alerts/active?limit=5` | **200** — 5 rows, top = EMISSION_INTENSITY 689 kg/MWh `VN_SOUTH` |
+| 4 | `GET /api/pillars/1/outlook` | ❌ **500** — Phase 7.1 dropped `v_pillar1_supply_outlook` |
+| 5 | `GET /api/recommendations?limit=5` | **200** — 5 PENDING |
+| 6 | `GET /api/fuel-prices/latest?limit=3` | **200** — 3 rows |
+| 7 | `GET /api/health` | **200** — `db=UP`, `status=UP` |
+| + | `GET /api/auth/me` | **200** |
+| + | `GET /api/grid-load/latest` | **200** |
+| + | `GET /api/pillars/2/volatility` | ❌ **500** — view `v_pillar2_volatility_signal` dropped |
+| + | `GET /api/pillars/3/shedding-plan` | ❌ **500** — view `v_pillar3_load_shedding_plan` dropped |
+| + | `GET /api/pillars/4/net-zero` | ❌ **500** — view `v_pillar4_net_zero_progress` dropped |
+| + | `GET /api/security/cascade-risks` | ❌ **500** — view `v_cascade_risks` dropped |
+
+**8 / 13 endpoints OK, 5 broken** — all 5 failures stem from the same Phase 7.1 schema migration where SQL views were renamed/restructured to the IEA/APERC shape but `backend-api/.../dao/PillarDao.java` + `SecurityDao.java` + 4 corresponding DTOs were not migrated. Confirmed by reading `PillarDao.java` lines 46-127 — every query still references the dropped view names. Root cause is multi-file (5 backend Java files + matching DTO renames) and falls outside the QA pass's "no production code changes" guardrail, so it is reported here, not patched.
+
+### Documentation fixes applied during this pass
+
+| File | Change |
+|---|---|
+| `README.md` | "9 vertex" (Phase 3 era) → **18 vertex** (post-Phase 4); "13 bảng + 19 views" → **13 bảng + 17 views** with breakdown updated for Phase 7.1 v2 pillar views. |
+| `desktop-admin/README.md` | Override-DB example URL `…/fuel_db` → `…/fuel_prices` (only example was misaligned with the real default). |
+| `UPGRADE_PLAN.md` | Phase 0 smoke-test snippet referenced `fuel_db` + non-existent `fuel_prices` table; updated to `fuel_prices` DB + `fuel_prices_raw` table. |
+| `docs/DEMO_RUN_LOG.md` | Added Phase 7.1 schema-update note next to the old `v_security_score` snapshot (status ladder + ESI weighting), refreshed the JavaFX runbook for the new 5-tab layout (Maps · Bản đồ) and the 3 s / 10 s refresh cadence, and inlined a Phase 7.1 backend regression callout next to the `/api/pillars/*` endpoint smoke table. |
+
+### Hunt for the worker-mistake "admin / 123456" login string
+
+Per the QA brief, both `README.md` and `docs/PROGRESS.md` (Phase 7.4 sections) were grep-searched (`admin.{1,8}123456`, `Login.{0,80}admin`, `đăng nhập.{0,30}admin`) — **the misquote is not present in any tracked doc**. Every login string found is correct: `admin/admin`, `manager/manager`, `user/user`, etc. The only `123456` references in the repo are the legitimate Postgres password documented across README / `Cloud.md` / `backend-api/README.md` / `docker-compose.yml` and one `TEAM_TASKS.md` test-case literal for weak-password validation. **No fix required for that item.**
+
+### Verdict
+
+* JavaFX desktop app: **demo ready** (build clean, tests green, JDBC reads new Phase 7.1 views directly, dashboard / maps / pillars / CRUD all functional).
+* Backend REST API: **partial demo ready** — health / auth / security score / alerts / recommendations / fuel-prices / grid-load all 200; 4 pillar endpoints + cascade risks 500 until Phase 8 backend migration.
+* Recommended demo path: showcase JavaFX as the primary surface; treat the backend as a smoke-tested sidecar (use the still-green endpoints in the API tour and skip pillar GETs).
 
