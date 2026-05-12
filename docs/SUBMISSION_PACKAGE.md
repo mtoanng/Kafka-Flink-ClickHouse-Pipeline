@@ -12,7 +12,8 @@
 |---|---|
 | **Repository** | https://github.com/mtoanng/Real-time-processing-with-Kafka-Flink-Postgres |
 | **Tag** | `v1.0.0` |
-| **Commit hash** | `3d30b39` (tag points here) |
+| **Tag commit** | `3d30b39` (tag points here — snapshot at submission time) |
+| **Current `main` HEAD** | `e64d447` (Phase 7.6 backend pillar migration — post-tag fix; see [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes") |
 | **Branch** | `main` |
 | **Release date** | 13 May 2026 |
 | **Release notes** | [`docs/RELEASE_NOTES.md`](./RELEASE_NOTES.md) |
@@ -109,11 +110,20 @@ mmdc -i docs/diagrams/04_pillar_framework.md -o docs/diagrams/04_pillar_framewor
 | Artifact | Reference |
 |---|---|
 | **E2E demo run log** | [`docs/DEMO_RUN_LOG.md`](./DEMO_RUN_LOG.md) |
-| **Phase log with snapshots** | [`docs/PROGRESS.md`](./PROGRESS.md) — see Phase 7.5 "Final QA pass" section |
+| **Phase log with snapshots** | [`docs/PROGRESS.md`](./PROGRESS.md) — see Phase 7.5 "Final QA pass" + Phase 7.6 "Backend pillar migration" sections |
 | **Verified ESI snapshot** | `overall=72.82 ELEVATED` (P1=64.83, P2=59.59, P3=90.11, P4=72.09) on `HEAD = 30265f1` |
 | **Verified data volume** | `fuel_prices_raw=26 930`, `grid_load_raw=5 275`, `renewable_output_raw=7 767`, `emission_raw=872`, `alerts=234`, `recommendations=8` |
 | **Verified Flink job state** | 1 job RUNNING, 18 / 18 vertices RUNNING |
-| **Verified REST smoke** | 8/13 endpoints `200 OK` (5 endpoints `500` documented in [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) under "Known issues") |
+| **Verified REST smoke (tag `v1.0.0` @ `3d30b39`)** | 8/13 endpoints `200 OK` — 5 endpoints `500` (legacy-view regression, see [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Known issues") |
+| **Verified REST smoke (current `main` @ `e64d447`)** | ✅ **13/13 endpoints `200 OK`** — Phase 7.6 backend pillar migration resolved at `e64d447`; 11 new `@WebMvcTest` smoke tests in `backend-api`. See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes". |
+
+### Post-release fixes (post-tag, on `main`)
+
+| # | Fix | Commit | Status | Notes |
+|---|---|---|---|---|
+| 1 | **Phase 7.6 — Backend pillar migration** | `e64d447` | ✅ Resolved | Closes the 5-endpoint backend regression flagged by Phase 7.5 QA. `PillarDao` + `SecurityDao` rewritten against the IEA/APERC views; 4 pillar DTOs reshaped (`Pillar{1..4}{SupplySecurity,MarketResilience,GridReliability,EnergyTransition}Dto`). Legacy paths (`/api/pillars/{1..4}/{outlook,volatility,shedding,netzero}`) kept as backward-compat aliases for the new canonical paths (`/api/pillars/{1..4}/{supply-security,market-resilience,grid-reliability,energy-transition}`). 13 / 13 REST smoke green; 11 new `@WebMvcTest` smoke tests pass. `docs/openapi.json` (20 paths) + `docs/VES-Monitor.postman_collection.json` (8 folders / 19 requests) regenerated. |
+
+> Tag `v1.0.0` is **intentionally not re-tagged**; it remains a snapshot at `3d30b39`. To reproduce the fixed state, check out `origin/main` instead of the tag.
 
 ---
 
@@ -122,7 +132,7 @@ mmdc -i docs/diagrams/04_pillar_framework.md -o docs/diagrams/04_pillar_framewor
 | Module | Test command | Expected | Test report folder |
 |---|---|---:|---|
 | `desktop-admin` | `mvn -pl desktop-admin test` | **77 / 77 PASS** in ~18 s | `desktop-admin/target/surefire-reports/` |
-| `backend-api` | `mvn -pl backend-api test` | BUILD SUCCESS (Phase 7.6 in progress) | `backend-api/target/surefire-reports/` |
+| `backend-api` (current `main` @ `e64d447`) | `mvn -pl backend-api -am clean test` | **11 / 11 PASS** — `@WebMvcTest` smoke (8 pillar + 3 security; Phase 7.6 resolved) | `backend-api/target/surefire-reports/` |
 | All modules | `mvn clean test` | All builds GREEN | per-module folders |
 
 **Test breakdown** (`desktop-admin/`):
@@ -212,4 +222,4 @@ mmdc -i docs/diagrams/04_pillar_framework.md -o docs/diagrams/04_pillar_framewor
 
 ---
 
-> **Submission ready** — `v1.0.0` tagged at `3d30b39` on `origin/main`, 13 May 2026.
+> **Submission ready** — `v1.0.0` tagged at `3d30b39` on `origin/main`, 13 May 2026. Current `main` HEAD is `e64d447` with the Phase 7.6 backend pillar migration applied (see § F → "Post-release fixes" and [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes"). Tag is preserved as-is — no re-tag was issued.

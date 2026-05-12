@@ -4,7 +4,7 @@
 
 > **First production-grade release** of the Vietnam Energy Security Real-time Monitor. Marks the end of the 7-phase development cycle (Foundation → IEA/APERC redesign → submission docs). All four Maven modules are build-clean and the desktop module passes 77/77 tests.
 
-**Git tag**: `v1.0.0` → commit `36cbf79` (`docs: Phase 7.7 — README final polish …`).
+**Git tag**: `v1.0.0` → commit `3d30b39` (`docs: Phase 7.7 — RELEASE_NOTES.md + v1.0.0 tag`). The tag is a snapshot in time; subsequent fixes on `origin/main` are documented in [§ Post-release fixes](#-post-release-fixes) below.
 **Repo**: https://github.com/mtoanng/Real-time-processing-with-Kafka-Flink-Postgres
 **Course**: IS402.P21 · Java Programming · UIT-VNUHCM 2026.
 
@@ -48,26 +48,59 @@
 
 ---
 
+## ✅ Post-release fixes
+
+> The `v1.0.0` tag is a snapshot at commit `3d30b39`. Items below landed on `origin/main` **after** the tag and are part of the current `main` HEAD, but **not** retro-applied to the tag. No re-tag (`v1.0.1`) was issued — the tag is preserved as-is for archival fidelity. Reproduce the fixed state by checking out `origin/main` instead of `v1.0.0`.
+
+### Phase 7.6 — Backend pillar migration · `e64d447` (post-tag)
+
+**Status**: ✅ **Resolved**. The "Backend REST regression — 5 of 13 endpoints return 500" entry below (carried over from the `v1.0.0` snapshot) is now closed on `main`.
+
+**What landed**:
+- `PillarDao` + `SecurityDao` rewritten to read the IEA/APERC views (`v_pillar1_supply_security`, `v_pillar2_market_resilience`, `v_pillar3_grid_reliability`, `v_pillar4_energy_transition`).
+- 4 pillar DTOs renamed and reshaped: `Pillar{1..4}{SupplySecurity,MarketResilience,GridReliability,EnergyTransition}Dto`.
+- `PillarController` now exposes **both** legacy and new paths (legacy retained as backward-compat aliases — see backend taxonomy below).
+- `GET /api/security/cascade-risks` returns `200 OK` with an empty list (`@Deprecated`; the old `v_cascade_risks` view was dropped in Phase 7.1 and cascade analysis is to be re-implemented in a later phase).
+- **REST smoke**: 13 / 13 endpoints `200 OK` (`build-logs/p76-api-smoke.json`).
+- **Tests**: 11 new `@WebMvcTest` smoke tests in `backend-api` (8 pillar + 3 security; JUnit 4 + `SpringRunner` to match the cached surefire 2.12.4 toolchain). `mvn -pl backend-api -am clean test` → 11 / 11 PASS.
+- `docs/openapi.json` (20 paths) and `docs/VES-Monitor.postman_collection.json` (8 folders / 19 requests, with auto-`{{token}}` script on `Auth-Login`) regenerated.
+
+**Backend pillar taxonomy** (post-Phase 7.6, on `main`):
+
+| Pillar | New canonical path | Legacy alias (kept for backward-compat) |
+|---|---|---|
+| 1 — Availability | `GET /api/pillars/1/supply-security` | `GET /api/pillars/1/outlook` |
+| 2 — Affordability | `GET /api/pillars/2/market-resilience` | `GET /api/pillars/2/volatility` |
+| 3 — Accessibility | `GET /api/pillars/3/grid-reliability` | `GET /api/pillars/3/shedding` (and `/3/shedding-plan`) |
+| 4 — Acceptability | `GET /api/pillars/4/energy-transition` | `GET /api/pillars/4/netzero` (and `/4/net-zero`) |
+
+Both paths return the new IEA-shaped DTO; clients that pinned the old paths continue to work without code changes.
+
+---
+
 ## 🐛 Known issues
 
-### Backend REST regression — 5 of 13 endpoints return 500
+> Status reflects the `v1.0.0` snapshot at `3d30b39`. Items already resolved on `main` are tagged **RESOLVED** with the fix commit.
 
-**Endpoints affected**:
+### Backend REST regression — 5 of 13 endpoints return 500 · ✅ RESOLVED on `main` (Phase 7.6, `e64d447`)
+
+**Endpoints affected** (in the `v1.0.0` snapshot):
 - `GET /api/pillars/1/outlook`
 - `GET /api/pillars/2/volatility`
 - `GET /api/pillars/3/shedding-plan`
 - `GET /api/pillars/4/net-zero`
 - `GET /api/security/cascade-risks`
 
-**Root cause**: Phase 7.1 IEA/APERC redesign (`infra/script/08_pillars_v2.sql`) **dropped the 5 legacy views** (`v_pillar1_supply_outlook`, `v_pillar2_volatility_signal`, `v_pillar3_load_shedding_plan`, `v_pillar4_net_zero_progress`, `v_cascade_risks`) and replaced them with the IEA-shaped views (`v_pillar1_supply_security`, `v_pillar2_market_resilience`, `v_pillar3_grid_reliability`, `v_pillar4_energy_transition`). `desktop-admin`'s `ViewsDao` was migrated in lock-step but `backend-api`'s `PillarDao` + `SecurityDao` were not, so any controller that hits a dropped view returns HTTP 500.
+**Root cause**: Phase 7.1 IEA/APERC redesign (`infra/script/08_pillars_v2.sql`) **dropped the 5 legacy views** (`v_pillar1_supply_outlook`, `v_pillar2_volatility_signal`, `v_pillar3_load_shedding_plan`, `v_pillar4_net_zero_progress`, `v_cascade_risks`) and replaced them with the IEA-shaped views (`v_pillar1_supply_security`, `v_pillar2_market_resilience`, `v_pillar3_grid_reliability`, `v_pillar4_energy_transition`). `desktop-admin`'s `ViewsDao` was migrated in lock-step but `backend-api`'s `PillarDao` + `SecurityDao` were not, so any controller that hits a dropped view returned HTTP 500.
 
-**Status as of `v1.0.0`**: 🟡 **Migration in progress** — sibling worker is rewiring `PillarDao` + `SecurityDao` + 4 pillar DTOs to the new IEA shape. The fix is expected as Phase 7.6 backend regression patch; tracked in [`docs/PROGRESS.md`](./PROGRESS.md) Phase 7.5 section.
+**Status as of `v1.0.0` (`3d30b39`)**: 🟡 **Migration in progress** at the time of tagging.
+**Status on current `main`**: ✅ **Resolved at `e64d447`** (Phase 7.6 — Backend pillar migration). All 13 / 13 REST endpoints now return `200 OK`; 11 new `@WebMvcTest` smoke tests cover the migrated controllers. See [§ Post-release fixes](#-post-release-fixes) above for full details.
 
-**Impact**:
+**Impact in the `v1.0.0` snapshot**:
 - **JavaFX desktop**: ✅ unaffected — uses direct JDBC to read the new IEA views, not REST.
-- **Working REST endpoints** (8 of 13): `POST /api/auth/login`, `GET /api/auth/me`, `GET /api/security/score`, `GET /api/recommendations`, `POST /api/recommendations/{id}/acknowledge`, `GET /api/alerts/active`, `GET /api/fuel-prices/latest`, `GET /api/grid-load/latest`, `GET /api/health`.
+- **Working REST endpoints** at tag time (8 of 13): `POST /api/auth/login`, `GET /api/auth/me`, `GET /api/security/score`, `GET /api/recommendations`, `POST /api/recommendations/{id}/acknowledge`, `GET /api/alerts/active`, `GET /api/fuel-prices/latest`, `GET /api/grid-load/latest`, `GET /api/health`.
 
-**Workaround during demo**: use the JavaFX dashboard as the primary surface (covers all 4 pillars via direct JDBC); only call the 8 working REST endpoints in the Postman tour (per [`docs/DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) Step 4).
+**Workaround when demoing the `v1.0.0` tag**: use the JavaFX dashboard as the primary surface (covers all 4 pillars via direct JDBC); only call the 8 working REST endpoints in the Postman tour (per [`docs/DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) Step 4). When demoing `origin/main` (post-`e64d447`), all 13 REST endpoints are usable.
 
 ### Minor issues
 
@@ -78,7 +111,7 @@
 
 ## 🔧 Migration guide
 
-**Nothing to migrate** — `v1.0.0` is the first tagged release. Future versions (post-Phase 7.6 backend fix) will inherit `v1.0.0` schemas verbatim; the only changes will be on the Java DAO/DTO layer of `backend-api/`.
+**Nothing to migrate** — `v1.0.0` is the first tagged release. The post-tag Phase 7.6 backend fix on `origin/main` (`e64d447`) inherits the `v1.0.0` schema verbatim; all changes are confined to the Java DAO / DTO / controller layer of `backend-api/`. No SQL schema migration is required to move from `v1.0.0` → `main`.
 
 If you previously cloned the repo at `HEAD < 30265f1` (Phase 7.5 QA pass), you may have stale `Pillar*OutlookDto.java` files left in your working tree. Clean with:
 
@@ -181,7 +214,7 @@ Expected snapshot at T+3 min (per [`docs/DEMO_RUN_LOG.md`](./DEMO_RUN_LOG.md)):
 
 These items are **out of scope for `v1.0.0`** but documented here for continuity:
 
-- **Phase 7.6 backend regression patch** — `PillarController` / `PillarDao` / `SecurityController` / `SecurityDao` + 4 pillar DTOs rewired to the IEA-APERC view schema (in progress by sibling worker)
+- **Phase 7.6 backend regression patch** — ✅ **Landed post-tag at `e64d447`** (see [§ Post-release fixes](#-post-release-fixes) above). `PillarController` / `PillarDao` / `SecurityController` / `SecurityDao` + 4 pillar DTOs rewired to the IEA-APERC view schema; 13 / 13 endpoints `200 OK`; 11 new `@WebMvcTest` smoke tests added.
 - **Phase 8 deploy** — Cloudflare Tunnel to expose the backend + JavaFX over the internet
 - **Phase 9 hardening** — Patroni for Postgres HA · Kafka MirrorMaker for DR · OAuth2 + Keycloak replacing the demo JWT
 - **TimescaleDB migration** — convert raw tables to hypertables for >1 year retention with auto-partitioning
@@ -190,4 +223,4 @@ These items are **out of scope for `v1.0.0`** but documented here for continuity
 ---
 
 **Released by**: VES-Monitor team, 13 May 2026 ICT.
-**Committed at**: `36cbf79`. **Tagged**: `v1.0.0`.
+**Tagged**: `v1.0.0` at commit `3d30b39`. **Current `main` HEAD** (post-release fixes applied): `e64d447`.
