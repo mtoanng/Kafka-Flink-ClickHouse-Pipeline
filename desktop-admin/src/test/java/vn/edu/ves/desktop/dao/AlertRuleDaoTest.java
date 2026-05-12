@@ -1,0 +1,136 @@
+package vn.edu.ves.desktop.dao;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import vn.edu.ves.desktop.model.AlertRule;
+import vn.edu.ves.desktop.model.MetricType;
+import vn.edu.ves.desktop.model.Operator;
+import vn.edu.ves.desktop.model.Severity;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * H2 in-memory tests cho {@link AlertRuleDao}: full CRUD + filter by metricType.
+ */
+public class AlertRuleDaoTest {
+
+    private AlertRuleDao dao;
+
+    @Before
+    public void setUp() throws Exception {
+        H2TestSupport.overrideSingletonToH2();
+        try (Connection c = H2TestSupport.openConnection()) {
+            H2TestSupport.exec(c, "DROP TABLE IF EXISTS alert_rules");
+            H2TestSupport.exec(c,
+                    "CREATE TABLE alert_rules (" +
+                    " id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                    " rule_name VARCHAR(150) NOT NULL," +
+                    " metric_type VARCHAR(50) NOT NULL DEFAULT 'FUEL_PRICE'," +
+                    " fuel_type VARCHAR(50)," +
+                    " region_code VARCHAR(20)," +
+                    " location VARCHAR(100)," +
+                    " operator VARCHAR(5) NOT NULL," +
+                    " threshold DECIMAL(12,4) NOT NULL," +
+                    " severity VARCHAR(20) NOT NULL DEFAULT 'WARNING'," +
+                    " enabled BOOLEAN NOT NULL DEFAULT TRUE," +
+                    " created_by BIGINT," +
+                    " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                    " updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+        }
+        dao = new AlertRuleDao();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        try (Connection c = H2TestSupport.openConnection()) {
+            H2TestSupport.exec(c, "DROP TABLE IF EXISTS alert_rules");
+        }
+    }
+
+    @Test
+    public void insert_assignsIdAndPersists() {
+        AlertRule r = newRule("WTI > 90", MetricType.FUEL_PRICE, "WTI_CRUDE", null,
+                Operator.GT, "90.0000", Severity.WARNING);
+        AlertRule saved = dao.save(r);
+        assertNotNull(saved);
+        assertTrue(saved.getId() > 0);
+        Optional<AlertRule> fetched = dao.findById(saved.getId());
+        assertTrue(fetched.isPresent());
+        assertEquals(MetricType.FUEL_PRICE, fetched.get().getMetricType());
+        assertEquals(Operator.GT, fetched.get().getOperator());
+        assertEquals(0, new BigDecimal("90.0000").compareTo(fetched.get().getThreshold()));
+    }
+
+    @Test
+    public void update_changesThresholdAndSeverity() {
+        AlertRule saved = dao.save(newRule("Initial", MetricType.GRID_LOAD_PCT, null, "VN_NORTH",
+                Operator.GTE, "85.0", Severity.INFO));
+        saved.setThreshold(new BigDecimal("92.0"));
+        saved.setSeverity(Severity.CRITICAL);
+        AlertRule updated = dao.save(saved);
+        assertNotNull(updated);
+        AlertRule fetched = dao.findById(saved.getId()).orElse(null);
+        assertNotNull(fetched);
+        assertEquals(Severity.CRITICAL, fetched.getSeverity());
+        assertEquals(0, new BigDecimal("92.0").compareTo(fetched.getThreshold()));
+    }
+
+    @Test
+    public void delete_removesRow() {
+        AlertRule saved = dao.save(newRule("DEL", MetricType.RENEWABLE_PCT, null, null,
+                Operator.LT, "25.0", Severity.WARNING));
+        assertTrue(dao.delete(saved.getId()));
+        assertFalse(dao.findById(saved.getId()).isPresent());
+    }
+
+    @Test
+    public void findByMetricType_filtersCorrectly() {
+        dao.save(newRule("R1", MetricType.FUEL_PRICE, "WTI_CRUDE", null,
+                Operator.GT, "100.0", Severity.CRITICAL));
+        dao.save(newRule("R2", MetricType.GRID_LOAD_PCT, null, "VN_NORTH",
+                Operator.GT, "90.0", Severity.WARNING));
+        dao.save(newRule("R3", MetricType.GRID_LOAD_PCT, null, "VN_SOUTH",
+                Operator.GT, "88.0", Severity.WARNING));
+
+        List<AlertRule> fuelRules = dao.findByMetricType(MetricType.FUEL_PRICE);
+        List<AlertRule> loadRules = dao.findByMetricType(MetricType.GRID_LOAD_PCT);
+        List<AlertRule> emissionRules = dao.findByMetricType(MetricType.EMISSION_INTENSITY);
+
+        assertEquals(1, fuelRules.size());
+        assertEquals(2, loadRules.size());
+        assertEquals(0, emissionRules.size());
+    }
+
+    @Test
+    public void setEnabled_togglesFlag() {
+        AlertRule saved = dao.save(newRule("ToggleMe", MetricType.FUEL_PRICE, "BRENT_CRUDE", null,
+                Operator.GTE, "95.0", Severity.WARNING));
+        assertTrue(saved.isEnabled());
+        assertTrue(dao.setEnabled(saved.getId(), false));
+        AlertRule fetched = dao.findById(saved.getId()).orElseThrow();
+        assertFalse(fetched.isEnabled());
+    }
+
+    private AlertRule newRule(String name, MetricType m, String fuel, String region,
+                               Operator op, String threshold, Severity sev) {
+        AlertRule r = new AlertRule();
+        r.setRuleName(name);
+        r.setMetricType(m);
+        r.setFuelType(fuel);
+        r.setRegionCode(region);
+        r.setOperator(op);
+        r.setThreshold(new BigDecimal(threshold));
+        r.setSeverity(sev);
+        r.setEnabled(true);
+        return r;
+    }
+}

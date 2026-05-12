@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Phase 5.4 — AlertRule CRUD. -->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.SplitPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="vn.edu.ves.desktop.controller.AlertRuleController"
+            styleClass="crud-root">
+
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+            <padding>
+                <Insets bottom="10.0" left="16.0" right="16.0" top="10.0"/>
+            </padding>
+            <Label styleClass="brand" text="Alert Rules"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnRefresh" onAction="#reload" styleClass="btn-secondary" text="Refresh"/>
+            <Button fx:id="btnBack" onAction="#handleBackToDashboard" styleClass="btn-secondary" text="← Dashboard"/>
+        </HBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.38">
+            <items>
+
+                <!-- ===== LEFT FORM ===== -->
+                <VBox spacing="10.0" styleClass="crud-form">
+                    <padding>
+                        <Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/>
+                    </padding>
+
+                    <Label fx:id="lblMode" styleClass="form-mode" text="Thêm mới"/>
+
+                    <Label styleClass="form-label" text="Rule name"/>
+                    <TextField fx:id="txtRuleName" promptText="WTI vượt 90 USD/barrel"/>
+
+                    <Label styleClass="form-label" text="Metric type"/>
+                    <ChoiceBox fx:id="cbMetricType" maxWidth="Infinity"/>
+
+                    <Label styleClass="form-label" text="Fuel type (optional, vd: WTI_CRUDE)"/>
+                    <TextField fx:id="txtFuelType" promptText="WTI_CRUDE / GASOLINE / *"/>
+
+                    <Label styleClass="form-label" text="Region code (optional, vd: VN_NORTH)"/>
+                    <TextField fx:id="txtRegionCode" promptText="VN_NORTH"/>
+
+                    <Label styleClass="form-label" text="Location (optional)"/>
+                    <TextField fx:id="txtLocation" promptText="New York / Hà Nội..."/>
+
+                    <HBox spacing="8.0" alignment="CENTER_LEFT">
+                        <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                            <Label styleClass="form-label" text="Operator"/>
+                            <ChoiceBox fx:id="cbOperator" maxWidth="Infinity"/>
+                        </VBox>
+                        <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                            <Label styleClass="form-label" text="Threshold (số)"/>
+                            <TextField fx:id="txtThreshold" promptText="90.0"/>
+                        </VBox>
+                    </HBox>
+
+                    <Label styleClass="form-label" text="Severity"/>
+                    <ChoiceBox fx:id="cbSeverity" maxWidth="Infinity"/>
+
+                    <CheckBox fx:id="chkEnabled" selected="true" text="Enabled (Flink load rule này)"/>
+
+                    <Label fx:id="lblError" styleClass="error-text" wrapText="true"/>
+
+                    <Separator/>
+
+                    <HBox spacing="8.0">
+                        <Button fx:id="btnNew" onAction="#handleNew" styleClass="btn-secondary" text="Mới"/>
+                        <Button fx:id="btnSave" onAction="#handleSave" styleClass="btn-primary" text="Lưu"/>
+                        <Button fx:id="btnToggle" onAction="#handleToggleEnabled" styleClass="btn-secondary" text="Toggle"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="btnDelete" onAction="#handleDelete" styleClass="btn-danger" text="Xóa"/>
+                    </HBox>
+                </VBox>
+
+                <!-- ===== RIGHT TABLE ===== -->
+                <VBox spacing="8.0" styleClass="crud-table">
+                    <padding>
+                        <Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/>
+                    </padding>
+                    <Label styleClass="form-mode" text="Danh sách alert_rules (click để chỉnh sửa)"/>
+                    <TableView fx:id="tblRules" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colId" prefWidth="50.0" text="ID"/>
+                            <TableColumn fx:id="colName" prefWidth="220.0" text="Rule name"/>
+                            <TableColumn fx:id="colMetric" prefWidth="160.0" text="Metric"/>
+                            <TableColumn fx:id="colCondition" prefWidth="200.0" text="Condition"/>
+                            <TableColumn fx:id="colSeverity" prefWidth="100.0" text="Severity"/>
+                            <TableColumn fx:id="colEnabled" prefWidth="80.0" text="Enabled"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+</BorderPane>
