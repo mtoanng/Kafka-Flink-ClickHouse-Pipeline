@@ -96,6 +96,96 @@
     -fx-font-style: italic;
 }
 
+/* ---------------- Dashboard shell (Phase 5.2) ---------------- */
+.dashboard-root {
+    -fx-background-color: #f5f7fa;
+}
+
+.top-bar {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 6, 0.1, 0, 1);
+    -fx-border-color: transparent transparent #e0e0e0 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.brand {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0d47a1;
+}
+
+.brand-sub {
+    -fx-font-size: 11px;
+    -fx-text-fill: #607d8b;
+}
+
+.score-caption {
+    -fx-font-size: 11px;
+    -fx-text-fill: #607d8b;
+}
+
+.score-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212121;
+}
+
+.score-status {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #455a64;
+}
+
+.score-status.status-secure   { -fx-text-fill: #38761D; }
+.score-status.status-stable   { -fx-text-fill: #1976d2; }
+.score-status.status-at-risk  { -fx-text-fill: #B45F06; }
+.score-status.status-critical { -fx-text-fill: #CC0000; }
+
+.user-info {
+    -fx-font-size: 12px;
+    -fx-text-fill: #37474f;
+    -fx-font-weight: 600;
+}
+
+.last-refresh {
+    -fx-font-size: 10px;
+    -fx-text-fill: #90a4ae;
+}
+
+.pillar-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #263238;
+}
+
+/* Pillar background tints (theo plan) */
+.pillar-1 { -fx-background-color: #FFFBEA; }   /* yellow */
+.pillar-2 { -fx-background-color: #E3F2FD; }   /* blue */
+.pillar-3 { -fx-background-color: #FFF3E0; }   /* orange */
+.pillar-4 { -fx-background-color: #E8F5E9; }   /* green */
+
+/* Status text colors (dùng cho cell custom nếu cần) */
+.status-secure   { -fx-text-fill: #38761D; -fx-font-weight: 600; }
+.status-warning  { -fx-text-fill: #B45F06; -fx-font-weight: 600; }
+.status-critical { -fx-text-fill: #CC0000; -fx-font-weight: 600; }
+
+.rec-sidebar {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 0 0 0 1;
+}
+
+.rec-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #263238;
+}
+
+.rec-count {
+    -fx-font-size: 11px;
+    -fx-text-fill: #607d8b;
+}
+
 /* ---------------- Dashboard placeholder (Phase 5.1) ---------------- */
 .dashboard-placeholder {
     -fx-background-color: #fafafa;
