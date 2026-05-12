@@ -110,7 +110,12 @@ public class ViewsDaoTest {
 
     private static void dropAll(Connection c) throws Exception {
         for (String v : VIEW_NAMES) {
-            H2TestSupport.exec(c, "DROP VIEW IF EXISTS " + v);
+            try {
+                H2TestSupport.exec(c, "DROP VIEW IF EXISTS " + v);
+            } catch (Exception ignore) {
+                // H2 IF EXISTS ném khi object tồn tại nhưng là TABLE (không phải VIEW).
+                // Bỏ qua — DROP TABLE bên dưới sẽ dọn nốt.
+            }
             H2TestSupport.exec(c, "DROP TABLE IF EXISTS " + v);
         }
     }

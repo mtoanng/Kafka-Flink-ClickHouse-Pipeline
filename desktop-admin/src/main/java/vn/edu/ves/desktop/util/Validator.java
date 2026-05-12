@@ -57,7 +57,7 @@ public interface Validator<T> {
         }
     }
 
-    /** Strategy: chiều dài trong khoảng [min, max] (inclusive). Null → bỏ qua (để NotBlank lo). */
+    /** Strategy: chiều dài trong khoảng [min, max] (inclusive). Null/blank → bỏ qua (để NotBlank lo). */
     class LengthRangeValidator implements Validator<String> {
         private final String fieldName;
         private final int min;
@@ -69,7 +69,7 @@ public interface Validator<T> {
         }
         @Override
         public List<String> validate(String value) {
-            if (value == null) return Collections.emptyList();
+            if (value == null || value.trim().isEmpty()) return Collections.emptyList();
             int len = value.trim().length();
             if (len < min || len > max) {
                 return Collections.singletonList(
