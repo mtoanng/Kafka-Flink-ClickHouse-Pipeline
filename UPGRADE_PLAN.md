@@ -2443,7 +2443,7 @@ GET  /api/stream/fuel-prices          # SSE realtime
 | **Recommendation auto-gen** | Khi alert CRITICAL được tạo → insert kèm 1 row vào `recommendations` với `action_type` derive từ pillar: Pillar 1 → TRANSFER_STOCK; Pillar 2 → HEDGE_IMPORT; Pillar 3 → PEAK_SHAVING; Pillar 4 → DISPATCH_RENEWABLE. `suggested_data` JSONB chứa context (region, threshold, current_value). |
 | **Files mới** | `process/AlertDetectionFunction.java`, `source/AlertRulesLoader.java`, `sink/AlertJdbcSink.java`, `sink/RecommendationJdbcSink.java` |
 | **Smoke test** | Manually `UPDATE alert_rules SET threshold = 0.01 WHERE id = 1` → đợi 1 phút → `SELECT COUNT(*) FROM alerts WHERE rule_id=1` > 0 + `SELECT COUNT(*) FROM recommendations WHERE pillar=2` tăng. Sau đó reset threshold. |
-| **Common pitfalls** | Reload rules dynamic phức tạp → giữ static load lúc start, restart job khi đổi rule (đủ cho demo). RecommendationJdbcSink phải có dedup logic (không spam 1 alert/giây), dùng cooldown 10 phút bằng cách check `WHERE NOT EXISTS ... suggested_at > NOW() - INTERVAL '10 minutes'`. |
+| **Common pitfalls** | (1) Reload rules dynamic phức tạp → giữ static load lúc start, restart job khi đổi rule. (2) Cooldown 60s/key/rule qua MapState; recommendations dedup 30 phút SQL `WHERE NOT EXISTS`. (3) Maven build issue: `maven-surefire-plugin:3.2.2` chưa cache → corporate proxy fail. Downgrade về 2.12.4 trong parent pom (cached). (4) Kafka topic `fuel-prices` cần được tạo trước khi submit job (hoặc chạy producer trước) — Flink fail nếu topic chưa tồn tại. (5) Flink usrlib không có sẵn — upload JAR qua REST API `POST /jars/upload` + `POST /jars/{id}/run`. |
 | **Tag** | `v0.3-flink-alert` |
 
 ---

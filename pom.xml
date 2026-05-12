@@ -41,7 +41,8 @@
         <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <maven.shade.plugin.version>3.4.0</maven.shade.plugin.version>
-        <maven.surefire.plugin.version>3.2.2</maven.surefire.plugin.version>
+        <!-- 2.12.4 đã có trong WSL .m2 cache; 3.2.2 chưa pull được qua corporate proxy. -->
+        <maven.surefire.plugin.version>2.12.4</maven.surefire.plugin.version>
     </properties>
 
     <build>

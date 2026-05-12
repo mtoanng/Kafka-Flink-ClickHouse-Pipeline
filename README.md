@@ -149,7 +149,7 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 | **2** | Schema users/regions/alert_rules/alerts (Pillar 2 ops) | ✅ `v0.2-schema` |
 | **2.5** | Pillar 1/3/4 raw tables + seed (Light 4-pillar coverage) | ✅ `v0.2.5-pillars` |
 | **2.6** | Security output features (recommendations + 8 action views + ESI score) | ✅ `v0.2.6-security-features` |
-| **3** | Flink Alert PF — đọc alert_rules đa pillar → `alerts` + tự sinh `recommendations` | ⬜ |
+| **3** | Flink Alert Detection (FUEL_PRICE rules) + Auto Recommendation Gen (CRITICAL) | ✅ `v0.3-flink-alert` |
 | **4** | Spring Boot REST API + **2 generator mới** (grid-load + renewable) | ⬜ |
 | **5** | JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard | ⬜ |
 | **6** | Android App — 4 activity, bottom nav 4 pillars | ⬜ |

@@ -11,7 +11,7 @@
 | 2 | Schema users/regions/alerts | ✅ | v0.2-schema | 2026-05-12 | Pass 7 tables + 7 views + 3 bcrypt OK | users, regions, alert_rules, alerts + v_active_alerts view |
 | **2.5** | **Schema 4-pillar (Light)** | ✅ | **v0.2.5-pillars** | 2026-05-12 | **Pass 11 tables + 11 views, 4-status Pillar 1** | **Pillar 1/3/4 raw tables + 4 dashboard views; fresh boot loads all 6 SQL files cleanly; memory 929MB no regression** |
 | **2.6** | **Security Output Features (actionable)** | ✅ | **v0.2.6-security-features** | 2026-05-12 | **Pass 13 tables + 19 views; security_score 76.41 STABLE** | **8 action views + 2 audit tables (recommendations, daily_briefings); alert_rules extended với metric_type đa pillar; v_security_score Light ESI; v_pillar1_supply_outlook trả recommendation_text human-readable; fresh boot loads all 8 SQL files cleanly; memory 917MB no regression** |
-| 3 | Flink Alert Detection + Recommendation Gen | ⬜ | — | — | — | |
+| **3** | **Flink Alert Detection + Recommendation Auto-Gen** | ✅ | **v0.3-flink-alert** | 2026-05-12 | **6 alerts triggered (3W+3C), 1 auto-rec, cooldown verified, cascade risk auto-detect** | **4th branch wired; AlertDetectionFunction with MapState 60s cooldown; SQL NOT EXISTS 30min dedup for recommendations; auto-detected FUEL_SHORTAGE_RISK cascade after volatility kicks in** |
 | 4 | 2 Generator (Pillar 3 + 4) | ⬜ | — | — | — | grid-load + renewable-output + emission |
 | 4.5 | Spring Boot REST API (~12 endpoint) | ⬜ | — | — | — | 8 core + 4 pillar endpoint |
 | 5 | JavaFX Admin Desktop ⭐ | ⬜ | — | — | — | TabPane 4-pillar dashboard |
@@ -116,4 +116,68 @@ User feedback: *"đủ pillars nhưng đảm bảo có đầy đủ các output 
 | **SCORE** | Energy Security Score 0-100 (Light ESI weighted 25% mỗi pillar) + 4 status SECURE/STABLE/AT_RISK/CRITICAL | `v_security_score` |
 | **CASCADE** | Compound risks multi-pillar (3 risk types) | `v_cascade_risks` |
 
-### Next: Phase 3 — Flink Alert Detection (multi-pillar) + Recommendation Auto-Gen
+### Next: Phase 4 — 2 Generators (grid-load + renewable) cho Pillar 3/4
+
+---
+
+## Phase 3 — Flink Alert Detection + Recommendation Auto-Gen Log
+
+### Mục tiêu đạt được
+Biến Flink job từ chỉ "ghi dữ liệu" thành **detection + recommendation engine** real-time. Khi giá vi phạm rule, hệ thống tự sinh alert (audit trail) và recommendation (actionable for admin). Multi-pillar cascade risk tự động kích hoạt khi volatility + low inventory cùng xảy ra.
+
+### Action log
+1. ✅ Explored existing Flink job (3 streams: raw / window / price-change-detector legacy)
+2. ✅ Created `model/AlertRule.java` — POJO mapping `alert_rules` table với helper `appliesTo(FuelPrice)` + `isTriggered(double price)`
+3. ✅ Created `model/RuleAlertEvent.java` — DTO emit từ AlertDetectionFunction với `actionTypeForRecommendation()` helper
+4. ✅ Created `source/AlertRulesLoader.java` — JDBC load FUEL_PRICE rules lúc job startup (1 lần, static rules — restart job khi đổi rule per §24.5 design)
+5. ✅ Created `process/AlertDetectionFunction.java` — KeyedProcessFunction với `MapState<ruleId, lastAlertTsMillis>` 60s cooldown
+6. ✅ Wired LUỒNG 4 vào `KafkaConsumerApplication.java`:
+   - keyBy(fuelType + "::" + location)
+   - process(AlertDetectionFunction) → RuleAlertEvent stream
+   - Sink #1: `alerts` table (mọi event qua cooldown)
+   - Sink #2: filter(severity=CRITICAL) → `recommendations` table với SQL `WHERE NOT EXISTS (... suggested_at > NOW() - 30 min)` dedup
+7. ✅ Maven build issue: parent POM pinned `maven-surefire-plugin:3.2.2` nhưng cache chỉ có .pom.lastUpdated (corporate proxy fail). Downgraded to **2.12.4** (cached). Build OK → 86MB shaded JAR.
+8. ✅ Upload JAR qua Flink REST API + submit job: `b23dbef9f603a0c621b95f5a31c13fa8`
+9. ✅ Initial fail: Kafka topic `fuel-prices` chưa tồn tại (no producer chạy). Created topic manually với 3 partitions. Job tự restart → RUNNING.
+10. ✅ Verified AlertRulesLoader logs: nạp 5 rules đúng từ DB (WTI 90, WTI 100, Brent 95, Gasoline NY 3, Diesel London <2)
+11. ✅ Smoke test #1 — WTI 105.50: → 2 alerts (rule 1 WARNING + rule 2 CRITICAL) + 1 auto-recommendation HEDGE_IMPORT
+12. ✅ Smoke test #2 — Cooldown verification: pushed 3 rapid WTI breaches, only 1 (the one outside 60s cooldown) generated alerts → cooldown works
+13. ✅ Smoke test #3 — Recommendation dedup: 3 CRITICAL alerts generated only 1 recommendation (SQL NOT EXISTS 30min check works)
+14. ✅ Integration test: 4 streams all RUNNING (raw=125 rows, window=100 rows, legacy price-change=7 rows, rule-alerts=6 rows)
+15. ✅ Bonus: `v_security_score` Pillar 2 dropped 100 → 32.70 due to detected VOLATILE signal (σ=6.73%). Overall 76.41 → 60.31.
+16. ✅ Bonus: `v_cascade_risks` activated — 3 FUEL_SHORTAGE_RISK CRITICAL detected (WTI volatile × 3 low-inventory regions VN_SOUTH/VN_NORTH)
+17. ✅ Updated PROGRESS.md + README + UPGRADE_PLAN.md
+
+### Phase 3 Verification snapshot
+- **alerts table**: 6 rows (3 WARNING from rule 1 WTI>90, 3 CRITICAL from rule 2 WTI>100)
+- **recommendations**: 4 active (3 seed + 1 auto-gen HEDGE_IMPORT)
+- **v_security_score**: 60.31 STABLE (P1=68.5, P2=32.7 ← volatility detected!, P3=70, P4=70)
+- **v_pillar2_volatility_signal**: WTI_CRUDE NY = VOLATILE (σ=7.75, 6.73%)
+- **v_cascade_risks**: 3 FUEL_SHORTAGE_RISK auto-detected
+- **All 4 Flink streams**: RUNNING ✓
+- **Cooldown 60s/key/rule**: ✓ (proved by rapid push test)
+- **Recommendation 30min dedup SQL**: ✓ (3 CRITICAL alerts → 1 recommendation)
+
+### Files created
+```
+flink-jobs/fuel-flink-job/src/main/java/org/cloud/
+├── model/
+│   ├── AlertRule.java          (NEW - POJO from alert_rules)
+│   └── RuleAlertEvent.java     (NEW - emitted by AlertDetectionFunction)
+├── process/
+│   └── AlertDetectionFunction.java  (NEW - KeyedProcessFunction with MapState cooldown)
+├── source/
+│   └── AlertRulesLoader.java   (NEW - JDBC load at startup)
+└── KafkaConsumerApplication.java   (MODIFIED - added LUỒNG 4)
+```
+
+### Operational notes
+- **Khi đổi alert_rules → restart Flink job** (static load design). Quy trình: cancel job qua Flink UI hoặc REST API DELETE /jobs/{id}, sau đó POST /jars/{id}/run lại.
+- **Khi muốn test alert nhanh**: lower threshold của 1 rule cho dễ trigger:
+  ```sql
+  UPDATE alert_rules SET threshold = 50 WHERE rule_name = 'WTI vượt 90 USD/barrel';
+  -- Restart Flink job sau đó.
+  ```
+- **Monitoring**: Flink UI tại http://localhost:8081/#/job/{jobid}/overview xem 4 vertex (Source, Window, PriceChange, Rule-Alert) đều RUNNING.
+
+### Next: Phase 4 — 2 Generators (grid-load + renewable) cho Pillar 3/4
