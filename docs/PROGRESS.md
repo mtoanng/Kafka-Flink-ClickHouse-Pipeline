@@ -23,6 +23,7 @@
 | 6 | Android App | 🔀 split | — | 2026-05-12 | — | Tách thành đồ án độc lập, repo riêng [`mtoanng/DataStream`](https://github.com/mtoanng/DataStream). Không còn nằm trong scope đồ án Java. |
 | 7 | Deploy + Cloudflared | ⬜ | — | — | — | |
 | 8 | Doc + Demo Prep | ⬜ | — | — | — | |
+| **E2E** | **End-to-end runtime smoke (full stack)** | ✅ | — | 2026-05-13 | **18/18 Flink vertices RUNNING, 4 topics flowing (+660/+132/+198/+24 msgs in 90s), 34 active alerts, 8 active recommendations, v_security_score=70.50 STABLE, 7 REST endpoints 200 OK** | **Full pipeline verified live on HEAD `16eb665`: Lite Docker stack (~1.59 GB RAM), Flink job submitted from pre-built `fuel-flink-job-1.1.1.jar`, 3 generators on WSL host, backend `ves-backend-api.jar` on :8090. Detailed runbook + payload samples + shutdown procedure in [`docs/DEMO_RUN_LOG.md`](DEMO_RUN_LOG.md).** |
 
 **Legend:** ⬜ Pending | 🟡 In progress | ✅ Done | ❌ Failed (rolled back)
 
@@ -668,4 +669,47 @@ Color screen quản lý 6 region seed (3 VN + 3 quốc tế). Form bên trái + 
 - Bring up Postgres via Docker (Phase 1 `infra/` compose) → re-run backend smoke + JWT login from JavaFX.
 - Tag `v0.5-javafx-desktop` once runtime smoke is green.
 - Run `mvn javafx:run` locally (interactive) → final UI screenshot for demo.
+
+---
+
+## E2E runtime verified (13 May 2026)
+
+### HEAD
+`16eb665` (`Phase 4.5 + 5 build verified: 62/62 desktop tests pass, JARs produced`)
+
+### Full stack live + smoke result
+First end-to-end runtime test of the complete pipeline. **All acceptance criteria passed.** Detailed runbook in [`docs/DEMO_RUN_LOG.md`](DEMO_RUN_LOG.md).
+
+| Layer | Verification |
+|---|---|
+| Docker Lite stack | 5 containers healthy in 15 s via `bash scripts/run.sh --wait`. Total RAM ≈ 1.59 GB / 2.85 GB budget. |
+| Kafka | 4 topics auto-pre-created (`fuel-prices` / `grid-load` / `renewable-output` / `emission`), 3 partitions each. Δ messages over 90 s: +660 / +132 / +198 / +24. |
+| Flink | Job `db7d0dd6…` (`VES-Monitor Real-time Pipeline (4 pillars / 7 streams)`) RUNNING, **18/18 tasks running**, 0 failed. |
+| Postgres | Raw row counts growing across snapshots (fuel +660, alerts +8). `alerts` total = 34, `recommendations` = 8. |
+| `v_security_score` | `overall=70.50 STABLE` (P1 68.52 / P2 92.46 / P3 21.02 / P4 100.00). Pillar 2 score drifted live as σ-rolling caught new ticks → views are live, not cached. |
+| Backend REST (port 8090) | `POST /api/auth/login` → JWT 8h (ADMIN). 6 protected endpoints + `/api/health` all return 200 with non-empty bodies. Payloads saved to `build-logs/api_smoke.json`. |
+
+### Row count snapshot (T+~3 min)
+
+| Table | Rows | | View | Rows |
+|---|---:|---|---|---:|
+| `fuel_prices_raw` | 7 280 | | `v_active_alerts` | 34 |
+| `fuel_price_window_agg` | 447 | | `v_active_recommendations` | 8 |
+| `fuel_price_alerts` | 1 132 | | | |
+| `grid_load_raw` | 1 345 | | | |
+| `renewable_output_raw` | 1 872 | | | |
+| `emission_raw` | 218 | | | |
+| `alerts` | 34 | | | |
+| `recommendations` | 8 | | | |
+
+### Operational notes
+- The 4 SQL fixes from commit `1c41353` (Phase 5 build verification) carry through cleanly — backend `/api/auth/login` with the seed `admin`/`admin` BCrypt `$2b$` hash works on first try (Spring `BCryptPasswordEncoder` accepts both `$2a$`/`$2b$`).
+- One CRLF gotcha applied: `sed -i 's/\r$//' scripts/*.sh` once before any WSL invocation — same fix the repo already documents in `docs/PROXY_SETUP.md`.
+- Existing `pgdata` volume preserved → tables include rows from prior demos. Growth between snapshots (not absolute counts) is what proves the live run is sinking data.
+- Backend Java process recorded its PID in `build-logs/backend-run.pid` for clean shutdown.
+
+### Next
+- Tag `v0.6-e2e-verified` after this commit lands.
+- Re-run snapshot with a fresh volume (`bash scripts/stop.sh --volumes && bash scripts/run.sh --wait`) before recording final demo video — that gives "clean canvas" counts for slides.
+- User to launch JavaFX desktop (`mvn -pl desktop-admin javafx:run`) against this same running stack to capture the dashboard UI screenshot.
 
