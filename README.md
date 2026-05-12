@@ -2,7 +2,7 @@
 
 > Nền tảng **giám sát an ninh năng lượng Việt Nam** thời gian thực qua **Kafka + Flink + PostgreSQL**, bao quát **4 pillars** (Nguồn cung, Biến động Kinh tế, Phụ tải, Chuyển đổi & Môi trường) — kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn cho Pillar 2 (giá nhiên liệu thế giới), bổ sung light coverage cho 3 pillars còn lại.
 
-[![Status](https://img.shields.io/badge/status-Phase%204.5%20code--complete-yellowgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+[![Status](https://img.shields.io/badge/status-Phase%205%20code--complete-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
 
 > 👥 **Thành viên đồ án Java**, đọc **[`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)** để biết task của mình (B/C/D/E × 5 PR step-by-step).
 >
@@ -34,7 +34,7 @@
 | **Storage** | PostgreSQL 15 | **13 bảng + 19 views** (3 fuel + 4 ops + 4 pillar + 2 security) — toàn bộ logic actionable nằm trong SQL views. `alerts.metric_type` đa pillar (Phase 4). |
 | **BI** | Metabase 0.47 (overlay) | Dashboard 4-pillar |
 | **REST API** | Spring Boot 2.7 (Phase 4.5 — code ready, build pending) | JWT + **14 endpoint** cover 4 pillars cho Desktop + Mobile, port `8090` |
-| **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, **Dashboard 4-tab pillars**, 5 màn, JUnit |
+| **Desktop UI** | JavaFX 17.0.10 LTS (Phase 5, code-complete) | 3-layer, JDBC trực tiếp Postgres, **5 màn** (Login + Dashboard 4-pillar TabPane + Region CRUD + AlertRule CRUD + User CRUD admin-only), **62 JUnit 4 test** (H2 in-memory DAO + Mockito service + util) |
 | **Mobile UI** | Android Studio (Phase 6) | Retrofit + MPAndroidChart, **bottom nav 4 pillars**, 4 màn |
 | **Orchestration** | Docker Compose | One-click stack Lite ~2.85 GB |
 
@@ -192,7 +192,7 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 | **3** | Flink Alert Detection (FUEL_PRICE rules) + Auto Recommendation Gen (CRITICAL) | ✅ `v0.3-flink-alert` |
 | **4** | **2 Generator mới (grid-load + renewable) + Flink multi-pillar (GRID_LOAD_PCT + EMISSION_INTENSITY)** | ✅ `v0.4-generators` |
 | **4.5** | **Spring Boot 2.7 REST API — 14 endpoint cover 4 pillar + JWT + Swagger** | 🟡 `code-complete` (build pending — Bosch proxy NTLM block; run `mvn package` từ hotspot 4G) |
-| **5** | JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard | ⬜ |
+| **5** | **JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard, JDBC trực tiếp, 62 JUnit test** | 🟡 `code-complete` Phase 5.1→5.5 (build pending cùng proxy block) |
 | **6** | Android App — 4 activity, bottom nav 4 pillars | ⬜ |
 | **7** | Deploy + Cloudflared Tunnel | ⬜ |
 | **8** | Documentation + Demo prep | ⬜ |
@@ -233,6 +233,35 @@ bash scripts/phase45_smoke_api.sh         # user mặc định admin/admin
 | `GET  /api/health`                 | -    | DB ping (public, dùng cho tunnel probe) |
 
 Swagger UI: `http://localhost:8090/swagger-ui.html`. Chi tiết build / proxy workaround / config: [`backend-api/README.md`](./backend-api/README.md).
+
+---
+
+## 🖥️ Phase 5 — JavaFX Admin Desktop (code-complete)
+
+> **Trạng thái**: 5 màn code-complete, lint clean, **62 JUnit 4 test** (H2 + Mockito + pure unit). Build runtime defer cùng Phase 4.5 do proxy Bosch block JavaFX 17 deps lần đầu. Module nằm ở `desktop-admin/`, đường găng dùng JDBC trực tiếp Postgres (**không qua REST API Phase 4.5**) — tránh blocker proxy chéo phase.
+
+```bash
+mvn -pl desktop-admin -am clean compile     # ~30s pull JavaFX 17.0.10 deps lần đầu
+mvn -pl desktop-admin javafx:run            # mở app, đăng nhập admin/admin
+mvn -pl desktop-admin test                  # chạy 62 @Test (không cần network)
+```
+
+| Màn | Controller | Quyền |
+|-----|-----------|-------|
+| Login | `LoginController` (BCrypt verify, AuthServiceImpl) | Public |
+| Dashboard | `DashboardController` (ProgressIndicator gauge + TabPane 4 pillar + auto-refresh 30s + recommendation sidebar) | ADMIN / MANAGER / VIEWER |
+| Region CRUD | `RegionController` (form + table, validator chain) | ADMIN / MANAGER write, VIEWER read |
+| AlertRule CRUD | `AlertRuleController` (multi-pillar metric_type, operator/severity enum, toggle enable) | ADMIN / MANAGER write, VIEWER read |
+| User CRUD | `UserController` (ADMIN-only, self-delete guard) | ADMIN only |
+
+### Design patterns checklist (môn Java)
+- **Singleton**: `DatabaseConfig`, `SessionManager` (AtomicReference thread-safe)
+- **DAO**: 4 DAO (`UserDao` / `RegionDao` / `AlertRuleDao` / `ViewsDao`) extends `BaseDao`
+- **MVC**: 6 FXML view + 6 Controller + 13 Model POJO
+- **Strategy + Composite**: `util/Validator` interface + 4 strategy implementations + `Validator.compose(...)` chain
+- **Factory**: `DatabaseConfig.openConnection()` trả Connection mới mỗi call
+
+Chi tiết: [`desktop-admin/README.md`](./desktop-admin/README.md) — bao gồm directory tree, test count từng file, override DB env.
 
 ---
 

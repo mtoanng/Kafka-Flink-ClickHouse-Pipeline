@@ -2,28 +2,32 @@
 
 > **Phase 5** của UPGRADE_PLAN §24.5 — JavaFX 17 admin desktop, 3-layer, JDBC trực tiếp Postgres.
 
-[![Status](https://img.shields.io/badge/status-Phase%205.0%20foundation-yellow)]() [![Java](https://img.shields.io/badge/Java-11-orange)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]()
+[![Status](https://img.shields.io/badge/status-Phase%205%20code--complete-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11-orange)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![Tests](https://img.shields.io/badge/tests-62%20%40Test-blue)]()
 
 ---
 
 ## 🎯 Mục tiêu
 
-5 màn theo §24.5:
+5 màn theo §24.5 — **đã hoàn thành code Phase 5.1 → 5.5**:
 
-1. **Login** — BCrypt verify seed users (admin/manager/viewer từ Phase 2)
-2. **Dashboard** — Security Score gauge + TabPane 4 pillar (đọc 4 view có sẵn)
-3. **Region CRUD** — quản lý 6 region
-4. **AlertRule CRUD** — quản lý threshold cho 4 pillar
-5. **User CRUD** — admin-only, quản lý user system
+1. **Login** ✅ — BCrypt verify seed users (admin/manager/viewer từ Phase 2), `LoginController` switch scene → Dashboard
+2. **Dashboard** ✅ — Security Score `ProgressIndicator` gauge ở top bar + TabPane 4 pillar (mỗi tab TableView + chart) + Recommendations sidebar, auto-refresh 30s
+3. **Region CRUD** ✅ — form (code/name/country/vn_zone/description) + TableView, validator chain
+4. **AlertRule CRUD** ✅ — multi-pillar metric_type, operator/severity enum, toggle enable/disable, threshold validator
+5. **User CRUD** ✅ — ADMIN-only screen, đổi password optional, self-delete guard
 
 3-layer pattern: **Controller (FXML) → Service → DAO → JDBC**.
 
-Design patterns checkpoint môn Java:
-- **Singleton**: `DatabaseConfig`, `SessionManager`
-- **DAO**: `UserDao`, `RegionDao`, `AlertRuleDao`, `ViewsDao`
-- **MVC**: FXML view + Controller class + Model class
-- **Builder** (Phase 5.3+): filter builder cho alert search
-- **Strategy** (Phase 5.5): Validator strategies (NumericRange, NotBlank, Pattern, ...)
+### Design patterns đã triển khai
+
+| Pattern | Vị trí | Mô tả |
+|---------|--------|-------|
+| **Singleton** | `DatabaseConfig`, `SessionManager` | Eager init, thread-safe AtomicReference cho user |
+| **DAO** | `UserDao`, `RegionDao`, `AlertRuleDao`, `ViewsDao` | Try-with-resources, BaseDao helpers nullable-aware |
+| **MVC** | `controller/*.java` + `fxml/*.fxml` + `model/*.java` | FXMLLoader + Scene switching |
+| **Strategy** | `util/Validator` | Interface + `NotBlankValidator` / `PatternValidator` / `LengthRangeValidator` / `InSetValidator` |
+| **Composite** | `Validator.compose(...)` | Gom nhiều Strategy thành 1 chain, collect all errors |
+| **Factory** | `DatabaseConfig.openConnection()` | Trả Connection mới mỗi call (caller try-with-resources đóng) |
 
 ---
 
@@ -42,7 +46,7 @@ mvn -pl desktop-admin -am clean compile
 mvn -pl desktop-admin javafx:run
 ```
 
-> 📌 **Phase 5.0**: chạy ra cửa sổ **placeholder gradient blue** với text "VES-Monitor Admin Desktop / Phase 5.0 — Foundation OK". Login form thật sẽ wire ở Phase 5.1.
+> ⚠️ **Build pending notice** (Phase 5.0-5.5): code-complete + lint clean nhưng **chưa chạy `mvn` test** do parent project trên máy Bosch laptop bị NTLM proxy block khi pull JavaFX 17 deps (~30 MB). Khi có hotspot 4G hoặc cntlm bridge, chạy `mvn -pl desktop-admin -am clean test` để verify ~62 test method tự động pass.
 
 ### Override DB connection
 
@@ -56,6 +60,16 @@ mvn -pl desktop-admin javafx:run \
     -Ddb.url=jdbc:postgresql://localhost:5432/test_db
 ```
 
+### Seed users để login
+
+| Username | Password | Role | Có thể truy cập |
+|----------|----------|------|------------------|
+| `admin`   | `admin`   | ADMIN   | Full CRUD: Region + AlertRule + User |
+| `manager` | `manager` | MANAGER | CRUD Region + AlertRule, không User |
+| `user`    | `user`    | VIEWER  | Chỉ xem dashboard (form CRUD disabled) |
+
+(Hash `$2b$10$...` đã seed sẵn ở `infra/script/04_seed_basic.sql`.)
+
 ---
 
 ## 📂 Cấu trúc module
@@ -68,49 +82,86 @@ desktop-admin/
 └── src/
     ├── main/
     │   ├── java/vn/edu/ves/desktop/
-    │   │   ├── MainApp.java                Application entry
-    │   │   ├── controller/                 FXML controllers (Phase 5.1+)
-    │   │   ├── service/                    Business logic (Phase 5.1+)
-    │   │   ├── dao/                        JDBC data access (Phase 5.1+)
-    │   │   ├── model/                      POJOs (Phase 5.1+)
-    │   │   └── util/
-    │   │       └── DatabaseConfig.java     Singleton config + Connection factory
+    │   │   ├── MainApp.java                Application entry, load login.fxml
+    │   │   ├── controller/
+    │   │   │   ├── LoginController.java
+    │   │   │   ├── DashboardController.java
+    │   │   │   ├── DashboardPlaceholderController.java   (Phase 5.1 stub)
+    │   │   │   ├── RegionController.java
+    │   │   │   ├── AlertRuleController.java
+    │   │   │   └── UserController.java
+    │   │   ├── service/
+    │   │   │   ├── AuthService + AuthServiceImpl
+    │   │   │   ├── DashboardService + DashboardServiceImpl
+    │   │   │   ├── RegionService + RegionServiceImpl
+    │   │   │   ├── AlertRuleService + AlertRuleServiceImpl
+    │   │   │   └── UserService + UserServiceImpl
+    │   │   ├── dao/
+    │   │   │   ├── BaseDao.java            Helper static methods
+    │   │   │   ├── UserDao.java
+    │   │   │   ├── RegionDao.java
+    │   │   │   ├── AlertRuleDao.java
+    │   │   │   └── ViewsDao.java           Read-only DAO cho 6 view actionable
+    │   │   ├── model/
+    │   │   │   ├── User, Role
+    │   │   │   ├── Region
+    │   │   │   ├── AlertRule, MetricType, Operator, Severity
+    │   │   │   ├── SecurityScore
+    │   │   │   ├── Pillar1Outlook, Pillar2Volatility, Pillar3Shedding, Pillar4NetZero
+    │   │   │   └── Recommendation
+    │   │   ├── util/
+    │   │   │   ├── DatabaseConfig.java     Singleton config + Connection factory
+    │   │   │   ├── SessionManager.java     Singleton, AtomicReference user slot
+    │   │   │   ├── PasswordUtil.java       BCrypt wrapper
+    │   │   │   ├── AlertHelper.java        JavaFX Alert wrappers
+    │   │   │   └── Validator.java          Strategy + Composite
+    │   │   └── exception/
+    │   │       └── AuthenticationException.java
     │   └── resources/
     │       ├── application.properties      DB defaults
     │       ├── logback.xml                 Logging
-    │       ├── fxml/login.fxml             Placeholder (Phase 5.1 sẽ replace)
+    │       ├── fxml/
+    │       │   ├── login.fxml
+    │       │   ├── dashboard.fxml
+    │       │   ├── dashboard_placeholder.fxml  (Phase 5.1 stub, không dùng nữa)
+    │       │   ├── region.fxml
+    │       │   ├── alertRule.fxml
+    │       │   └── user.fxml
     │       └── css/material.css            Material-inspired theme
     └── test/
-        └── java/vn/edu/ves/desktop/        JUnit 4 tests (Phase 5.5: ≥10 test)
+        └── java/vn/edu/ves/desktop/
+            ├── dao/
+            │   ├── H2TestSupport.java      H2 in-memory + reflection override config
+            │   ├── UserDaoTest.java        7 tests
+            │   ├── RegionDaoTest.java      6 tests
+            │   ├── AlertRuleDaoTest.java   5 tests
+            │   └── ViewsDaoTest.java       6 tests
+            ├── service/
+            │   ├── AuthServiceTest.java    6 tests
+            │   ├── DashboardServiceTest    4 tests
+            │   ├── RegionServiceTest.java  4 tests
+            │   ├── AlertRuleServiceTest    3 tests
+            │   └── UserServiceTest.java    5 tests
+            └── util/
+                ├── PasswordUtilTest.java   5 tests
+                ├── SessionManagerTest      6 tests
+                └── ValidatorTest.java      5 tests
 ```
+
+**Tổng: 62 @Test methods** (≥10 yêu cầu môn Java).
 
 ---
 
 ## 🛣️ Phase 5 roadmap
 
-| Sub-phase | Done | Mô tả |
-|-----------|------|-------|
-| 5.0 | ✅ | Maven module + javafx-maven-plugin + folder structure + smoke `mvn javafx:run` |
-| 5.1 | ⏳ | Login screen + BCrypt + SessionManager |
-| 5.2 | ⏳ | Dashboard shell + TabPane 4 pillar + Security Score gauge |
-| 5.3 | ⏳ | Region CRUD |
-| 5.4 | ⏳ | AlertRule CRUD + User CRUD |
-| 5.5 | ⏳ | JUnit ≥10 test |
-
----
-
-## ⚠️ Build pending notice
-
-Phase 5.0 code-complete, lint clean. **Build runtime test pending** do parent project trên máy Bosch laptop bị NTLM proxy block khi pull JavaFX deps. Khi có hotspot 4G hoặc cntlm bridge:
-
-```bash
-mvn -pl desktop-admin -am clean compile     # ~30s pull JavaFX 17 deps
-mvn -pl desktop-admin javafx:run            # mở cửa sổ
-```
-
-Nếu sau khi compile gặp issue `JavaFX runtime not found`:
-- javafx-maven-plugin 0.0.8 cần Java 11+. Verify `java --version`.
-- Trên Windows, plugin sẽ tự config module-path. Nếu fail, fallback chạy bằng IDE (IntelliJ → Run Configuration với mainClass = `vn.edu.ves.desktop.MainApp` + VM options `--module-path /path/to/javafx-sdk-17/lib --add-modules javafx.controls,javafx.fxml`).
+| Sub-phase | Status | Mô tả | Commit |
+|-----------|--------|-------|--------|
+| 5.0 | ✅ | Maven module + javafx-maven-plugin + folder structure | `62c824c` |
+| 5.1 | ✅ | Login screen + BCrypt + SessionManager + UserDao | `08a97bd` |
+| 5.2 | ✅ | Dashboard shell + TabPane 4 pillar + Security Score gauge | `de7c4dd` |
+| 5.3 | ✅ | Region CRUD + Validator strategy | `7ced8e0` |
+| 5.4 | ✅ | AlertRule CRUD + User CRUD (admin-only) | `8caec9e` |
+| 5.5 | ✅ | Test consolidation + final docs | (file này) |
 
 ---
 

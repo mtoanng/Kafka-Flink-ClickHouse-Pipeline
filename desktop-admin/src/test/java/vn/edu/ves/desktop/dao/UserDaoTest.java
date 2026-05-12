@@ -1,0 +1,154 @@
+package vn.edu.ves.desktop.dao;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import vn.edu.ves.desktop.model.Role;
+import vn.edu.ves.desktop.model.User;
+import vn.edu.ves.desktop.util.PasswordUtil;
+
+import java.sql.Connection;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * H2 in-memory tests cho {@link UserDao}.
+ *
+ * <p>Đóng vòng coverage Phase 5.5 — bổ sung integration test cho UserDao
+ * (Phase 5.1 đã có mock-based test qua AuthService).</p>
+ */
+public class UserDaoTest {
+
+    private UserDao dao;
+
+    @Before
+    public void setUp() throws Exception {
+        H2TestSupport.overrideSingletonToH2();
+        try (Connection c = H2TestSupport.openConnection()) {
+            H2TestSupport.exec(c, "DROP TABLE IF EXISTS users");
+            H2TestSupport.exec(c,
+                    "CREATE TABLE users (" +
+                    " id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                    " username VARCHAR(50) NOT NULL UNIQUE," +
+                    " password_hash VARCHAR(255) NOT NULL," +
+                    " full_name VARCHAR(150)," +
+                    " email VARCHAR(150)," +
+                    " role VARCHAR(20) NOT NULL DEFAULT 'VIEWER'," +
+                    " enabled BOOLEAN NOT NULL DEFAULT TRUE," +
+                    " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                    " updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                    " last_login_at TIMESTAMP)");
+        }
+        dao = new UserDao();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        try (Connection c = H2TestSupport.openConnection()) {
+            H2TestSupport.exec(c, "DROP TABLE IF EXISTS users");
+        }
+    }
+
+    @Test
+    public void insert_assignsIdAndIsFindableByUsername() {
+        User u = new User();
+        u.setUsername("alice");
+        u.setRole(Role.MANAGER);
+        u.setFullName("Alice Tester");
+        u.setEmail("alice@ves.local");
+        u.setEnabled(true);
+        String hash = PasswordUtil.hash("secret123");
+        User saved = dao.save(u, hash);
+        assertNotNull(saved);
+        assertTrue(saved.getId() > 0);
+
+        Optional<User> fetched = dao.findByUsername("alice");
+        assertTrue(fetched.isPresent());
+        assertEquals(Role.MANAGER, fetched.get().getRole());
+        assertTrue(PasswordUtil.verify("secret123", fetched.get().getPasswordHash()));
+    }
+
+    @Test
+    public void update_withoutPassword_keepsExistingHash() {
+        User u = new User();
+        u.setUsername("bob");
+        u.setRole(Role.VIEWER);
+        u.setEnabled(true);
+        String originalHash = PasswordUtil.hash("origPw");
+        User saved = dao.save(u, originalHash);
+        long id = saved.getId();
+
+        saved.setFullName("Bob Updated");
+        saved.setRole(Role.MANAGER);
+        User updated = dao.save(saved, null);
+        assertNotNull(updated);
+
+        User fetched = dao.findById(id).orElseThrow();
+        assertEquals("Bob Updated", fetched.getFullName());
+        assertEquals(Role.MANAGER, fetched.getRole());
+        assertTrue("Password vẫn verify với hash cũ", PasswordUtil.verify("origPw", fetched.getPasswordHash()));
+    }
+
+    @Test
+    public void update_withNewPassword_changesHash() {
+        User u = new User();
+        u.setUsername("carol");
+        u.setRole(Role.ADMIN);
+        u.setEnabled(true);
+        User saved = dao.save(u, PasswordUtil.hash("oldPw"));
+
+        saved = dao.save(saved, PasswordUtil.hash("newPw"));
+        User fetched = dao.findByUsername("carol").orElseThrow();
+        assertFalse(PasswordUtil.verify("oldPw", fetched.getPasswordHash()));
+        assertTrue(PasswordUtil.verify("newPw", fetched.getPasswordHash()));
+    }
+
+    @Test
+    public void updateLastLogin_setsTimestamp() {
+        User saved = dao.save(makeUser("dave", Role.VIEWER), PasswordUtil.hash("p"));
+        assertNull(saved.getLastLoginAt());
+        boolean ok = dao.updateLastLogin(saved.getId());
+        assertTrue(ok);
+        User fetched = dao.findByUsername("dave").orElseThrow();
+        assertNotNull(fetched.getLastLoginAt());
+    }
+
+    @Test
+    public void setEnabled_togglesAccount() {
+        User saved = dao.save(makeUser("erin", Role.VIEWER), PasswordUtil.hash("p"));
+        assertTrue(saved.isEnabled());
+        assertTrue(dao.setEnabled(saved.getId(), false));
+        assertFalse(dao.findById(saved.getId()).orElseThrow().isEnabled());
+    }
+
+    @Test
+    public void delete_removesUser() {
+        User saved = dao.save(makeUser("frank", Role.VIEWER), PasswordUtil.hash("p"));
+        long id = saved.getId();
+        assertTrue(dao.delete(id));
+        assertFalse(dao.findById(id).isPresent());
+    }
+
+    @Test
+    public void findAll_returnsAllInsertedUsers() {
+        dao.save(makeUser("u1", Role.ADMIN), PasswordUtil.hash("p"));
+        dao.save(makeUser("u2", Role.MANAGER), PasswordUtil.hash("p"));
+        dao.save(makeUser("u3", Role.VIEWER), PasswordUtil.hash("p"));
+        List<User> all = dao.findAll();
+        assertEquals(3, all.size());
+    }
+
+    private User makeUser(String username, Role role) {
+        User u = new User();
+        u.setUsername(username);
+        u.setRole(role);
+        u.setEnabled(true);
+        return u;
+    }
+}
