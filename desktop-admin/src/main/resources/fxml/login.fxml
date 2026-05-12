@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Phase 5.0 placeholder — empty stage smoke test.
+     Phase 5.1 sẽ thay bằng full login form + LoginController. -->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Pos?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      alignment="CENTER"
+      spacing="12.0"
+      styleClass="login-pane">
+    <padding>
+        <Insets bottom="32.0" left="32.0" right="32.0" top="32.0"/>
+    </padding>
+    <Label styleClass="title" text="VES-Monitor"/>
+    <Label styleClass="subtitle" text="Admin Desktop"/>
+    <Label styleClass="hint" text="Phase 5.0 — Foundation OK. Phase 5.1 sẽ wire login form."/>
+</VBox>

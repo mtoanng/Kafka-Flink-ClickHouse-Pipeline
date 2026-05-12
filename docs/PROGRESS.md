@@ -14,8 +14,13 @@
 | **3** | **Flink Alert Detection + Recommendation Auto-Gen** | ✅ | **v0.3-flink-alert** | 2026-05-12 | **6 alerts triggered (3W+3C), 1 auto-rec, cooldown verified, cascade risk auto-detect** | **4th branch wired; AlertDetectionFunction with MapState 60s cooldown; SQL NOT EXISTS 30min dedup for recommendations; auto-detected FUEL_SHORTAGE_RISK cascade after volatility kicks in** |
 | **4** | **Generators Pillar 3 + 4 (multi-pillar Flink)** | ✅ | **v0.4-generators** | 2026-05-12 | **4 raw streams flowing; 4 alert types fired (CRITICAL grid + 2 WARNING grid + WARNING emission); auto-rec PEAK_SHAVING generated; cascade CARBON_COST_RISK detected** | **grid-load-generator (3 region/5s) + renewable-generator (9 record/10s + 3 emission/30s); Flink 9 vertices (4 source + 5 detector); generic KafkaInvoiceSource.createSourceForTopic; alerts.metric_type added; multi-pillar dispatch in RuleAlertEvent.actionTypeForRecommendation() + getPillar()** |
 | **4.5** | **Spring Boot REST API (14 endpoint)** | 🟡 | — | 2026-05-12 | **Code-complete, lint-clean. Build pending (proxy Bosch NTLM block).** | **24 file Java + pom + yml + module README + 14-endpoint smoke script. Spring Boot 2.7.18 / JdbcTemplate / JWT HS256. Khi có hotspot 4G hoặc cntlm bridge: `mvn package` + `java -jar` + `bash scripts/phase45_smoke_api.sh`.** |
-| 5 | JavaFX Admin Desktop ⭐ | ⬜ | — | — | — | TabPane 4-pillar dashboard |
-| 6 | Android App | ⬜ | — | — | — | Bottom-nav 4 pillars |
+| **5.0** | **JavaFX Module Foundation** | 🟡 | — | 2026-05-12 | **Module declared trong parent + 9 file source/config + valid XML + lint clean** | **desktop-admin/ module: pom.xml (JavaFX 17.0.10 LTS + jbcrypt + h2 test + JUnit 4 native với surefire 2.12.4), MainApp.java loads /fxml/login.fxml + /css/material.css, DatabaseConfig singleton (resolve order: sysprop → env → properties), placeholder gradient blue login.fxml, Material CSS. Build runtime test pending cùng proxy block với Phase 4.5.** |
+| 5.1 | Login + BCrypt + SessionManager | ⬜ | — | — | — | Full login form, AuthService, UserDao |
+| 5.2 | Dashboard 4 pillar TabPane | ⬜ | — | — | — | Đọc 5 views có sẵn |
+| 5.3 | Region CRUD | ⬜ | — | — | — | |
+| 5.4 | AlertRule + User CRUD | ⬜ | — | — | — | |
+| 5.5 | ≥10 JUnit test + final commit | ⬜ | — | — | — | |
+| 6 | Android App | 🔀 split | — | 2026-05-12 | — | Tách thành đồ án độc lập, repo riêng [`mtoanng/DataStream`](https://github.com/mtoanng/DataStream). Không còn nằm trong scope đồ án Java. |
 | 7 | Deploy + Cloudflared | ⬜ | — | — | — | |
 | 8 | Doc + Demo Prep | ⬜ | — | — | — | |
 
@@ -400,4 +405,50 @@ docs/PROGRESS.md                                 (MOD - phase row + log section 
 - **Swagger UI**: `http://localhost:8090/swagger-ui.html` (có Authorize button dán Bearer token).
 - **Phase 5 (JavaFX) sẽ dùng API**: `HttpURLConnection` hoặc OkHttp gọi 14 endpoint → render TabPane 4 pillar. Bắt buộc Phase 4.5 build trước.
 
-### Next: Phase 5 — JavaFX Admin Desktop (phần CHÍNH môn Java)
+### Decision update (12 May 2026, tối): Phase 5 đi đường **JDBC trực tiếp**, KHÔNG qua REST API
+
+- Tách Phase 4.5 (REST API) khỏi đường găng Phase 5 — REST API chủ yếu phục vụ Android (đã tách ra repo riêng `mtoanng/DataStream`).
+- §24.5 đã ghi rõ "3-layer, **JDBC trực tiếp**, JUnit ≥ 10 test" — JavaFX dùng JDBC qua `DriverManager`, đọc views có sẵn của Phase 2.6 (`v_security_score`, `v_pillar1_supply_outlook`, v.v.).
+- Lợi ích: blocker proxy Bosch không cản đường Phase 5. Khi có hotspot/cntlm, build Phase 4.5 vẫn xong nhưng KHÔNG là đường găng môn Java.
+
+---
+
+## Phase 5.0 — JavaFX Module Foundation Log (12 May 2026, tối)
+
+### Mục tiêu
+Module `desktop-admin/` declared trong parent + scaffold đầy đủ để Phase 5.1 wire login. Foundation chạy được `mvn javafx:run` ra cửa sổ placeholder.
+
+### Action log
+
+1. ✅ Quyết định stack: JavaFX **17.0.10 LTS** (không phải 21) — cuối cùng support Java 11 đồng bộ với 5 module hiện hữu. javafx-maven-plugin 0.0.8. jbcrypt 0.4 cho password verify. h2 2.2.224 cho DAO test in-memory.
+2. ✅ Test framework: **JUnit 4.13.2** (KHÔNG phải JUnit 5) để compat với surefire 2.12.4 đã cache trong WSL. Tránh phải pull surefire 3.x mới qua NTLM proxy.
+3. ✅ Folder structure 11 directories (controller/service/dao/model/util/resources/fxml/css + test mirror).
+4. ✅ `desktop-admin/pom.xml` (4.6 KB): inherit parent `vn.edu.ves:ves-monitor-parent:1.0.0-SNAPSHOT`, 4 main deps (javafx-controls/fxml + postgresql + jbcrypt + slf4j) + 4 test deps (junit + mockito + h2). javafx-maven-plugin config `mainClass=vn.edu.ves.desktop.MainApp` để chạy `mvn -pl desktop-admin javafx:run`.
+5. ✅ `MainApp.java` (1.8 KB): Application class, load `/fxml/login.fxml` + `/css/material.css`, set stage 480×360 min, slf4j log. Dùng `Objects.requireNonNull` cho FXML resource.
+6. ✅ `DatabaseConfig.java` (3.3 KB): **Singleton** eager init (design pattern checkpoint #1). `openConnection()` mở connection mới (try-with-resources caller-side). Resolve order: System property → env var (UPPER_SNAKE) → `application.properties` → default. Properties Postgres match `infra/docker-compose.yml`.
+7. ✅ `application.properties` (0.6 KB): db.url/user/password defaults + query timeout + UI refresh interval.
+8. ✅ `logback.xml` (0.5 KB): console appender, DEBUG cho `vn.edu.ves.desktop`, WARN cho javafx.
+9. ✅ `fxml/login.fxml` (0.8 KB): VBox placeholder gradient blue với title "VES-Monitor" + subtitle "Admin Desktop" + hint "Phase 5.0 — Foundation OK". Sẽ replace ở Phase 5.1.
+10. ✅ `css/material.css` (1.0 KB): Material-inspired theme — Segoe UI/Roboto font, root background `#fafafa`, login-pane gradient `#1f77b4 → #2196f3`, btn-primary `#1976d2`, error-text `#d32f2f`.
+11. ✅ `desktop-admin/.gitignore` + `desktop-admin/README.md` (4.4 KB README chi tiết quick-run, override DB config, troubleshoot JavaFX module path).
+12. ✅ Parent `pom.xml` add `<module>desktop-admin</module>` (uncomment dòng "sẽ thêm ở Phase 5").
+13. ✅ ReadLints `desktop-admin/` → **No linter errors found**.
+14. ✅ XML validation: 4/4 file XML (parent pom, module pom, login.fxml, logback.xml) parse OK qua PowerShell `[xml]`.
+
+### Verification snapshot (Phase 5.0 code-complete state)
+- **Files Phase 5.0 mới tạo**: 9 file (pom.xml + MainApp.java + DatabaseConfig.java + application.properties + logback.xml + login.fxml + material.css + .gitignore + README.md)
+- **LOC (Java)**: ~150 dòng (MainApp 60 + DatabaseConfig 90)
+- **Linter status**: clean
+- **XML status**: 4/4 valid
+- **Maven module status**: declared trong parent, sẽ build cùng `mvn package` khi proxy giải quyết
+- **Build/runtime test**: **PENDING** — cùng blocker với Phase 4.5 (Bosch NTLM proxy block download JavaFX 17 deps lần đầu, ~20 MB)
+- **Dependency footprint dự kiến**: ~30 MB (JavaFX 17 controls/fxml ~15 MB + jbcrypt ~30 KB + h2 ~2 MB + logback ~700 KB + slf4j ~50 KB + postgresql ~1 MB cached)
+
+### Operational notes
+- **Khi proxy giải quyết** (hotspot 4G / cntlm bridge / mạng cá nhân):
+  1. `mvn -pl desktop-admin -am clean compile` (~30s pull JavaFX deps lần đầu)
+  2. `mvn -pl desktop-admin javafx:run` → mở cửa sổ placeholder gradient blue
+  3. Sau khi xanh: tiếp Phase 5.1 (Login full form)
+- **JDBC trực tiếp** (không qua Phase 4.5 API): DAO sẽ gọi `DatabaseConfig.getInstance().openConnection()` rồi `PreparedStatement` thuần. Đọc 5 views có sẵn từ Phase 2.6 cho Dashboard.
+
+### Next: Phase 5.1 — Login + AuthService + SessionManager + UserDao + PasswordUtil

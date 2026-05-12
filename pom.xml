@@ -22,7 +22,7 @@
         <module>data-generators/renewable-generator</module>
         <module>flink-jobs/fuel-flink-job</module>
         <module>backend-api</module>
-        <!-- desktop-admin sẽ thêm ở Phase 5 -->
+        <module>desktop-admin</module>
     </modules>
 
     <properties>

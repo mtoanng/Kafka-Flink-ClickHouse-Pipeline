@@ -1,0 +1,48 @@
+/* =========================================================
+   VES-Monitor Admin Desktop — Material-inspired theme
+   Sẽ mở rộng trong Phase 5.1+
+   ========================================================= */
+
+.root {
+    -fx-font-family: "Segoe UI", "Roboto", "Arial", sans-serif;
+    -fx-font-size: 14px;
+    -fx-background-color: #fafafa;
+}
+
+.login-pane {
+    -fx-background-color: linear-gradient(to bottom right, #1f77b4, #2196f3);
+}
+
+.title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.subtitle {
+    -fx-font-size: 16px;
+    -fx-text-fill: #e3f2fd;
+}
+
+.hint {
+    -fx-font-size: 12px;
+    -fx-text-fill: #fce4ec;
+    -fx-font-style: italic;
+}
+
+/* Primary button (Phase 5.1+) */
+.btn-primary {
+    -fx-background-color: #1976d2;
+    -fx-text-fill: white;
+    -fx-padding: 8 24 8 24;
+    -fx-background-radius: 4;
+}
+
+.btn-primary:hover {
+    -fx-background-color: #1565c0;
+}
+
+.error-text {
+    -fx-text-fill: #d32f2f;
+    -fx-font-size: 12px;
+}
