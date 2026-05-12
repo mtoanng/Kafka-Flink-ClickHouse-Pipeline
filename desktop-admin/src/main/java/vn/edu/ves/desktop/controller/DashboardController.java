@@ -141,6 +141,10 @@ public class DashboardController {
     @FXML private PieChart chartPillar4;
     @FXML private Sparkline sparkP4;
 
+    // ---- maps tab (Phase 7.3) ----
+    @FXML private javafx.scene.layout.StackPane mapsContainer;
+    private MapsController mapsController;
+
     // ---- sidebar ----
     @FXML private ListView<Recommendation> lstRecommendations;
     @FXML private Label lblRecCount;
@@ -178,8 +182,41 @@ public class DashboardController {
         configurePillar3();
         configurePillar4();
         configureRecommendations();
+        configureMapsTab();
         startAutoRefresh();
         startLiveTicker();
+    }
+
+    private void configureMapsTab() {
+        if (mapsContainer == null) return;
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/maps.fxml"));
+            Parent mapsRoot = loader.load();
+            mapsController = loader.getController();
+            if (mapsController != null) {
+                mapsController.setDashboardService(dashboardService);
+                mapsController.setOnZoneSelected(this::onMapZoneSelected);
+            }
+            mapsContainer.getChildren().setAll(mapsRoot);
+        } catch (Exception e) {
+            log.warn("Load maps.fxml failed: {}", e.getMessage(), e);
+        }
+    }
+
+    /** Filters the pillar tables to a single VN region — drill-down from the map. */
+    private void onMapZoneSelected(String regionCode) {
+        if (regionCode == null) return;
+        log.info("VN map drill-down: {}", regionCode);
+        // Filter p1/p3/p4 by region (p2 has no region column)
+        p1Data.setAll(p1Data.stream()
+                .filter(r -> regionCode.equals(r.getRegionCode()))
+                .toList());
+        p3Data.setAll(p3Data.stream()
+                .filter(r -> regionCode.equals(r.getRegionCode()))
+                .toList());
+        p4Data.setAll(p4Data.stream()
+                .filter(r -> regionCode.equals(r.getRegionCode()))
+                .toList());
     }
 
     private void configureTopBar() {
@@ -580,6 +617,9 @@ public class DashboardController {
         }
         if (liveMetrics != null) {
             liveMetrics.stop();
+        }
+        if (mapsController != null) {
+            mapsController.shutdown();
         }
     }
 

@@ -23,6 +23,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import vn.edu.ves.desktop.widget.Sparkline?>
 
@@ -218,6 +219,13 @@
                                     </TableView>
                                     <PieChart fx:id="chartPillar4" prefHeight="280.0" title="Renewable share by region"/>
                                 </VBox>
+                            </content>
+                        </Tab>
+
+                        <!-- =========== MAPS (Phase 7.3) =========== -->
+                        <Tab text="Maps · Bản đồ">
+                            <content>
+                                <StackPane fx:id="mapsContainer" styleClass="maps-tab"/>
                             </content>
                         </Tab>
 

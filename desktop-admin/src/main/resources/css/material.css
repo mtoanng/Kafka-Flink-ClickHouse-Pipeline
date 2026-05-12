@@ -173,6 +173,10 @@
     -fx-text-fill: #607d8b;
 }
 
+/* Phase 7.3 — Maps tab */
+.maps-root { -fx-background-color: #F5F7FA; }
+.maps-tab  { -fx-background-color: #FAFAFA; }
+
 /* Phase 7.2 — toast */
 .toast {
     -fx-background-color: white;

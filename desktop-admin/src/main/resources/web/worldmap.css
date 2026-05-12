@@ -1,0 +1,54 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "Segoe UI", "Roboto", "Arial", sans-serif;
+    background: #fafafa;
+}
+
+#map {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+}
+
+#offline-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(245, 247, 250, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.offline-card {
+    background: white;
+    padding: 20px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    max-width: 360px;
+}
+
+.offline-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #C62828;
+    margin-bottom: 8px;
+}
+
+.offline-msg {
+    font-size: 13px;
+    color: #455a64;
+    margin-bottom: 12px;
+}
+
+#offline-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: #263238;
+}
+
+#offline-list li {
+    margin-bottom: 4px;
+}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Phase 7.3 — Maps tab. VN SVG zones + WebView Leaflet world map. -->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="vn.edu.ves.desktop.controller.MapsController"
+      spacing="8.0"
+      styleClass="maps-root">
+    <padding>
+        <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
+    </padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <Label styleClass="pillar-title" text="Geospatial view — VN regions · Global fuel hubs"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="lblDrillDown" styleClass="last-refresh" text="Click a VN zone to drill down…"/>
+    </HBox>
+
+    <TabPane prefHeight="640.0">
+        <tabs>
+            <Tab text="Vietnam · 3 zones">
+                <content>
+                    <HBox spacing="16.0">
+                        <padding>
+                            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
+                        </padding>
+                        <StackPane fx:id="vnMapContainer" prefWidth="320.0" prefHeight="560.0"/>
+                        <VBox fx:id="vnInfoBox" spacing="6.0" HBox.hgrow="ALWAYS">
+                            <Label styleClass="pillar-title"
+                                   text="VN map · click a zone above to filter pillar tables"/>
+                            <Label text="Colour encodes Pillar 3 (Grid Reliability) score:" styleClass="spark-label"/>
+                            <Label text="  • Green = SECURE  (≥80)" styleClass="status-secure"/>
+                            <Label text="  • Yellow = ELEVATED  (60-79)" styleClass="status-elevated"/>
+                            <Label text="  • Orange = STRESSED  (40-59)" styleClass="status-stressed"/>
+                            <Label text="  • Red = CRITICAL  (&lt;40)" styleClass="status-critical"/>
+                            <Region prefHeight="20.0"/>
+                            <Label text="Approximated polygon outline — not cartographic-grade."
+                                   styleClass="last-refresh"/>
+                        </VBox>
+                    </HBox>
+                </content>
+            </Tab>
+
+            <Tab text="World · Fuel hubs">
+                <content>
+                    <StackPane fx:id="worldMapContainer" prefHeight="560.0"/>
+                </content>
+            </Tab>
+        </tabs>
+    </TabPane>
+</VBox>
