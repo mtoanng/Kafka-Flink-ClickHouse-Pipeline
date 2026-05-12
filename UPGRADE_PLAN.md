@@ -2476,11 +2476,11 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
-#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars + Security Actions (6-8h) — 🟡 CODE COMPLETE, BUILD PENDING
+#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars + Security Actions (6-8h) — ✅ BUILD VERIFIED (13 May 2026)
 
 | Field | Value |
 |-------|-------|
-| **Trạng thái** | 🟡 Source viết xong (24 file Java + pom + yml + README + smoke script), lint-clean. **Build & runtime test pending** do proxy Bosch dùng NTLM/Negotiate — Maven Wagon không gửi được creds. Khi có hotspot 4G hoặc `cntlm` bridge: `mvn -pl backend-api -am clean package -DskipTests && java -jar backend-api/target/ves-backend-api.jar` |
+| **Trạng thái** | ✅ **Build VERIFIED 13 May 2026.** `mvn -pl backend-api -am clean test` → BUILD SUCCESS in 37s, 0 test (chưa viết @Test cho REST controller). `mvn package` → `ves-backend-api.jar` 30.3 MB (Spring Boot 2.7.18 layered fat JAR, `Start-Class: vn.edu.ves.api.VesApiApplication`). Pending end-to-end smoke test với Postgres đang chạy (Hikari fail-fast nếu DB unreachable; module không có `spring-boot-starter-actuator` nên chưa expose `/actuator/health` — TODO nhỏ nếu cần liveness probe). Maven 3.9.6 + APAC proxy unblock đã giải quyết NTLM block. |
 | **Quyết định stack** | Spring Boot **2.7.18** (không phải 3.x) — để giữ Java 11 đồng bộ với 4 module hiện hữu (3 generator + Flink job). Spring Boot 3.x yêu cầu Java 17 sẽ phá build đồng nhất. |
 | **Mục tiêu** | 1 module Spring Boot 2.7, JdbcTemplate, JWT HS256, **14 endpoint** (3 auth + 4 pillar + 2 security + 2 recommendation + 1 alert + 2 raw + 1 health), Swagger UI tại `/swagger-ui.html`, port 8090 |
 | **Files tạo (~24 file Java + 4 config):** | `pom.xml`, `application.yml`, `VesApiApplication.java`, `config/{SecurityConfig, JwtTokenProvider, JwtAuthFilter, OpenApiConfig}.java`, `controller/{Auth, Pillar, Security, Recommendation, Alert, RawData, Health}Controller.java` (7 controller), `dao/{User, Pillar, Security, Recommendation, Alert}Dao.java` (5 DAO JdbcTemplate), `dto/*Dto.java` × 14 (Lombok @Data @Builder), `exception/{ApiException, GlobalExceptionHandler}.java`. Tất cả file đã viết xong, ReadLints không có lỗi. |
@@ -2498,11 +2498,11 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
-#### 🖥️ Phase 5 — JavaFX Admin Desktop (12-15h) ⭐ **PHẦN CHÍNH** — 🟡 CODE COMPLETE 5.1→5.5, BUILD PENDING
+#### 🖥️ Phase 5 — JavaFX Admin Desktop (12-15h) ⭐ **PHẦN CHÍNH** — ✅ BUILD + TESTS VERIFIED 5.1→5.5 (13 May 2026)
 
 | Field | Value |
 |-------|-------|
-| **Trạng thái thực tế (12 May 2026)** | 🟡 Phase 5.0 → 5.5 code-complete. ~50 file Java + 6 FXML + 1 CSS + **62 JUnit 4 @Test method** (≥10 yêu cầu, 6.2× target). Lint clean. Build runtime test pending cùng Phase 4.5 do Bosch proxy NTLM block pull JavaFX 17 deps lần đầu. Khi có hotspot 4G: `mvn -pl desktop-admin -am clean test && mvn -pl desktop-admin javafx:run`. |
+| **Trạng thái thực tế (13 May 2026)** | ✅ **Build + tests VERIFIED.** `mvn -pl desktop-admin -am clean test` → BUILD SUCCESS in 17.6s, **62/62 PASS** (0 failure, 0 error). `mvn package` → `ves-desktop-admin.jar` 112 KB (thin JAR — JavaFX deps stay in `~/.m2/`). 4 small fixes applied (commit `1c41353`): H2 IDENTITY syntax thay AUTO_INCREMENT, ViewsDaoTest dropAll try/catch, PasswordUtil `$2b$` prefix normalize, Validator length-range null-safe parity. Pending JavaFX `javafx:run` runtime smoke (needs display, không chạy được trong subagent). |
 | **Mục tiêu (đã chốt)** | JavaFX **17.0.10 LTS** (không phải 21, để giữ Java 11 đồng bộ parent + 5 module hiện hữu) app 5 màn, 3-layer, **JDBC trực tiếp Postgres** (KHÔNG qua REST API Phase 4.5 — tránh blocker chéo phase), JUnit 4.13.2 (compat surefire 2.12.4 cached) ≥ 10 test. |
 | **Files đã tạo (Phase 5.0 → 5.5)** | `desktop-admin/pom.xml` (javafx-maven-plugin 0.0.8 + jbcrypt 0.4 + h2 2.2.224 + mockito 5.7.0), **KHÔNG** `module-info.java` (classpath mode), `MainApp.java`, `controller/{Login, Dashboard, DashboardPlaceholder, Region, AlertRule, User}Controller.java`, `service/{Auth, Dashboard, Region, AlertRule, User}Service + Impl.java`, `dao/{Base, User, Region, AlertRule, Views}Dao.java`, `model/{User, Role, Region, AlertRule, MetricType, Operator, Severity, SecurityScore, Pillar1Outlook, Pillar2Volatility, Pillar3Shedding, Pillar4NetZero, Recommendation}.java`, `util/{DatabaseConfig, SessionManager, PasswordUtil, AlertHelper, Validator}.java`, `exception/AuthenticationException.java`, `fxml/{login, dashboard, dashboard_placeholder, region, alertRule, user}.fxml`, `css/material.css`, **12 test file** (4 H2 integration DAO test + 5 Mockito service test + 3 util test). |
 | **Sub-phase commits** | 5.0 `62c824c` → 5.1 `08a97bd` → 5.2 `de7c4dd` → 5.3 `7ced8e0` → 5.4 `8caec9e` → 5.5 (commit hiện tại). |
