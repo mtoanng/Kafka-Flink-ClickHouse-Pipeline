@@ -1,5 +1,7 @@
 package vn.edu.ves.api.dao;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -9,16 +11,22 @@ import vn.edu.ves.api.dto.SecurityScoreDto;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Cross-pillar:
- *   - v_security_score   : 1 row tổng (Light ESI)
- *   - v_cascade_risks    : 0-N risk
+ *   - {@code v_security_score}  : 1 row tổng (Light ESI) — Phase 7.1 columns
+ *     {@code overall_score, status, pillar1..4_score, computed_at}.
+ *   - {@code v_cascade_risks}   : DROPPED in Phase 7.1.  Cascade analysis sẽ
+ *     được re-implement ở phase sau (cần multi-pillar correlation từ Flink job
+ *     mới). Endpoint cũ vẫn trả 200 với mảng rỗng để giữ backward-compat.
  */
 @Repository
 public class SecurityDao {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityDao.class);
 
     private final JdbcTemplate jdbc;
 
@@ -26,37 +34,37 @@ public class SecurityDao {
         this.jdbc = jdbc;
     }
 
-    private static final RowMapper<SecurityScoreDto> SCORE_MAPPER = (rs, i) -> {
-        Timestamp ts = rs.getTimestamp("computed_at");
-        OffsetDateTime computedAt = ts == null
-                ? OffsetDateTime.now()
-                : ts.toInstant().atOffset(ZoneOffset.UTC);
-        return SecurityScoreDto.builder()
-                .pillar1Score(rs.getBigDecimal("pillar1_score"))
-                .pillar2Score(rs.getBigDecimal("pillar2_score"))
-                .pillar3Score(rs.getBigDecimal("pillar3_score"))
-                .pillar4Score(rs.getBigDecimal("pillar4_score"))
-                .overallScore(rs.getBigDecimal("overall_score"))
-                .status(rs.getString("status"))
-                .computedAt(computedAt)
-                .build();
-    };
+    private static final RowMapper<SecurityScoreDto> SCORE_MAPPER = (rs, i) -> SecurityScoreDto.builder()
+            .pillar1Score(rs.getBigDecimal("pillar1_score"))
+            .pillar2Score(rs.getBigDecimal("pillar2_score"))
+            .pillar3Score(rs.getBigDecimal("pillar3_score"))
+            .pillar4Score(rs.getBigDecimal("pillar4_score"))
+            .overallScore(rs.getBigDecimal("overall_score"))
+            .status(rs.getString("status"))
+            .computedAt(toOffset(rs.getTimestamp("computed_at")))
+            .build();
 
     public Optional<SecurityScoreDto> score() {
-        List<SecurityScoreDto> rows = jdbc.query("SELECT * FROM v_security_score LIMIT 1", SCORE_MAPPER);
+        List<SecurityScoreDto> rows = jdbc.query(
+                "SELECT pillar1_score, pillar2_score, pillar3_score, pillar4_score, " +
+                "overall_score, status, computed_at FROM v_security_score LIMIT 1",
+                SCORE_MAPPER);
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }
 
-    private static final RowMapper<CascadeRiskDto> RISK_MAPPER = (rs, i) -> CascadeRiskDto.builder()
-            .riskType(rs.getString("risk_type"))
-            .severity(rs.getString("severity"))
-            .description(rs.getString("description"))
-            .details(rs.getString("details"))   // JSONB → text pass-through
-            .build();
-
+    /**
+     * @deprecated {@code v_cascade_risks} đã bị drop ở Phase 7.1. Không còn dữ liệu
+     *             cascade nào được xuất bản. Endpoint giữ lại chỉ để frontend cũ
+     *             không vỡ; sẽ trả về danh sách rỗng đến khi cascade analysis
+     *             được re-implement (planned post-Phase 8).
+     */
+    @Deprecated
     public List<CascadeRiskDto> cascadeRisks() {
-        return jdbc.query(
-                "SELECT risk_type, severity, description, details::text AS details FROM v_cascade_risks",
-                RISK_MAPPER);
+        log.warn("cascadeRisks() called — view v_cascade_risks dropped in Phase 7.1; returning empty list");
+        return Collections.emptyList();
+    }
+
+    private static OffsetDateTime toOffset(Timestamp ts) {
+        return ts == null ? OffsetDateTime.now(ZoneOffset.UTC) : ts.toInstant().atOffset(ZoneOffset.UTC);
     }
 }

@@ -103,6 +103,18 @@
             <version>${spring.boot.version}</version>
             <scope>test</scope>
         </dependency>
+        <!--
+            JUnit 4 cho compat với surefire 2.12.4 (đã cache; pull 3.x qua
+            corporate NTLM proxy không khả thi — đồng bộ với desktop-admin).
+            Spring Test có sẵn SpringRunner (JUnit 4 runner) hỗ trợ
+            @WebMvcTest + @MockBean.
+        -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

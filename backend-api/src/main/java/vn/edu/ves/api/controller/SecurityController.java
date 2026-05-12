@@ -15,7 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/security")
-@Tag(name = "Security", description = "Cross-pillar Energy Security Index & cascade risks")
+@Tag(name = "Security", description = "Cross-pillar Energy Security Index (Phase 7.1 IEA weights)")
 @SecurityRequirement(name = "bearerAuth")
 public class SecurityController {
 
@@ -26,13 +26,19 @@ public class SecurityController {
     }
 
     @GetMapping("/score")
-    @Operation(summary = "Light ESI 0-100 (weighted 25%/pillar) + status SECURE/STABLE/AT_RISK/CRITICAL")
+    @Operation(summary = "Composite ESI 0-100 (IEA weights 0.30/0.20/0.30/0.20) + status SECURE/ELEVATED/STRESSED/CRITICAL")
     public SecurityScoreDto score() {
         return dao.score().orElseThrow(() -> ApiException.notFound("v_security_score chưa có dữ liệu"));
     }
 
+    /**
+     * Backward-compat endpoint. View {@code v_cascade_risks} đã bị drop ở Phase 7.1.
+     * Endpoint vẫn trả 200 với mảng rỗng để client cũ (JavaFX desktop, Android app)
+     * không vỡ trong giai đoạn migration. Cascade analysis sẽ được re-implement
+     * ở phase sau bằng cách correlate alerts đa-pillar.
+     */
     @GetMapping("/cascade-risks")
-    @Operation(summary = "Cảnh báo cascade đa-pillar (FUEL_SHORTAGE_RISK, CARBON_COST_RISK, …)")
+    @Operation(summary = "[DEPRECATED] Cascade risks — view dropped in Phase 7.1, returns empty array")
     public List<CascadeRiskDto> cascadeRisks() {
         return dao.cascadeRisks();
     }

@@ -29,6 +29,7 @@
 | **7.2** | **Phase 7.2 — Real-time visibility** | ✅ | — | 2026-05-13 | 71/71 desktop tests (9 new) | Live event ticker (Flink REST `/jobs/.../metrics`, EMA-smoothed 3s cadence), Sparkline canvas widget (3-min trailing window per pillar), PulseEffect drop-shadow on new CRITICAL rows, Toast widget for CRITICAL alerts, fade-in for new recommendations, refresh cadence split (live 3s / tables 10s, down from 30s), `FlinkClient` HttpURLConnection wrapper. Commit `08fb6c1`. |
 | **7.3** | **Phase 7.3 — Interactive maps** | ✅ | — | 2026-05-13 | 77/77 desktop tests (6 new) + `mvn package` clean | `VietnamMap` widget (3 SVGPath polygons coloured by Pillar 3 score, click-to-drill-down), `WorldMapView` (JavaFX WebView + Leaflet 1.9.4 + OpenStreetMap with offline overlay fallback), 7 hub markers tinted by Pillar 2 price delta, new "Maps · Bản đồ" 5th tab loaded via nested FXML. `pom.xml` adds `javafx-web` 17.0.10. Commit `837ddba`. |
 | **7.5** | **Phase 7.5 — Final QA pass** | ✅ | — | 2026-05-13 | 77/77 desktop tests + 8/13 backend endpoints OK; 5 doc fixes; backend pillar regression flagged | Re-verified full stack on `c7ef8bd`: branch in sync, lint clean, all FXML parse, 5 docker containers up, Flink 18/18 vertices RUNNING, 4 Kafka topics live, ESI=72.82 ELEVATED. Caught Phase 7.1 backend regression (4 `/api/pillars/*` + 1 cascade-risks endpoint return 500 because legacy views were dropped without migrating `PillarDao`/`SecurityDao`). Documented in DEMO_RUN_LOG.md. JavaFX desktop unaffected. |
+| **7.6** | **Phase 7.6 — Backend pillar migration** | ✅ | — | 2026-05-13 | **13/13 REST endpoints `200 OK` + 11/11 new `@WebMvcTest` smoke pass** | Fixes the Phase 7.1 backend regression flagged by Phase 7.5 QA. `PillarDao` + `SecurityDao` rewritten to read the new `v_pillar*_supply_security/market_resilience/grid_reliability/energy_transition` views; 4 DTOs renamed to the IEA/APERC shape (`Pillar1SupplySecurityDto`, …); `PillarController` exposes BOTH old paths (`/1/outlook`, `/2/volatility`, `/3/shedding`, `/4/netzero`) AND new paths (`/1/supply-security`, `/2/market-resilience`, `/3/grid-reliability`, `/4/energy-transition`) for backward-compat; `/api/security/cascade-risks` returns `200` with empty array (`@Deprecated` — view dropped Phase 7.1, cascade analysis to be re-implemented). 11 new `@WebMvcTest` smoke tests (JUnit 4 + SpringRunner to match surefire 2.12.4). Postman collection (`docs/VES-Monitor.postman_collection.json`, 19 requests / 8 folders / auto-token script) + `docs/openapi.json` regenerated (20 paths). JAR re-package: 30.3 MB. Smoke evidence: `build-logs/p76-api-smoke.json`. |
 
 **Legend:** ⬜ Pending | 🟡 In progress | ✅ Done | ❌ Failed (rolled back)
 
@@ -933,4 +934,65 @@ Per the QA brief, both `README.md` and `docs/PROGRESS.md` (Phase 7.4 sections) w
 * JavaFX desktop app: **demo ready** (build clean, tests green, JDBC reads new Phase 7.1 views directly, dashboard / maps / pillars / CRUD all functional).
 * Backend REST API: **partial demo ready** — health / auth / security score / alerts / recommendations / fuel-prices / grid-load all 200; 4 pillar endpoints + cascade risks 500 until Phase 8 backend migration.
 * Recommended demo path: showcase JavaFX as the primary surface; treat the backend as a smoke-tested sidecar (use the still-green endpoints in the API tour and skip pillar GETs).
+
+---
+
+## Phase 7.6 — Backend pillar migration (13 May 2026, ~04:30 ICT)
+
+Closes the regression flagged by Phase 7.5 QA — 5 endpoints (`/api/pillars/{1..4}/...` + `/api/security/cascade-risks`) were returning HTTP 500 because Phase 7.1 dropped the legacy SQL views without migrating `PillarDao` / `SecurityDao` / 4 DTOs to the new IEA/APERC shape. JavaFX desktop was already migrated in Phase 7.1; this phase brings the REST API to parity.
+
+### Files touched
+
+| Category | Files | Change |
+|---|---|---|
+| **DTO** (new) | `Pillar1SupplySecurityDto`, `Pillar2MarketResilienceDto`, `Pillar3GridReliabilityDto`, `Pillar4EnergyTransitionDto` | New IEA/APERC field shape (`idr / sfri / hhiSupply / n1Resilience`, `sigma30d / priceGapPct / betaCrude / affordabilityIdx`, `reserveMarginPct / peakLoadFactor / sheddingProb / freqStabilityIdx`, `renewablePct / co2Intensity / curtailmentRate / netzeroProgress`) + `pillarNScore / status / computedAt`. Lombok `@Data @Builder @AllArgsConstructor` (matches existing repo style). |
+| **DTO** (deleted) | `Pillar1OutlookDto`, `Pillar2VolatilityDto`, `Pillar3SheddingDto`, `Pillar4NetZeroDto` | Old Phase 2.5/2.6 field shape; no consumers left after rename. |
+| **DAO** | `dao/PillarDao.java` | Rewritten — 4 explicit `SELECT col1, col2, … FROM v_pillar*_*` queries against the Phase 7.1 views, custom `RowMapper` per pillar. `gridLoadLatest()` and `latestFuelPrices(...)` retained (still used by `RawDataController`; `v_pillar3_grid_load_latest` was kept as a Phase 2.5 helper view). |
+| **DAO** | `dao/SecurityDao.java` | `score()` now selects explicit columns from `v_security_score`. `cascadeRisks()` annotated `@Deprecated`, returns `Collections.emptyList()` + `log.warn(...)`. |
+| **Controller** | `controller/PillarController.java` | Each `@GetMapping` now accepts BOTH old and new paths (`@GetMapping({"/1/supply-security", "/1/outlook"})` etc.) so existing JavaFX/Android clients keep working. |
+| **Controller** | `controller/SecurityController.java` | `/cascade-risks` returns 200 + empty array (no more 500); inline note that view was dropped. |
+| **Tests** (new) | `src/test/java/.../controller/PillarControllerSmokeTest.java`, `SecurityControllerSmokeTest.java` | 11 `@WebMvcTest` smoke tests (8 pillar + 3 security). JUnit 4 + `SpringRunner` to match the cached surefire 2.12.4 (same constraint as desktop-admin). `@MockBean PillarDao / SecurityDao + JwtTokenProvider`; `addFilters = false` so the security filter chain is skipped. |
+| **POM** | `backend-api/pom.xml` | Added `junit:junit:4.13.2` test dep (mirrors desktop-admin reasoning). |
+| **Docs** | `docs/openapi.json` (regenerated, **20 paths**), `docs/VES-Monitor.postman_collection.json` (new — 8 folders / 19 requests / Auth-Login auto-sets `{{token}}` via test script) | |
+| **Docs** | `docs/PROGRESS.md` (this section + table row), `docs/DEMO_RUN_LOG.md` (`8/13 → 13/13`), `UPGRADE_PLAN.md` (Phase 7 backend status `⚠ → ✅`) | |
+
+### Build + test summary (`build-logs/p76-backend-test.log`, `p76-backend-pkg.log`)
+
+```
+mvn -pl backend-api -am clean test         → BUILD SUCCESS
+  PillarControllerSmokeTest    8 / 8  PASS  (7.17 s)
+  SecurityControllerSmokeTest  3 / 3  PASS  (2.13 s)
+  Total:                      11 / 11 PASS  (0 failures, 0 errors, 0 skipped)
+mvn -pl backend-api package -DskipTests    → BUILD SUCCESS  (10.83 s)
+  ves-backend-api.jar = 30.30 MB  (Spring Boot fat JAR, repackaged)
+```
+
+### Smoke result (`build-logs/p76-api-smoke.json`)
+
+| # | Method | Endpoint | Status |
+|---|---|---|---|
+| 1 | POST | `/api/auth/login` | **200** |
+| 2 | GET | `/api/auth/me` | **200** |
+| 3 | GET | `/api/health` | **200** |
+| 4 | GET | `/api/security/score` | **200** |
+| 5 | GET | `/api/alerts/active?limit=5` | **200** |
+| 6 | GET | `/api/recommendations?limit=5` | **200** |
+| 7 | GET | `/api/fuel-prices/latest?limit=3` | **200** |
+| 8 | GET | `/api/grid-load/latest` | **200** |
+| 9 | GET | `/api/pillars/1/outlook` (legacy alias) | **200** |
+| 10 | GET | `/api/pillars/2/volatility` (legacy alias) | **200** |
+| 11 | GET | `/api/pillars/3/shedding` (legacy alias) | **200** |
+| 12 | GET | `/api/pillars/4/netzero` (legacy alias) | **200** |
+| 13 | GET | `/api/security/cascade-risks` (deprecated, empty array) | **200** |
+
+**13 / 13 endpoints `200 OK`.** The same backend additionally exposes new aliases (`/1/supply-security`, `/2/market-resilience`, `/3/grid-reliability`, `/4/energy-transition`) — covered by the Postman collection and the `@WebMvcTest` "newPath" cases.
+
+### Anti-patterns honoured
+
+* No Lombok added (already in pom from Phase 4.5; existing DTO style preserved).
+* No SQL schema changes (`08_pillars_v2.sql` is authoritative).
+* No `--no-verify`, no `--force`.
+* No `desktop-admin/` / `flink-jobs/` / `data-generators/` source touched.
+* Docker stack and 3 generators left running through the entire migration; only the backend JVM was bounced (PID `18220` → `40136`).
+* Root `README.md` left untouched (sibling worker owns Phase 7.5 README polish).
 

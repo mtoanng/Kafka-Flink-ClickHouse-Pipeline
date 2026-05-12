@@ -7,13 +7,19 @@ import vn.edu.ves.api.dto.*;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
- * Tất cả truy vấn cho 4 pillar views.
+ * DAO cho 4 pillar views (Phase 7.1 IEA/APERC framework).
  *
- * Trỏ trực tiếp vào các view đã build sẵn ở Phase 2.5/2.6 — controller chỉ
- * forward kết quả, không tính toán thêm.
+ * <p>Mỗi view trả về 4 sub-indicator + composite {@code pillarN_score}
+ * + {@code status} (SECURE / ELEVATED / STRESSED / CRITICAL) + {@code computed_at}.
+ * Controller chỉ forward kết quả; không tính toán thêm.</p>
+ *
+ * <p>Phase 2.5 helper view {@code v_pillar3_grid_load_latest} vẫn tồn tại
+ * và được dùng bởi {@link vn.edu.ves.api.controller.RawDataController}.</p>
  */
 @Repository
 public class PillarDao {
@@ -24,72 +30,100 @@ public class PillarDao {
         this.jdbc = jdbc;
     }
 
-    // ---------- Pillar 1 ----------
+    // ---------- Pillar 1 — Supply Security (Availability) ----------
 
-    private static final RowMapper<Pillar1OutlookDto> PILLAR1_MAPPER = (rs, i) -> Pillar1OutlookDto.builder()
-            .regionCode(rs.getString("region_code"))
-            .regionName(rs.getString("region_name"))
-            .fuelType(rs.getString("fuel_type"))
-            .stockVolumeKl(rs.getBigDecimal("stock_volume_kl"))
-            .dailyConsumptionKl(rs.getBigDecimal("daily_consumption_kl"))
-            .stockDays(rs.getBigDecimal("stock_days"))
-            .targetDays((Integer) rs.getObject("target_days"))
-            .daysToCritical(rs.getBigDecimal("days_to_critical"))
-            .daysAboveTarget(rs.getBigDecimal("days_above_target"))
-            .targetAchievementPct(rs.getBigDecimal("target_achievement_pct"))
-            .status(rs.getString("status"))
-            .recommendationText(rs.getString("recommendation_text"))
-            .suggestedDonorRegion(rs.getString("suggested_donor_region"))
-            .reportedAt(toLocal(rs.getTimestamp("reported_at")))
-            .build();
+    private static final RowMapper<Pillar1SupplySecurityDto> PILLAR1_MAPPER = (rs, i) ->
+            Pillar1SupplySecurityDto.builder()
+                    .regionCode(rs.getString("region_code"))
+                    .fuelType(rs.getString("fuel_type"))
+                    .idr(rs.getBigDecimal("idr"))
+                    .sfri(rs.getBigDecimal("sfri"))
+                    .hhiSupply(rs.getBigDecimal("hhi_supply"))
+                    .n1Resilience(rs.getBigDecimal("n1_resilience"))
+                    .pillar1Score(rs.getBigDecimal("pillar1_score"))
+                    .status(rs.getString("status"))
+                    .computedAt(toOffset(rs.getTimestamp("computed_at")))
+                    .build();
 
-    public List<Pillar1OutlookDto> pillar1Outlook() {
+    public List<Pillar1SupplySecurityDto> findPillar1SupplySecurity() {
         return jdbc.query(
-                "SELECT * FROM v_pillar1_supply_outlook ORDER BY status, days_to_critical NULLS LAST",
+                "SELECT region_code, fuel_type, idr, sfri, hhi_supply, n1_resilience, " +
+                "pillar1_score, status, computed_at " +
+                "FROM v_pillar1_supply_security " +
+                "ORDER BY pillar1_score ASC NULLS LAST, region_code, fuel_type",
                 PILLAR1_MAPPER);
     }
 
-    // ---------- Pillar 2 ----------
+    // ---------- Pillar 2 — Market Resilience (Affordability) ----------
 
-    private static final RowMapper<Pillar2VolatilityDto> PILLAR2_MAPPER = (rs, i) -> Pillar2VolatilityDto.builder()
-            .fuelType(rs.getString("fuel_type"))
-            .location(rs.getString("location"))
-            .sampleCount(rs.getLong("sample_count"))
-            .avgPrice(rs.getBigDecimal("avg_price"))
-            .sigma(rs.getBigDecimal("sigma"))
-            .relativeVolatilityPct(rs.getBigDecimal("relative_volatility_pct"))
-            .rangeAbs(rs.getBigDecimal("range_abs"))
-            .signal(rs.getString("signal"))
-            .lastEvent(toLocal(rs.getTimestamp("last_event")))
-            .build();
+    private static final RowMapper<Pillar2MarketResilienceDto> PILLAR2_MAPPER = (rs, i) ->
+            Pillar2MarketResilienceDto.builder()
+                    .fuelType(rs.getString("fuel_type"))
+                    .sigma30d(rs.getBigDecimal("sigma_30d"))
+                    .priceGapPct(rs.getBigDecimal("price_gap_pct"))
+                    .betaCrude(rs.getBigDecimal("beta_crude"))
+                    .affordabilityIdx(rs.getBigDecimal("affordability_idx"))
+                    .pillar2Score(rs.getBigDecimal("pillar2_score"))
+                    .status(rs.getString("status"))
+                    .computedAt(toOffset(rs.getTimestamp("computed_at")))
+                    .build();
 
-    public List<Pillar2VolatilityDto> pillar2Volatility() {
+    public List<Pillar2MarketResilienceDto> findPillar2MarketResilience() {
         return jdbc.query(
-                "SELECT * FROM v_pillar2_volatility_signal ORDER BY relative_volatility_pct DESC NULLS LAST",
+                "SELECT fuel_type, sigma_30d, price_gap_pct, beta_crude, affordability_idx, " +
+                "pillar2_score, status, computed_at " +
+                "FROM v_pillar2_market_resilience " +
+                "ORDER BY pillar2_score ASC NULLS LAST, fuel_type",
                 PILLAR2_MAPPER);
     }
 
-    // ---------- Pillar 3 ----------
+    // ---------- Pillar 3 — Grid Reliability (Accessibility) ----------
 
-    private static final RowMapper<Pillar3SheddingDto> PILLAR3_MAPPER = (rs, i) -> Pillar3SheddingDto.builder()
-            .priorityLevel(rs.getLong("priority_level"))
-            .regionCode(rs.getString("region_code"))
-            .regionName(rs.getString("region_name"))
-            .loadMw(rs.getBigDecimal("load_mw"))
-            .capacityMw(rs.getBigDecimal("capacity_mw"))
-            .loadPct(rs.getBigDecimal("load_pct"))
-            .peakHour(rs.getBoolean("is_peak_hour"))
-            .suggestedShedMw(rs.getBigDecimal("suggested_shed_mw"))
-            .actionType(rs.getString("action_type"))
-            .recommendationText(rs.getString("recommendation_text"))
-            .eventTime(toLocal(rs.getTimestamp("event_time")))
-            .build();
+    private static final RowMapper<Pillar3GridReliabilityDto> PILLAR3_MAPPER = (rs, i) ->
+            Pillar3GridReliabilityDto.builder()
+                    .regionCode(rs.getString("region_code"))
+                    .reserveMarginPct(rs.getBigDecimal("reserve_margin_pct"))
+                    .peakLoadFactor(rs.getBigDecimal("peak_load_factor"))
+                    .sheddingProb(rs.getBigDecimal("shedding_prob"))
+                    .freqStabilityIdx(rs.getBigDecimal("freq_stability_idx"))
+                    .pillar3Score(rs.getBigDecimal("pillar3_score"))
+                    .status(rs.getString("status"))
+                    .computedAt(toOffset(rs.getTimestamp("computed_at")))
+                    .build();
 
-    public List<Pillar3SheddingDto> pillar3Shedding() {
+    public List<Pillar3GridReliabilityDto> findPillar3GridReliability() {
         return jdbc.query(
-                "SELECT * FROM v_pillar3_load_shedding_plan ORDER BY priority_level",
+                "SELECT region_code, reserve_margin_pct, peak_load_factor, shedding_prob, " +
+                "freq_stability_idx, pillar3_score, status, computed_at " +
+                "FROM v_pillar3_grid_reliability " +
+                "ORDER BY pillar3_score ASC NULLS LAST, region_code",
                 PILLAR3_MAPPER);
     }
+
+    // ---------- Pillar 4 — Energy Transition (Acceptability) ----------
+
+    private static final RowMapper<Pillar4EnergyTransitionDto> PILLAR4_MAPPER = (rs, i) ->
+            Pillar4EnergyTransitionDto.builder()
+                    .regionCode(rs.getString("region_code"))
+                    .renewablePct(rs.getBigDecimal("renewable_pct"))
+                    .co2Intensity(rs.getBigDecimal("co2_intensity"))
+                    .curtailmentRate(rs.getBigDecimal("curtailment_rate"))
+                    .netzeroProgress(rs.getBigDecimal("netzero_progress"))
+                    .pillar4Score(rs.getBigDecimal("pillar4_score"))
+                    .status(rs.getString("status"))
+                    .computedAt(toOffset(rs.getTimestamp("computed_at")))
+                    .build();
+
+    public List<Pillar4EnergyTransitionDto> findPillar4EnergyTransition() {
+        return jdbc.query(
+                "SELECT region_code, renewable_pct, co2_intensity, curtailment_rate, " +
+                "netzero_progress, pillar4_score, status, computed_at " +
+                "FROM v_pillar4_energy_transition " +
+                "ORDER BY pillar4_score DESC NULLS LAST, region_code",
+                PILLAR4_MAPPER);
+    }
+
+    // ---------- Pillar 3 helper — grid load latest (Phase 2.5, kept for raw view) ----------
 
     private static final RowMapper<GridLoadLatestDto> GRID_LATEST_MAPPER = (rs, i) -> GridLoadLatestDto.builder()
             .regionCode(rs.getString("region_code"))
@@ -103,27 +137,11 @@ public class PillarDao {
             .build();
 
     public List<GridLoadLatestDto> gridLoadLatest() {
-        return jdbc.query("SELECT * FROM v_pillar3_grid_load_latest ORDER BY load_pct DESC", GRID_LATEST_MAPPER);
-    }
-
-    // ---------- Pillar 4 ----------
-
-    private static final RowMapper<Pillar4NetZeroDto> PILLAR4_MAPPER = (rs, i) -> Pillar4NetZeroDto.builder()
-            .regionCode(rs.getString("region_code"))
-            .regionName(rs.getString("region_name"))
-            .renewableMw(rs.getBigDecimal("renewable_mw"))
-            .avgLoadMw(rs.getBigDecimal("avg_load_mw"))
-            .currentRenewableSharePct(rs.getBigDecimal("current_renewable_share_pct"))
-            .target2026Pct(rs.getBigDecimal("target_2026_pct"))
-            .target2030Pct(rs.getBigDecimal("target_2030_pct"))
-            .status(rs.getString("status"))
-            .recommendationText(rs.getString("recommendation_text"))
-            .build();
-
-    public List<Pillar4NetZeroDto> pillar4NetZero() {
         return jdbc.query(
-                "SELECT * FROM v_pillar4_net_zero_progress ORDER BY current_renewable_share_pct DESC NULLS LAST",
-                PILLAR4_MAPPER);
+                "SELECT region_code, region_name, load_mw, capacity_mw, load_pct, " +
+                "is_peak_hour, status, event_time " +
+                "FROM v_pillar3_grid_load_latest ORDER BY load_pct DESC",
+                GRID_LATEST_MAPPER);
     }
 
     // ---------- Fuel prices raw (Pillar 2 chi tiết) ----------
@@ -156,5 +174,9 @@ public class PillarDao {
 
     private static LocalDateTime toLocal(Timestamp ts) {
         return ts == null ? null : ts.toLocalDateTime();
+    }
+
+    private static OffsetDateTime toOffset(Timestamp ts) {
+        return ts == null ? null : ts.toInstant().atOffset(ZoneOffset.UTC);
     }
 }

@@ -1,0 +1,258 @@
+{
+  "info": {
+    "name": "VES-Monitor API",
+    "description": "Vietnam Energy Security Real-time Monitor — REST API.\n\nGenerated for Phase 7.6 (backend pillar migration). Covers 13 production endpoints across 7 controllers.\n\n**Quick start:**\n1. Send `Auth → Login` (default body `admin/admin`). The collection variable `token` is auto-populated from the response via the test script.\n2. Every other request inherits Bearer auth from the collection (`{{token}}`).\n3. Toggle `baseUrl` if pointing at a different host (cloud tunnel, mobile emulator, etc).\n\n**Notes:**\n- Pillar paths are exposed under both old (Phase 2.5) and new (Phase 7.1 IEA/APERC) names. Both alias to the same handler.\n- `/api/security/cascade-risks` returns an empty array — view dropped in Phase 7.1, endpoint kept for backward-compat.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8090", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (auto-set token)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "description": "Returns JWT in `token` (or `accessToken`). Test script auto-populates collection variable `{{token}}`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var data = pm.response.json();",
+                  "  var t = data.token || data.accessToken;",
+                  "  if (t) {",
+                  "    pm.collectionVariables.set('token', t);",
+                  "    console.log('JWT saved → {{token}} length=' + t.length);",
+                  "  }",
+                  "}",
+                  "pm.test('login returns 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security",
+      "item": [
+        {
+          "name": "Composite Energy Security Index",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/security/score", "host": ["{{baseUrl}}"], "path": ["api", "security", "score"] },
+            "description": "Phase 7.1 composite ESI: weighted 0.30/0.20/0.30/0.20 (P1/P2/P3/P4). Status ∈ SECURE/ELEVATED/STRESSED/CRITICAL."
+          }
+        },
+        {
+          "name": "Cascade Risks (deprecated, returns empty)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/security/cascade-risks", "host": ["{{baseUrl}}"], "path": ["api", "security", "cascade-risks"] },
+            "description": "View `v_cascade_risks` was dropped in Phase 7.1. Endpoint kept for backward-compat — returns empty array, HTTP 200."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pillars",
+      "item": [
+        {
+          "name": "P1 Supply Security (new)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/1/supply-security", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "1", "supply-security"] },
+            "description": "IEA/APERC Availability — IDR / SFRI / HHI / N-1 resilience + composite pillar1_score."
+          }
+        },
+        {
+          "name": "P1 Outlook (legacy alias)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/1/outlook", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "1", "outlook"] }
+          }
+        },
+        {
+          "name": "P2 Market Resilience (new)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/2/market-resilience", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "2", "market-resilience"] },
+            "description": "IEA/IMF Affordability — σ_30d / price_gap_pct / β_crude / affordability_idx + pillar2_score."
+          }
+        },
+        {
+          "name": "P2 Volatility (legacy alias)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/2/volatility", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "2", "volatility"] }
+          }
+        },
+        {
+          "name": "P3 Grid Reliability (new)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/3/grid-reliability", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "3", "grid-reliability"] },
+            "description": "NERC/IEEE Accessibility — reserve_margin_pct / peak_load_factor / shedding_prob / freq_stability_idx + pillar3_score."
+          }
+        },
+        {
+          "name": "P3 Shedding (legacy alias)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/3/shedding", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "3", "shedding"] }
+          }
+        },
+        {
+          "name": "P4 Energy Transition (new)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/4/energy-transition", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "4", "energy-transition"] },
+            "description": "IPCC AR6 Acceptability — renewable_pct / co2_intensity / curtailment_rate / netzero_progress + pillar4_score."
+          }
+        },
+        {
+          "name": "P4 Netzero (legacy alias)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/pillars/4/netzero", "host": ["{{baseUrl}}"], "path": ["api", "pillars", "4", "netzero"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "Active alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/active?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alerts", "active"],
+              "query": [{ "key": "limit", "value": "20" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations",
+      "item": [
+        {
+          "name": "List active",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations"],
+              "query": [{ "key": "limit", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "Acknowledge by id",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACKNOWLEDGED\",\n  \"note\": \"reviewed via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/1/acknowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "1", "acknowledge"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fuel",
+      "item": [
+        {
+          "name": "Latest fuel prices",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/fuel-prices/latest?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "fuel-prices", "latest"],
+              "query": [{ "key": "limit", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "Latest fuel prices (filter by fuel_type)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/fuel-prices/latest?fuel_type=WTI_CRUDE&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "fuel-prices", "latest"],
+              "query": [
+                { "key": "fuel_type", "value": "WTI_CRUDE" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Grid",
+      "item": [
+        {
+          "name": "Latest grid load by region",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/grid-load/latest", "host": ["{{baseUrl}}"], "path": ["api", "grid-load", "latest"] }
+          }
+        }
+      ]
+    }
+  ]
+}
