@@ -2,7 +2,9 @@
 
 > Nền tảng **giám sát an ninh năng lượng Việt Nam** thời gian thực qua **Kafka + Flink + PostgreSQL**, bao quát **4 pillars** (Nguồn cung, Biến động Kinh tế, Phụ tải, Chuyển đổi & Môi trường) — kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn cho Pillar 2 (giá nhiên liệu thế giới), bổ sung light coverage cho 3 pillars còn lại.
 
-[![Status](https://img.shields.io/badge/status-WIP%20Phase%202.5-yellow)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+[![Status](https://img.shields.io/badge/status-Phase%204.5%20code--complete-yellowgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+
+> 👥 **Thành viên team**, đọc ngay **[`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)** để biết task của mình (B/C/D/E × 5 PR step-by-step). File này thay thế phân công cũ trong `UPGRADE_PLAN.md §22`.
 
 ---
 
@@ -25,11 +27,11 @@
 | Tầng | Công nghệ | Vai trò |
 |------|-----------|---------|
 | **Data Source** | 3 Java Producer (Pillar 2/3/4) + SQL seed (Pillar 1) | Sinh dữ liệu real-time cho 4 pillars |
-| **Message Broker** | Apache Kafka 7.5.0 | Topics: `fuel-prices`, `grid-load`, `renewable-output` |
-| **Stream Processing** | Apache Flink 1.17.0 | 4 luồng song song: raw / window 1-phút / **alert rule-based** / cross-pillar |
-| **Storage** | PostgreSQL 15 | **13 bảng + 19 views** (3 fuel + 4 ops + 4 pillar + 2 security) — toàn bộ logic actionable nằm trong SQL views |
+| **Message Broker** | Apache Kafka 7.5.0 | 4 topic: `fuel-prices`, `grid-load`, `renewable-output`, `emission` (Phase 4) |
+| **Stream Processing** | Apache Flink 1.17.0 | **9 vertex / 4 luồng pillar** song song: 4 RAW sink + Window 1-phút + Price-change + 3 RULE detector (FUEL_PRICE / GRID_LOAD_PCT / EMISSION_INTENSITY) |
+| **Storage** | PostgreSQL 15 | **13 bảng + 19 views** (3 fuel + 4 ops + 4 pillar + 2 security) — toàn bộ logic actionable nằm trong SQL views. `alerts.metric_type` đa pillar (Phase 4). |
 | **BI** | Metabase 0.47 (overlay) | Dashboard 4-pillar |
-| **REST API** | Spring Boot 3 (Phase 4) | JWT + ~12 endpoint cover 4 pillars cho Desktop + Mobile |
+| **REST API** | Spring Boot 2.7 (Phase 4.5 — code ready, build pending) | JWT + **14 endpoint** cover 4 pillars cho Desktop + Mobile, port `8090` |
 | **Desktop UI** | JavaFX 21 (Phase 5) | 3-layer, JDBC trực tiếp, **Dashboard 4-tab pillars**, 5 màn, JUnit |
 | **Mobile UI** | Android Studio (Phase 6) | Retrofit + MPAndroidChart, **bottom nav 4 pillars**, 4 màn |
 | **Orchestration** | Docker Compose | One-click stack Lite ~2.85 GB |
@@ -41,45 +43,64 @@
 ```bash
 git clone <repo-url>
 cd Real-time-processing-with-Kafka-Flink-Postgres
-bash scripts/run.sh        # hoặc .\scripts\run.ps1 trên Windows
+bash scripts/run.sh        # khởi động Docker + tự pre-create 4 Kafka topic
+mvn -q clean package -DskipTests    # build 4 JAR (3 generator + 1 Flink job)
+# Upload + submit Flink job qua Flink UI http://localhost:8081 (entry class: org.cloud.KafkaConsumerApplication)
+bash scripts/start_generators.sh    # chạy 3 generator song song (Pillar 2/3/4)
 ```
 
-Sau ~60s tất cả service sẽ healthy:
-- **Flink UI**: http://localhost:8081
-- **Metabase**: http://localhost:3000
+Sau ~60s tất cả service sẽ healthy + raw data đang chảy 4 pillar:
+- **Flink UI**: http://localhost:8081  (xem 9 vertex đều RUNNING)
+- **Metabase**: http://localhost:3000  (BI overlay, optional)
 - **PostgreSQL**: `localhost:5432` (user=`postgres`, pass=`123456`, db=`fuel_prices`)
-- **Kafka**: `localhost:9092`, topic `fuel-prices`
+- **Kafka**: `localhost:9092`, 4 topic: `fuel-prices`, `grid-load`, `renewable-output`, `emission`
 
 Verify health: `bash scripts/healthcheck.sh`
-Dừng stack: `bash scripts/stop.sh`
+Smoke test 4 pillar: `docker exec -i postgres-database psql -U postgres -d fuel_prices < scripts/phase4_smoke.sql`
+Stress alert demo: `bash scripts/phase4_stress_alerts.sh`
+Dừng generator (giữ stack): `bash scripts/stop_generators.sh`
+Dừng toàn bộ: `bash scripts/stop.sh`
 
 ---
 
 ## 🏗️ Kiến trúc
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       VES REAL-TIME FUEL PIPELINE                       │
-│                                                                          │
-│  [Producer]  ─► [Kafka]  ─► [Flink Job]  ─► [Postgres]  ─► [Metabase]  │
-│  data-gens/    fuel-prices  fuel-flink-     fuel_prices       (BI)     │
-│  fuel-price-                 job (3 luồng    DB                          │
-│  producer                    + alert Phase3)                             │
-│                                                                          │
-│                                                  ▲                       │
-│                                                  │ JDBC + REST           │
-│                                                  │                       │
-│                              ┌───────────────────┴────────────────┐     │
-│                              │   Spring Boot API (Phase 4)        │     │
-│                              │   8 endpoint + JWT + SSE           │     │
-│                              └───────┬───────────────────┬────────┘     │
-│                                      │ REST              │ REST          │
-│                                ┌─────▼─────┐       ┌─────▼─────┐        │
-│                                │  JavaFX   │       │  Android  │        │
-│                                │  Desktop  │       │  App      │        │
-│                                │ (Phase 5) │       │ (Phase 6) │        │
-│                                └───────────┘       └───────────┘        │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                  VES-MONITOR REAL-TIME 4-PILLAR PIPELINE  (Phase 4)             │
+│                                                                                  │
+│  ┌─────────────────────────┐                                                    │
+│  │  3 Java Producer        │       4 topic Kafka                                │
+│  │  (P2 fuel-price-prod)   │ ───►  fuel-prices                                  │
+│  │  (P3 grid-load-gen)     │ ───►  grid-load                                    │
+│  │  (P4 renewable-gen)     │ ───►  renewable-output                             │
+│  │                         │ ───►  emission                                     │
+│  └─────────────────────────┘                                                    │
+│              ▼                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │              Flink Job — 9 vertex / 4 source x N branch                  │  │
+│  │  P2: raw + window(1m) + price-change + FUEL_PRICE rule detector          │  │
+│  │  P3: raw + GRID_LOAD_PCT rule detector  (60s cooldown / region)          │  │
+│  │  P4: raw renewable + raw emission + EMISSION_INTENSITY rule detector     │  │
+│  │  → CRITICAL alerts ➜ auto-recommendations (SQL NOT EXISTS 30m dedup)     │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│              ▼                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │  PostgreSQL — 13 table + 19 view                                         │  │
+│  │  - 4 raw: fuel_prices_raw / grid_load_raw / renewable_output_raw / ...   │  │
+│  │  - alerts (multi-pillar metric_type) / recommendations / daily_briefings  │  │
+│  │  - v_security_score (Light ESI) + v_cascade_risks (compound multi-pillar) │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│              ▼ JDBC + REST                                                       │
+│  ┌──────────────────────────────────────────────────────────────────────────┐  │
+│  │   Spring Boot API (Phase 4.5)  — 12 endpoint cover 4 pillar + JWT + SSE  │  │
+│  └──────┬──────────────────────────────────────────────────────────┬────────┘  │
+│         │ REST                                                       │ REST     │
+│  ┌──────▼─────────┐                                            ┌─────▼────────┐ │
+│  │ JavaFX Desktop │ (Phase 5) ★ TabPane 4-pillar dashboard     │ Android      │ │
+│  │ Admin Console  │           ★ ESI gauge + recommendations UI │ App (Phase 6)│ │
+│  └────────────────┘                                            └──────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -94,17 +115,34 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 │       ├── init_fuel_schema.sql        # Schema hiện tại
 │       └── PostgreSQL.sql              # SQL legacy (reference)
 │
-├── data-generators/                    # Module gửi data lên Kafka
-│   └── fuel-price-producer/            # Java Producer (Mock + HTTP)
+├── data-generators/                    # 3 module gửi data lên Kafka (Pillar 2/3/4)
+│   ├── fuel-price-producer/            # Pillar 2 — 30 record/10s vào topic fuel-prices
+│   │   ├── pom.xml
+│   │   └── src/main/java/org/fuel/     # FuelPriceProducer, MockDataGenerator, HttpApiSource
+│   ├── grid-load-generator/            # Pillar 3 — 3 region/5s vào topic grid-load
+│   │   ├── pom.xml
+│   │   └── src/main/java/vn/edu/ves/grid/   # GridLoadGenerator + mock source + GridLoadEvent
+│   └── renewable-generator/            # Pillar 4 — 9 record/10s + 3 emission/30s
 │       ├── pom.xml
-│       └── src/main/java/org/fuel/     # FuelPriceProducer, MockDataGenerator, HttpApiSource
+│       └── src/main/java/vn/edu/ves/renewable/  # 2 topic producer: renewable-output + emission
 │
 ├── flink-jobs/                         # Module Flink stream processing
-│   └── fuel-flink-job/                 # 3 luồng: raw / window agg / alert
+│   └── fuel-flink-job/                 # 9 vertex / 4 source: P2 (4 luồng) + P3 (raw+alert) + P4 (raw+raw+alert)
 │       ├── pom.xml
-│       └── src/main/java/org/cloud/    # KafkaConsumerApplication + process/* + source/*
+│       └── src/main/java/org/cloud/    # KafkaConsumerApplication + 3 detector + 7 model POJO
 │
-├── backend-api/                        # Phase 4 — Spring Boot REST API (chưa có)
+├── backend-api/                        # Phase 4.5 — Spring Boot 2.7 REST API (14 endpoint, JWT, JdbcTemplate)
+│   ├── pom.xml
+│   ├── README.md                       # Build/run + endpoint reference + proxy workaround
+│   └── src/main/
+│       ├── java/vn/edu/ves/api/
+│       │   ├── VesApiApplication.java
+│       │   ├── config/                 # SecurityConfig, JwtTokenProvider, JwtAuthFilter, OpenApiConfig
+│       │   ├── controller/             # 7 controller (Auth, Pillar, Security, Recommendation, Alert, RawData, Health)
+│       │   ├── dao/                    # 5 DAO JdbcTemplate (User/Pillar/Security/Recommendation/Alert)
+│       │   ├── dto/                    # 14 DTO POJO (Lombok) — pillar dashboards + ESI + alert + recommendation
+│       │   └── exception/              # ApiException + GlobalExceptionHandler (JSON 4xx/5xx)
+│       └── resources/application.yml
 ├── desktop-admin/                      # Phase 5 — JavaFX Admin Desktop (chưa có)
 ├── android-app/                        # Phase 6 — Android App (chưa có)
 │
@@ -150,13 +188,49 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 | **2.5** | Pillar 1/3/4 raw tables + seed (Light 4-pillar coverage) | ✅ `v0.2.5-pillars` |
 | **2.6** | Security output features (recommendations + 8 action views + ESI score) | ✅ `v0.2.6-security-features` |
 | **3** | Flink Alert Detection (FUEL_PRICE rules) + Auto Recommendation Gen (CRITICAL) | ✅ `v0.3-flink-alert` |
-| **4** | Spring Boot REST API + **2 generator mới** (grid-load + renewable) | ⬜ |
+| **4** | **2 Generator mới (grid-load + renewable) + Flink multi-pillar (GRID_LOAD_PCT + EMISSION_INTENSITY)** | ✅ `v0.4-generators` |
+| **4.5** | **Spring Boot 2.7 REST API — 14 endpoint cover 4 pillar + JWT + Swagger** | 🟡 `code-complete` (build pending — Bosch proxy NTLM block; run `mvn package` từ hotspot 4G) |
 | **5** | JavaFX Admin Desktop ⭐ — 5 màn, 4-tab pillars dashboard | ⬜ |
 | **6** | Android App — 4 activity, bottom nav 4 pillars | ⬜ |
 | **7** | Deploy + Cloudflared Tunnel | ⬜ |
 | **8** | Documentation + Demo prep | ⬜ |
 
 Chi tiết: [`UPGRADE_PLAN.md`](./UPGRADE_PLAN.md) §24.
+
+---
+
+## 🌐 Phase 4.5 — Backend REST API (Spring Boot 2.7)
+
+> **Trạng thái**: source đầy đủ ở `backend-api/` (24 file Java, lint-clean) — chờ build sau khi qua được proxy Bosch NTLM. Khi có hotspot 4G hoặc bridge, chỉ cần 2 lệnh:
+
+```bash
+mvn -pl backend-api -am clean package -DskipTests          # ~2-5 phút
+java -jar backend-api/target/ves-backend-api.jar            # nghe 0.0.0.0:8090
+```
+
+Smoke 14 endpoint:
+```bash
+bash scripts/phase45_smoke_api.sh         # user mặc định admin/admin
+```
+
+| Endpoint | Pillar | Mô tả |
+|----------|--------|-------|
+| `POST /api/auth/login`             | -    | Lấy JWT (admin/admin, manager/manager, user/user) |
+| `GET  /api/auth/me`                | -    | User hiện tại |
+| `GET  /api/pillars/1/outlook`      | 1    | Stock days + recommendation điều chuyển |
+| `GET  /api/pillars/2/volatility`   | 2    | σ rolling 1h + signal STABLE/ELEVATED/VOLATILE |
+| `GET  /api/pillars/3/shedding-plan`| 3    | Priority load shed (load_pct ≥ 85%) |
+| `GET  /api/pillars/4/net-zero`     | 4    | Renewable share vs roadmap 2026/2030 |
+| `GET  /api/security/score`         | 0    | Light ESI 0-100 + status |
+| `GET  /api/security/cascade-risks` | 0    | Compound multi-pillar risks |
+| `GET  /api/recommendations`        | 0    | List PENDING + age |
+| `POST /api/recommendations/{id}/acknowledge` | 0 | ACK/DISMISS + audit user/note |
+| `GET  /api/alerts/active`          | all  | Cảnh báo chưa ACK |
+| `GET  /api/fuel-prices/latest`     | 2    | N giá nhiên liệu mới nhất |
+| `GET  /api/grid-load/latest`       | 3    | Phụ tải theo region |
+| `GET  /api/health`                 | -    | DB ping (public, dùng cho tunnel probe) |
+
+Swagger UI: `http://localhost:8090/swagger-ui.html`. Chi tiết build / proxy workaround / config: [`backend-api/README.md`](./backend-api/README.md).
 
 ---
 
@@ -168,7 +242,8 @@ Chi tiết: [`UPGRADE_PLAN.md`](./UPGRADE_PLAN.md) §24.
 | Flink job failed | Check pom.xml shade plugin, verify JAR classpath. Xem log: `docker logs flink-jobmanager` |
 | Postgres table not found | Verify SQL init script đã chạy: `docker logs postgres-database | grep init_fuel_schema` |
 | Metabase can't connect DB | Trong Metabase, **Host** phải là `postgresql` (tên service Docker), KHÔNG phải `localhost` |
-| Port 5432/9092/8081/3000 bị chiếm | Đổi port trong `.env` (sau khi copy từ `.env.example`) |
+| Port 5432/9092/8081/3000/8090 bị chiếm | Đổi port trong `.env` (Docker) hoặc `SERVER_PORT=...` (backend-api) |
+| `mvn package` báo `407 Proxy Authentication Required` ở Bosch | Proxy `rb-proxy-apac.bosch.com:8080` chỉ chấp nhận NTLM/Negotiate. Workaround: hotspot 4G để cache deps, hoặc `cntlm` local bridge — xem `backend-api/README.md` mục "Build". |
 
 ---
 
@@ -178,7 +253,10 @@ Chi tiết: [`UPGRADE_PLAN.md`](./UPGRADE_PLAN.md) §24.
 |------|-------|
 | [UPGRADE_PLAN.md](./UPGRADE_PLAN.md) | Kế hoạch nâng cấp chi tiết, §24 = Minimalist Plan (thực thi) |
 | [JAVA_FINAL_PROJECT_REQUIREMENT.md](./JAVA_FINAL_PROJECT_REQUIREMENT.md) | Yêu cầu đồ án môn Java |
-| [docs/PHAN_CONG_CONG_VIEC_legacy.md](./docs/PHAN_CONG_CONG_VIEC_legacy.md) | Phân công công việc (legacy, sẽ thay bằng §22 UPGRADE_PLAN) |
+| **[docs/TEAM_TASKS.md](./docs/TEAM_TASKS.md)** | **👥 Phân công team 5 người: 4 thành viên × 5 PR step-by-step (B/C/D/E)** |
+| [backend-api/README.md](./backend-api/README.md) | Hướng dẫn build & deploy Spring Boot REST API (Phase 4.5) |
+| [docs/PROGRESS.md](./docs/PROGRESS.md) | Sổ tay tiến độ phase + verification log |
+| [docs/PHAN_CONG_CONG_VIEC_legacy.md](./docs/PHAN_CONG_CONG_VIEC_legacy.md) | Phân công công việc (legacy, đã thay bằng TEAM_TASKS.md) |
 
 ---
 

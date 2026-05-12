@@ -1623,6 +1623,16 @@ docker stats --no-stream
 
 ## 22. Phân công thực tế (Leader-heavy) 👤 — Khi thành viên yếu
 
+> 📌 **CẬP NHẬT 2026-05-12 — Team mở rộng 5 người:** Phân công chi tiết (5 PR/người × 4 thành viên = 20 PR, step-by-step) đã được tách sang file độc lập **[`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md)** để team dễ in/share. §22 dưới đây giữ lại bản tóm tắt 3 người cũ làm tham khảo lịch sử.
+>
+> **File mới `TEAM_TASKS.md`** phân 4 persona:
+> - **B — Doc & PM** (non-coding, 5 PR ~30h): ERD/Use-case/Activity + báo cáo Chương 1/2/4/6 + AI Usage Log + Notion
+> - **C — Media & QA** (non-coding, 5 PR ~25h): slide 22 trang + video demo 5-7' + bộ screenshot + Postman collection + test report
+> - **D — JavaFX UI Junior** (simple coding, 5 PR ~20h): SQL seed VN + ValidatorUtils + JUnit + 2 màn JavaFX phụ (About/Settings) + CSS polish
+> - **E — Android UI Junior** (simple coding, 5 PR ~20h): icons/drawable + i18n VN+EN + 2 màn Android phụ + Postman runner + screenshots
+>
+> D & E **không cần chạy backend/Flink/Docker** — chỉ build module riêng (`mvn javafx:run` hoặc Android Studio). 2 task đầu của D/E làm được NGAY, không chờ phase nào.
+
 > **Bối cảnh:** Thành viên Java của nhóm chưa thạo Spring Boot / Flink / Android / JavaFX nâng cao. Leader sẽ đảm nhận phần lớn code, mỗi thành viên còn lại được giao **3-6 task nhỏ-đơn giản** đảm bảo có PR thật, có dấu ấn trong báo cáo, không block đường găng của Leader.
 
 ### 22.1 Triết lý phân công Leader-heavy
@@ -2448,31 +2458,42 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
-#### 📡 Phase 4 — 2 Generator mới cho Pillar 3 + Pillar 4 (6-8h)
+#### 📡 Phase 4 — 2 Generator mới + Flink multi-pillar detection ✅ (HOÀN THÀNH 12 May 2026)
 
 | Field | Value |
 |-------|-------|
-| **Mục tiêu** | Pillar 3 + Pillar 4 có data **real-time** thay vì rỗng. Bắt chước pattern của `fuel-price-producer` (đã có sẵn). |
-| **Module mới (Maven)** | `data-generators/grid-load-generator/` (~150 LOC) đẩy 3 topic-key `VN_NORTH/CENTRAL/SOUTH` mỗi 5s, thêm logic giờ cao điểm 18-22h tăng `load_mw`. `data-generators/renewable-generator/` (~180 LOC) đẩy `solar` (6h-18h) + `wind` (24/7) + `hydro` (24/7) mỗi 10s, kèm event emission CO2 song song. |
-| **Kafka topic mới** | `grid-load`, `renewable-output`, `emission` (mỗi cái 3 partition theo region) |
-| **JDBC Sink trong Flink** | Mở rộng `JdbcPostgresSink` thành 3 instance cho 3 bảng `grid_load_raw`, `renewable_output_raw`, `emission_raw`. Trong `KafkaConsumerApplication`, thêm 3 nhánh stream song song với fuel-price stream hiện có. |
-| **Smoke test** | Sau khi chạy 2 generator 1 phút: `SELECT COUNT(*), MAX(event_time) FROM grid_load_raw` > 10 rows, timestamp gần NOW(). `SELECT * FROM v_pillar3_grid_load_latest` trả 3 row (mỗi region 1). `SELECT * FROM v_pillar4_renewable_share LIMIT 5` trả data. |
-| **Common pitfalls** | 2 generator mới chia sẻ logic Kafka producer setup → có thể tạo `data-generators/common/` để extract `KafkaProducerFactory`. Schema validation: đảm bảo JSON payload khớp `event_time` ISO-8601. |
+| **Mục tiêu** | Pillar 3 + Pillar 4 có data **real-time**; Flink mở rộng từ 4 vertex → 9 vertex; AlertDetection multi-pillar (FUEL_PRICE + GRID_LOAD_PCT + EMISSION_INTENSITY); auto-recommendation cho mọi pillar. |
+| **Module mới (Maven)** | ✅ `data-generators/grid-load-generator/` (~150 LOC) — Ornstein-Uhlenbeck random walk hướng về target = base + peak boost. ✅ `data-generators/renewable-generator/` (~280 LOC) đẩy 2 topic: `renewable-output` (SOLAR bell-curve 6h-18h + WIND/HYDRO 24/7) + `emission` (CO2 = (grid_load_75% - renewable) × 750 kg/MWh). |
+| **Kafka topic mới** | ✅ `grid-load`, `renewable-output`, `emission` (mỗi 3 partition). Pre-created qua `scripts/create_kafka_topics.{sh,ps1}` (idempotent `--if-not-exists`). |
+| **Flink mở rộng** | ✅ `KafkaInvoiceSource.createSourceForTopic(topic, groupId)` — generic factory. ✅ 3 POJO mới (`GridLoadEvent` với `getLoadPct()`, `RenewableOutputEvent`, `EmissionEvent` với `getIntensityKgPerMwh()`). ✅ 2 detector mới (`GridLoadAlertDetector`, `EmissionAlertDetector`) cùng pattern MapState 60s cooldown, key=region_code. ✅ `RuleAlertEvent` multi-pillar: thêm `metricType`, 2 constructor mới, dispatch `actionTypeForRecommendation()` theo metric (HEDGE_IMPORT / PEAK_SHAVING / DISPATCH_RENEWABLE / TRANSFER_STOCK) + `getPillar()` 1-4 cho SQL INSERT động. ✅ Helper `addAlertSinks(stream, label)` chung — gắn 2 sink (alerts + recommendations) cho mọi pillar. ✅ Job đổi tên: **"VES-Monitor Real-time Pipeline (4 pillars / 7 streams)"**, 9 vertex. |
+| **Schema mở rộng** | ✅ `infra/script/09_alter_alerts_multi_pillar.sql`: thêm `metric_type` (default 'FUEL_PRICE' backward-compat) + relax `fuel_type`/`location` nullable + CHECK constraint 5 loại + re-create `v_active_alerts` view với cột `metric_type`. Idempotent. |
+| **Smoke test (live)** | ✅ 30s sau khi start 3 generator: `grid_load_raw` 344 rows, `renewable_output_raw` 432, `emission_raw` 52. Stress test: GRID_LOAD_PCT 95% → 2 alert (CRITICAL+WARNING) + 1 auto-rec `PEAK_SHAVING` pillar=3. EMISSION_INTENSITY 700 → 1 alert WARNING. `v_security_score` rớt từ 70 → 0 cho Pillar 3 sau detection. `v_cascade_risks` thêm `CARBON_COST_RISK` (compound). |
+| **Bug đã fix trong phase** | Renewable generator: `EMISSION_INTERVAL_MS / 60_000L = 0` (integer division khi 30s < 60s) → `co2_kg=0/energy_mwh=0`. Đổi sang `double emissionWindowMinutes = 0.5` → intensity hiển thị 267-640 kg/MWh đúng. |
+| **Memory** | Docker stack 1.6 GB / 2.85 GB cap (+700 MB từ 4 source + 5 detector). 3 generator JVM ~1.2 GB ở host (ngoài cap docker). |
+| **Files mới/sửa** | 2 module mới + 9 source file Flink + 1 SQL + 2 script topic + run.sh/ps1. Chi tiết: `docs/PROGRESS.md` Phase 4 log. |
 | **Tag** | `v0.4-generators` |
 
 ---
 
-#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars + Security Actions (6-8h)
+#### 🌐 Phase 4.5 — Spring Boot REST API cover 4 pillars + Security Actions (6-8h) — 🟡 CODE COMPLETE, BUILD PENDING
 
 | Field | Value |
 |-------|-------|
-| **Mục tiêu** | 1 module Spring Boot 3, JdbcTemplate, JWT, **~14 endpoint** (8 core + 4 pillar + 2 security actions), Swagger |
-| **Files tạo (~30 file Java + 2 config):** | Như Phase 4 cũ + thêm: `dao/PillarDao.java`, `dao/SecurityDao.java` (đọc `v_security_score`, `v_active_recommendations`, `v_cascade_risks`), `dao/RecommendationDao.java` (ACK/DISMISS), `controller/PillarController.java`, `controller/SecurityController.java`, `dto/{Pillar1Outlook, Pillar3Shedding, Pillar4NetZero, SecurityScore, Recommendation, CascadeRisk}Dto.java` |
-| **Endpoint Pillar (4)** | `GET /api/pillars/1/outlook` (đọc `v_pillar1_supply_outlook`), `GET /api/pillars/2/volatility` (`v_pillar2_volatility_signal`), `GET /api/pillars/3/shedding-plan` (`v_pillar3_load_shedding_plan`), `GET /api/pillars/4/net-zero` (`v_pillar4_net_zero_progress`) |
-| **Endpoint Security (4)** | `GET /api/security/score` (1 row từ `v_security_score`), `GET /api/security/cascade-risks` (`v_cascade_risks`), `GET /api/recommendations?status=PENDING` (`v_active_recommendations`), `POST /api/recommendations/{id}/acknowledge` (update status=ACKNOWLEDGED + acknowledged_by + note) |
-| **Smoke test** | `curl -H "..." /api/security/score` → JSON `{overall_score:76.4, pillar1_score:68.5, status:"STABLE"}`. `curl POST /api/recommendations/1/acknowledge` → status đổi từ PENDING → ACKNOWLEDGED trong DB. Swagger UI có đủ 14 endpoint. |
-| **Common pitfalls** | Khi không có data Pillar 3/4 (Phase 4 chưa chạy generator) → endpoint trả `[]`, KHÔNG được throw 500. JSONB `suggested_data` cần Jackson `@JsonRawValue` hoặc `JsonNode` để pass-through. CORS chặn Android emulator → `allowedOrigins("*")` cho dev. |
-| **Tag** | `v0.45-backend-api` |
+| **Trạng thái** | 🟡 Source viết xong (24 file Java + pom + yml + README + smoke script), lint-clean. **Build & runtime test pending** do proxy Bosch dùng NTLM/Negotiate — Maven Wagon không gửi được creds. Khi có hotspot 4G hoặc `cntlm` bridge: `mvn -pl backend-api -am clean package -DskipTests && java -jar backend-api/target/ves-backend-api.jar` |
+| **Quyết định stack** | Spring Boot **2.7.18** (không phải 3.x) — để giữ Java 11 đồng bộ với 4 module hiện hữu (3 generator + Flink job). Spring Boot 3.x yêu cầu Java 17 sẽ phá build đồng nhất. |
+| **Mục tiêu** | 1 module Spring Boot 2.7, JdbcTemplate, JWT HS256, **14 endpoint** (3 auth + 4 pillar + 2 security + 2 recommendation + 1 alert + 2 raw + 1 health), Swagger UI tại `/swagger-ui.html`, port 8090 |
+| **Files tạo (~24 file Java + 4 config):** | `pom.xml`, `application.yml`, `VesApiApplication.java`, `config/{SecurityConfig, JwtTokenProvider, JwtAuthFilter, OpenApiConfig}.java`, `controller/{Auth, Pillar, Security, Recommendation, Alert, RawData, Health}Controller.java` (7 controller), `dao/{User, Pillar, Security, Recommendation, Alert}Dao.java` (5 DAO JdbcTemplate), `dto/*Dto.java` × 14 (Lombok @Data @Builder), `exception/{ApiException, GlobalExceptionHandler}.java`. Tất cả file đã viết xong, ReadLints không có lỗi. |
+| **Endpoint Auth (3)** | `POST /api/auth/login` (body `{username,password}` → JWT 8h + UserDto), `GET /api/auth/me` (user theo JWT), `GET /api/health` (DB ping, public, dùng cho cloudflared probe) |
+| **Endpoint Pillar (4)** | `GET /api/pillars/1/outlook` (`v_pillar1_supply_outlook`), `GET /api/pillars/2/volatility` (`v_pillar2_volatility_signal`), `GET /api/pillars/3/shedding-plan` (`v_pillar3_load_shedding_plan`), `GET /api/pillars/4/net-zero` (`v_pillar4_net_zero_progress`) |
+| **Endpoint Security (2) + Recommendation (2) + Alert (1) + Raw (2)** | `GET /api/security/score` (1 row `v_security_score`), `GET /api/security/cascade-risks` (`v_cascade_risks` — JSONB pass-through bằng `@JsonRawValue`), `GET /api/recommendations?limit=N` (`v_active_recommendations`), `POST /api/recommendations/{id}/acknowledge` (body `{status, note}` → update + audit `acknowledged_by`), `GET /api/alerts/active?limit=N`, `GET /api/fuel-prices/latest?fuel_type=&limit=`, `GET /api/grid-load/latest` |
+| **Auth users** | Tận dụng 3 seed users từ Phase 2: admin/admin (ADMIN), manager/manager (MANAGER), user/user (VIEWER). `BCryptPasswordEncoder` match cả `$2a$` và `$2b$` hash đã seed. |
+| **Smoke test (script `scripts/phase45_smoke_api.sh`)** | 14 endpoint × 1-click. Login admin → lưu token → curl 13 endpoint còn lại với `Authorization: Bearer`. Pass: tất cả trả 2xx. Khi data trống (vd Pillar 3 không có load ≥ 85%), endpoint trả `[]` (KHÔNG 500). |
+| **Common pitfalls (đã handle sẵn)** | (1) JSONB `details`/`suggested_data` → `@JsonRawValue` + `details::text AS details` trong SQL. (2) CORS Android emulator (10.0.2.2) → `setAllowedOriginPatterns("*")`. (3) Endpoint dữ liệu trống → JdbcTemplate `query` tự trả empty list, controller forward thẳng. (4) `users.password_hash` dùng `$2b$10$...` → BCryptPasswordEncoder strength 10 native compatible. (5) JWT token có claim `uid` lưu vào `Authentication.details` để DAO `acknowledge` ghi đúng `acknowledged_by`. |
+| **Smoke test command (sau khi build)** | `bash scripts/phase45_smoke_api.sh` (mặc định BASE=`http://localhost:8090`, USER=admin, PASS=admin). Xuất 14 dòng ✓/✗ + summary count. |
+| **Memory budget** | JVM `-Xmx256M` đủ cho dev. Spring Boot 2.7 + Tomcat embedded ~150 MB heap thực dùng. Cộng với Docker stack 1.6 GB + 3 generator 1.2 GB = **~3 GB** trên máy 8 GB → vẫn an toàn. |
+| **Files dependencies (download lần đầu, ~80 MB)** | Spring Boot 2.7.18, jjwt 0.11.5, springdoc-openapi-ui 1.7.0, Lombok 1.18.30 (PostgreSQL driver 42.7.3 đã cache từ Phase 0). |
+| **Tag** | `v0.45-backend-api` (sẽ tag sau khi build + smoke test xanh — hiện đang code-complete) |
+| **Tài liệu** | [`backend-api/README.md`](./backend-api/README.md) — full build/run/troubleshoot guide cho team |
 
 ---
 

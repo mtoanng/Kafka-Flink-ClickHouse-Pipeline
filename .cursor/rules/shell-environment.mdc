@@ -1,0 +1,39 @@
+---
+description: Choose PowerShell vs WSL when running shell commands on this Windows workspace
+alwaysApply: true
+---
+
+# Shell environment — PowerShell first, WSL only when needed
+
+User là Windows + WSL2 setup. WSL khởi động chậm (~10-20s) và in MOTD dài. **Mặc định dùng PowerShell** cho mọi command không cần Docker/Linux runtime.
+
+## ✅ Dùng PowerShell (default)
+
+- File operations: `Test-Path`, `Get-ChildItem`, `New-Item`, `Remove-Item`, `Copy-Item`
+- Git: `git status`, `git diff`, `git log`, `git add`, `git commit`, `git push`
+- Maven: `mvn clean package` (nếu không cần Docker)
+- Đếm dòng / xem nhanh: `(Get-Content file.md).Count`, `Select-String`
+- Curl test endpoint local Windows-side: `Invoke-WebRequest`, `Invoke-RestMethod` (hoặc `curl.exe` nếu cần `curl` syntax thuần)
+
+## 🐧 Dùng WSL (`wsl -d Ubuntu-22.04 bash -lc '...'`)
+
+Chỉ khi command thuộc 1 trong các trường hợp sau:
+
+1. **Docker**: `docker compose up/down`, `docker exec`, `docker logs`, `docker stats`
+2. **Bash script phức tạp**: có `pipefail`, heredoc (`<<EOF`), `sed -i`, `awk` nhiều dòng
+3. **Linux-only tool**: `jq`, `psql` client, `kafka-topics`, `curl --noproxy '*'`
+4. **Cần network từ container side**: test endpoint qua tunnel, qua docker network
+5. **Khi command có nhiều quote lồng** mà PowerShell escape khó (JSON payload phức tạp)
+
+## ⚠️ Gotchas đã gặp trong dự án
+
+- `set: pipefail\r: invalid option name` → CRLF line endings, cần `sed -i 's/\r$//'` trước khi chạy script .sh trong WSL
+- PowerShell + bash heredoc trong cùng 1 command → fail vì PowerShell parse `-` đầu dòng. Tách thành file `.sh` riêng rồi `wsl bash script.sh`
+- `curl http://localhost:8081` trong WSL có thể bị proxy Bosch chặn → cần `--noproxy '*'` + `NO_PROXY` env
+- `mvn` qua proxy Bosch NTLM → 407. Defer build, không retry tự động
+
+## 💡 Quick check
+
+Trước khi chọn shell, hỏi: "Command này có gọi `docker`, có pipe phức tạp, hay có depend Linux tool?"
+- **Không** → PowerShell
+- **Có** → WSL
