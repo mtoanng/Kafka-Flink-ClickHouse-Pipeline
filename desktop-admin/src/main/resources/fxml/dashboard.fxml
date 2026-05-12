@@ -24,6 +24,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import vn.edu.ves.desktop.widget.Sparkline?>
 
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -60,6 +61,7 @@
             <VBox alignment="CENTER_RIGHT" spacing="2.0">
                 <Label fx:id="lblUserInfo" styleClass="user-info" text="--"/>
                 <Label fx:id="lblLastRefresh" styleClass="last-refresh" text="Last refresh: --"/>
+                <Label fx:id="lblLiveTicker" styleClass="live-ticker" text="⚡ -- events/sec · Last tick --"/>
             </VBox>
 
             <Button fx:id="btnRefresh" onAction="#refresh" styleClass="btn-secondary" text="Refresh"/>
@@ -84,8 +86,13 @@
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title"
-                                           text="Pillar 1 — Availability (IDR · SFRI · HHI · N-1) — IEA/APERC"/>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                        <Label styleClass="pillar-title"
+                                               text="Pillar 1 — Availability (IDR · SFRI · HHI · N-1) — IEA/APERC"/>
+                                        <Region HBox.hgrow="ALWAYS"/>
+                                        <Label styleClass="spark-label" text="P1 score · 3-min trend"/>
+                                        <Sparkline fx:id="sparkP1"/>
+                                    </HBox>
                                     <TableView fx:id="tblPillar1" prefHeight="240.0">
                                         <columns>
                                             <TableColumn fx:id="colP1Region" prefWidth="100.0" text="Region"/>
@@ -117,8 +124,13 @@
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title"
-                                           text="Pillar 2 — Affordability (σ30d · price gap · β crude · affordability) — IEA/IMF"/>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                        <Label styleClass="pillar-title"
+                                               text="Pillar 2 — Affordability (σ30d · price gap · β crude · affordability) — IEA/IMF"/>
+                                        <Region HBox.hgrow="ALWAYS"/>
+                                        <Label styleClass="spark-label" text="P2 score · 3-min trend"/>
+                                        <Sparkline fx:id="sparkP2"/>
+                                    </HBox>
                                     <TableView fx:id="tblPillar2" prefHeight="240.0">
                                         <columns>
                                             <TableColumn fx:id="colP2Fuel" prefWidth="130.0" text="Fuel"/>
@@ -149,8 +161,13 @@
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title"
-                                           text="Pillar 3 — Accessibility (reserve · peak · shed prob · freq) — NERC/IEEE"/>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                        <Label styleClass="pillar-title"
+                                               text="Pillar 3 — Accessibility (reserve · peak · shed prob · freq) — NERC/IEEE"/>
+                                        <Region HBox.hgrow="ALWAYS"/>
+                                        <Label styleClass="spark-label" text="P3 score · 3-min trend"/>
+                                        <Sparkline fx:id="sparkP3"/>
+                                    </HBox>
                                     <TableView fx:id="tblPillar3" prefHeight="240.0">
                                         <columns>
                                             <TableColumn fx:id="colP3Region" prefWidth="110.0" text="Region"/>
@@ -181,8 +198,13 @@
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title"
-                                           text="Pillar 4 — Acceptability (renewable% · CO2 intensity · curtailment · netzero) — IPCC AR6"/>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                        <Label styleClass="pillar-title"
+                                               text="Pillar 4 — Acceptability (renewable% · CO2 intensity · curtailment · netzero) — IPCC AR6"/>
+                                        <Region HBox.hgrow="ALWAYS"/>
+                                        <Label styleClass="spark-label" text="P4 score · 3-min trend"/>
+                                        <Sparkline fx:id="sparkP4"/>
+                                    </HBox>
                                     <TableView fx:id="tblPillar4" prefHeight="240.0">
                                         <columns>
                                             <TableColumn fx:id="colP4Region" prefWidth="110.0" text="Region"/>

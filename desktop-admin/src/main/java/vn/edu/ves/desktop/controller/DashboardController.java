@@ -1,11 +1,13 @@
 package vn.edu.ves.desktop.controller;
 
+import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.chart.BarChart;
@@ -14,12 +16,14 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
@@ -33,13 +37,20 @@ import vn.edu.ves.desktop.service.AuthService;
 import vn.edu.ves.desktop.service.AuthServiceImpl;
 import vn.edu.ves.desktop.service.DashboardService;
 import vn.edu.ves.desktop.service.DashboardServiceImpl;
+import vn.edu.ves.desktop.service.LiveMetricsService;
+import vn.edu.ves.desktop.service.LiveMetricsServiceImpl;
 import vn.edu.ves.desktop.util.AlertHelper;
 import vn.edu.ves.desktop.util.SessionManager;
+import vn.edu.ves.desktop.widget.PulseEffect;
+import vn.edu.ves.desktop.widget.Sparkline;
+import vn.edu.ves.desktop.widget.Toast;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +76,8 @@ public class DashboardController {
     private static final String ALERT_RULE_FXML = "/fxml/alertRule.fxml";
     private static final String USER_FXML = "/fxml/user.fxml";
     private static final String MATERIAL_CSS = "/css/material.css";
-    private static final long REFRESH_INTERVAL_SEC = 30L;
+    /** Default table-cadence refresh (overridden by ui.refresh.table.s). */
+    private static final long REFRESH_INTERVAL_SEC = 10L;
 
     // ---- top bar ----
     @FXML private Label lblUserInfo;
@@ -73,6 +85,7 @@ public class DashboardController {
     @FXML private Label lblScoreStatus;
     @FXML private ProgressIndicator scoreGauge;
     @FXML private Label lblLastRefresh;
+    @FXML private Label lblLiveTicker;
     @FXML private Button btnRefresh;
     @FXML private Button btnRegions;
     @FXML private Button btnAlertRules;
@@ -90,6 +103,7 @@ public class DashboardController {
     @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1Score;
     @FXML private TableColumn<Pillar1SupplySecurity, String> colP1Status;
     @FXML private BarChart<String, Number> chartPillar1;
+    @FXML private Sparkline sparkP1;
 
     // ---- pillar 2 — Market Resilience ----
     @FXML private TableView<Pillar2MarketResilience> tblPillar2;
@@ -101,6 +115,7 @@ public class DashboardController {
     @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Score;
     @FXML private TableColumn<Pillar2MarketResilience, String> colP2Status;
     @FXML private LineChart<String, Number> chartPillar2;
+    @FXML private Sparkline sparkP2;
 
     // ---- pillar 3 — Grid Reliability ----
     @FXML private TableView<Pillar3GridReliability> tblPillar3;
@@ -112,6 +127,7 @@ public class DashboardController {
     @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Score;
     @FXML private TableColumn<Pillar3GridReliability, String> colP3Status;
     @FXML private BarChart<String, Number> chartPillar3;
+    @FXML private Sparkline sparkP3;
 
     // ---- pillar 4 — Energy Transition ----
     @FXML private TableView<Pillar4EnergyTransition> tblPillar4;
@@ -123,6 +139,7 @@ public class DashboardController {
     @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Score;
     @FXML private TableColumn<Pillar4EnergyTransition, String> colP4Status;
     @FXML private PieChart chartPillar4;
+    @FXML private Sparkline sparkP4;
 
     // ---- sidebar ----
     @FXML private ListView<Recommendation> lstRecommendations;
@@ -138,9 +155,19 @@ public class DashboardController {
     private final AuthService authService = new AuthServiceImpl();
     private ScheduledExecutorService scheduler;
 
+    // Phase 7.2 — live metrics + alert tracking
+    private LiveMetricsService liveMetrics = new LiveMetricsServiceImpl();
+    private final Set<Long> knownCriticalAlertIds = new HashSet<>();
+    private boolean firstSnapshot = true;
+
     /** Setter for test. */
     public void setDashboardService(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
+    }
+
+    /** Setter for test (allows injecting a stub LiveMetricsService). */
+    public void setLiveMetricsService(LiveMetricsService liveMetrics) {
+        this.liveMetrics = liveMetrics;
     }
 
     @FXML
@@ -152,6 +179,7 @@ public class DashboardController {
         configurePillar4();
         configureRecommendations();
         startAutoRefresh();
+        startLiveTicker();
     }
 
     private void configureTopBar() {
@@ -220,7 +248,7 @@ public class DashboardController {
     private void configureRecommendations() {
         if (lstRecommendations == null) return;
         lstRecommendations.setItems(recData);
-        lstRecommendations.setCellFactory(list -> new javafx.scene.control.ListCell<Recommendation>() {
+        lstRecommendations.setCellFactory(list -> new ListCell<Recommendation>() {
             @Override
             protected void updateItem(Recommendation item, boolean empty) {
                 super.updateItem(item, empty);
@@ -231,6 +259,15 @@ public class DashboardController {
                     String prefix = item.getSeverity() == null ? "" : "[" + item.getSeverity() + "] ";
                     setText(prefix + (item.getTitle() == null ? "" : item.getTitle()));
                     setStyle(severityStyle(item.getSeverity()));
+                    if ("CRITICAL".equals(item.getSeverity())
+                            && !knownCriticalAlertIds.contains(item.getId())) {
+                        // freshly arrived critical → pulse + fade-in
+                        PulseEffect.pulse(this);
+                    }
+                    FadeTransition fade = new FadeTransition(Duration.millis(700), this);
+                    fade.setFromValue(0.0);
+                    fade.setToValue(1.0);
+                    fade.play();
                 }
             }
         });
@@ -257,6 +294,21 @@ public class DashboardController {
         });
         scheduler.scheduleAtFixedRate(this::refresh,
                 REFRESH_INTERVAL_SEC, REFRESH_INTERVAL_SEC, TimeUnit.SECONDS);
+    }
+
+    private void startLiveTicker() {
+        if (liveMetrics == null) return;
+        liveMetrics.start(sample -> Platform.runLater(() -> applyLiveSample(sample)));
+    }
+
+    private void applyLiveSample(LiveMetricsService.Sample sample) {
+        if (lblLiveTicker == null || sample == null) return;
+        String rate = String.format("%.0f", sample.eventsPerSec);
+        lblLiveTicker.setText("⚡ " + rate + " events/sec · Last tick " + sample.tickTime);
+        lblLiveTicker.getStyleClass().remove("live-ticker-offline");
+        if (!sample.live) {
+            lblLiveTicker.getStyleClass().add("live-ticker-offline");
+        }
     }
 
     @FXML
@@ -291,16 +343,68 @@ public class DashboardController {
         p2Data.setAll(snap.p2 == null ? List.of() : snap.p2);
         p3Data.setAll(snap.p3 == null ? List.of() : snap.p3);
         p4Data.setAll(snap.p4 == null ? List.of() : snap.p4);
+        // detect freshly-arrived CRITICAL alerts BEFORE we replace recData
+        detectNewCriticals(snap.recs);
         recData.setAll(snap.recs == null ? List.of() : snap.recs);
         refreshPillar1Chart(snap.p1);
         refreshPillar2Chart(snap.p2);
         refreshPillar3Chart(snap.p3);
         refreshPillar4Chart(snap.p4);
+        pushPillarSparklines(snap);
         if (lblRecCount != null) {
             lblRecCount.setText(recData.size() + " active");
         }
         if (lblLastRefresh != null) {
             lblLastRefresh.setText("Last refresh: " + java.time.LocalTime.now().withNano(0));
+        }
+        firstSnapshot = false;
+    }
+
+    /** Append latest pillar score to each sparkline so 3-min trend is visible. */
+    private void pushPillarSparklines(DashboardSnapshot snap) {
+        pushAvgScore(sparkP1, snap.p1, Pillar1SupplySecurity::getPillar1Score);
+        pushAvgScore(sparkP2, snap.p2, Pillar2MarketResilience::getPillar2Score);
+        pushAvgScore(sparkP3, snap.p3, Pillar3GridReliability::getPillar3Score);
+        pushAvgScore(sparkP4, snap.p4, Pillar4EnergyTransition::getPillar4Score);
+    }
+
+    private <T> void pushAvgScore(Sparkline spark, List<T> rows,
+                                  java.util.function.Function<T, BigDecimal> getter) {
+        if (spark == null || rows == null || rows.isEmpty()) return;
+        double sum = 0;
+        int n = 0;
+        for (T row : rows) {
+            BigDecimal v = getter.apply(row);
+            if (v != null) {
+                sum += v.doubleValue();
+                n++;
+            }
+        }
+        if (n > 0) spark.push(sum / n);
+    }
+
+    /** Show toast + remember IDs so we don't re-toast known alerts. */
+    private void detectNewCriticals(List<Recommendation> recs) {
+        if (recs == null) return;
+        Set<Long> currentIds = new HashSet<>();
+        for (Recommendation r : recs) {
+            currentIds.add(r.getId());
+            if ("CRITICAL".equals(r.getSeverity())
+                    && !knownCriticalAlertIds.contains(r.getId())
+                    && !firstSnapshot
+                    && btnLogout != null && btnLogout.getScene() != null) {
+                Toast.showCritical(
+                        btnLogout.getScene().getWindow(),
+                        r.getTitle() == null ? "CRITICAL alert" : r.getTitle(),
+                        r.getMessage() == null ? "" : r.getMessage());
+            }
+        }
+        // Trim known set to what's still active so memory doesn't grow unboundedly
+        knownCriticalAlertIds.retainAll(currentIds);
+        for (Recommendation r : recs) {
+            if ("CRITICAL".equals(r.getSeverity())) {
+                knownCriticalAlertIds.add(r.getId());
+            }
         }
     }
 
@@ -468,11 +572,14 @@ public class DashboardController {
         }
     }
 
-    /** Called from MainApp on window close to release scheduler. */
+    /** Called from MainApp on window close to release scheduler + live metrics. */
     public void shutdownScheduler() {
         if (scheduler != null) {
             scheduler.shutdownNow();
             scheduler = null;
+        }
+        if (liveMetrics != null) {
+            liveMetrics.stop();
         }
     }
 
