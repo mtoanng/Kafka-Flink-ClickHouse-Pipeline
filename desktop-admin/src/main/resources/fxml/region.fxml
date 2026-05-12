@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Phase 5.3 — Region CRUD: left form + right TableView. -->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.SplitPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="vn.edu.ves.desktop.controller.RegionController"
+            styleClass="crud-root">
+
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+            <padding>
+                <Insets bottom="10.0" left="16.0" right="16.0" top="10.0"/>
+            </padding>
+            <Label styleClass="brand" text="Region Management"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnRefresh" onAction="#reload" styleClass="btn-secondary" text="Refresh"/>
+            <Button fx:id="btnBack" onAction="#handleBackToDashboard" styleClass="btn-secondary" text="← Dashboard"/>
+        </HBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.35">
+            <items>
+
+                <!-- ===== LEFT: Form ===== -->
+                <VBox spacing="10.0" styleClass="crud-form">
+                    <padding>
+                        <Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/>
+                    </padding>
+
+                    <Label fx:id="lblMode" styleClass="form-mode" text="Thêm mới"/>
+
+                    <Label styleClass="form-label" text="Mã region (vd: VN_NORTH, INTL_EU)"/>
+                    <TextField fx:id="txtCode" promptText="VN_NORTH"/>
+
+                    <Label styleClass="form-label" text="Tên hiển thị"/>
+                    <TextField fx:id="txtName" promptText="Miền Bắc Việt Nam"/>
+
+                    <Label styleClass="form-label" text="Country code (ISO 3166)"/>
+                    <TextField fx:id="txtCountry" promptText="VN" text="VN"/>
+
+                    <Label styleClass="form-label" text="VN zone (BAC/TRUNG/NAM, để trống nếu quốc tế)"/>
+                    <ChoiceBox fx:id="cbVnZone" maxWidth="Infinity"/>
+
+                    <Label styleClass="form-label" text="Mô tả"/>
+                    <TextArea fx:id="txtDescription" prefRowCount="4" wrapText="true"
+                              promptText="Ví dụ: Hà Nội, Hải Phòng, Quảng Ninh, Bắc Ninh"/>
+
+                    <Label fx:id="lblError" styleClass="error-text" wrapText="true"/>
+
+                    <Separator/>
+
+                    <HBox spacing="8.0">
+                        <Button fx:id="btnNew" onAction="#handleNew" styleClass="btn-secondary" text="Mới"/>
+                        <Button fx:id="btnSave" onAction="#handleSave" styleClass="btn-primary" text="Lưu"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="btnDelete" onAction="#handleDelete" styleClass="btn-danger" text="Xóa"/>
+                    </HBox>
+                </VBox>
+
+                <!-- ===== RIGHT: Table ===== -->
+                <VBox spacing="8.0" styleClass="crud-table">
+                    <padding>
+                        <Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/>
+                    </padding>
+                    <Label styleClass="form-mode" text="Danh sách region (click row để chỉnh sửa)"/>
+                    <TableView fx:id="tblRegions" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colId" prefWidth="60.0" text="ID"/>
+                            <TableColumn fx:id="colCode" prefWidth="140.0" text="Code"/>
+                            <TableColumn fx:id="colName" prefWidth="260.0" text="Name"/>
+                            <TableColumn fx:id="colZone" prefWidth="100.0" text="VN Zone"/>
+                            <TableColumn fx:id="colCountry" prefWidth="100.0" text="Country"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+</BorderPane>

@@ -186,6 +186,36 @@
     -fx-text-fill: #607d8b;
 }
 
+/* ---------------- CRUD screens (Phase 5.3+) ---------------- */
+.crud-root {
+    -fx-background-color: #fafafa;
+}
+
+.crud-form {
+    -fx-background-color: white;
+}
+
+.crud-table {
+    -fx-background-color: #f5f7fa;
+}
+
+.form-mode {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1976d2;
+}
+
+.btn-danger {
+    -fx-background-color: #d32f2f;
+    -fx-text-fill: white;
+    -fx-padding: 6 18 6 18;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.btn-danger:hover { -fx-background-color: #b71c1c; }
+.btn-danger:disabled { -fx-background-color: #ef9a9a; -fx-opacity: 0.85; }
+
 /* ---------------- Dashboard placeholder (Phase 5.1) ---------------- */
 .dashboard-placeholder {
     -fx-background-color: #fafafa;
