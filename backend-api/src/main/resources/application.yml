@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: ves-backend-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fuel_prices
+    username: postgres
+    password: "123456"
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+      idle-timeout: 30000
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+    default-property-inclusion: NON_NULL
+
+server:
+  port: 8090
+  servlet:
+    context-path: /
+
+# JWT settings — override qua biến môi trường khi deploy thật
+ves:
+  security:
+    jwt:
+      # Base64-encoded secret >= 256 bit. KHÔNG dùng default này ở prod.
+      secret: "VEStotwarsenergysecurityvietnamflinkkafkapostgrescloud2026demoSECRET"
+      # Token sống 8h cho dev demo; production nên hạ xuống 30-60 phút.
+      expiration-ms: 28800000
+
+# springdoc OpenAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    vn.edu.ves.api: DEBUG
+    org.springframework.security: INFO

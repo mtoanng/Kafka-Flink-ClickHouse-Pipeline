@@ -65,6 +65,12 @@ if [ "$WAIT_HEALTHY" = "true" ]; then
     done
 fi
 
+# 5. Pre-create Kafka topics (idempotent) — tránh Flink crash khi consumer lên trước producer.
+echo "[INFO] Đảm bảo Kafka topics cho 4 pillar..."
+if ! bash scripts/create_kafka_topics.sh; then
+    echo "[WARN] Không tạo được topic tự động. Hãy chạy 'bash scripts/create_kafka_topics.sh' sau khi Kafka ready."
+fi
+
 echo ""
 echo "[OK] Stack đã khởi động."
 echo ""

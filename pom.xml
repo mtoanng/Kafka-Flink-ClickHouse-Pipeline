@@ -18,8 +18,10 @@
 
     <modules>
         <module>data-generators/fuel-price-producer</module>
+        <module>data-generators/grid-load-generator</module>
+        <module>data-generators/renewable-generator</module>
         <module>flink-jobs/fuel-flink-job</module>
-        <!-- backend-api sẽ thêm ở Phase 4 -->
+        <module>backend-api</module>
         <!-- desktop-admin sẽ thêm ở Phase 5 -->
     </modules>
 
@@ -37,6 +39,10 @@
         <slf4j.version>2.0.7</slf4j.version>
         <logback.version>1.4.11</logback.version>
         <junit.version>5.10.1</junit.version>
+        <!-- Phase 4.5: Spring Boot 2.7.x (Java 11 compatible) -->
+        <spring.boot.version>2.7.18</spring.boot.version>
+        <jjwt.version>0.11.5</jjwt.version>
+        <springdoc.version>1.7.0</springdoc.version>
 
         <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>

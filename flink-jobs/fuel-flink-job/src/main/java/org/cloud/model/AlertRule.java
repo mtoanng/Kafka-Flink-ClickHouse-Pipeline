@@ -42,6 +42,12 @@ public class AlertRule implements Serializable {
         return true;
     }
 
+    /** Match rule region-based (Pillar 3/4): nếu rule.regionCode null → match mọi region. */
+    public boolean appliesToRegion(String eventRegionCode) {
+        if (!enabled) return false;
+        return regionCode == null || regionCode.equals(eventRegionCode);
+    }
+
     /** So sánh giá event với threshold theo operator. */
     public boolean isTriggered(double price) {
         switch (operator) {

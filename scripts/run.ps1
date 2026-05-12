@@ -63,6 +63,13 @@ if ($Wait) {
     }
 }
 
+# 5. Pre-create Kafka topics (idempotent)
+Write-Host "[INFO] Đảm bảo Kafka topics cho 4 pillar..."
+& powershell -ExecutionPolicy Bypass -File "scripts/create_kafka_topics.ps1"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[WARN] Không tạo được topic tự động. Chạy 'scripts/create_kafka_topics.ps1' sau khi Kafka ready." -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "[OK] Stack đã khởi động."
 Write-Host ""
