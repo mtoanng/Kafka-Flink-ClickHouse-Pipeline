@@ -1,6 +1,10 @@
-# 👥 TEAM TASKS — Phân công chi tiết step-by-step cho 4 thành viên
+# 👥 TEAM TASKS — Phân công chi tiết cho ĐỒ ÁN MÔN JAVA
 
-> File này thay thế `UPGRADE_PLAN.md §22.3` (vốn chỉ 2 thành viên). Hiện tại team **5 người**: Leader + 2 coders đơn giản + 2 non-coders. Mỗi thành viên có **5 PR thật** + step-by-step để **người mới vào nghề / non-coder** vẫn làm được mà không hỏi Leader nhiều.
+> 📌 **CẬP NHẬT 2026-05-12**: Đồ án **Android tách thành đồ án độc lập** (môn Mobile, repo Android riêng, team chỉ Leader + 1 Android Dev) — xem **[`docs/ANDROID_ONBOARDING.md`](./ANDROID_ONBOARDING.md)**.
+>
+> **File này chỉ phân công cho đồ án MÔN JAVA**, team **5 người**: Leader + 4 helpers (2 coders + 2 non-coders). Mỗi thành viên có **5 PR thật** + step-by-step để người mới vào nghề / non-coder vẫn làm được mà không hỏi Leader nhiều.
+>
+> Persona E redesign từ "Android UI Junior" → **"Backend & Test Helper"** (5 task Java thay vì Android).
 
 ---
 
@@ -8,11 +12,11 @@
 
 | Vai trò | Người | Skill cần | Workload | PR | Loại task |
 |---------|-------|-----------|----------|-----|-----------|
-| **Leader / Full-stack** | A | Tất cả | ~75-85h | 30-40 PR | Backend + Flink + Core UI + Deploy + Integration |
+| **Leader / Full-stack** | A | Tất cả | ~75-85h | 30-40 PR | Backend + Flink + JavaFX core + Deploy + Integration |
 | **Doc & PM** | **B** | Word, draw.io, viết báo cáo | ~30h | **5 PR** | Báo cáo + diagram + project management |
 | **Media & QA** | **C** | PowerPoint, Screen Recorder, Postman | ~25h | **5 PR** | Slide + video + test report + screenshots |
 | **JavaFX UI Junior** | **D** | Java cơ bản, IntelliJ | ~20h | **5 PR** | 2 màn JavaFX phụ + JUnit test + CSS polish + SQL seed |
-| **Android UI Junior** | **E** | Java/Kotlin cơ bản, Android Studio | ~20h | **5 PR** | 2 activity Android phụ + drawable + strings i18n + Postman |
+| **Backend & Test Helper** | **E** | Java + SQL cơ bản, đọc được Spring Boot | ~18h | **5 PR** | JUnit test backend utility + SQL stress data + Swagger doc + curl/JMeter scripts |
 
 **Tổng PR 4 thành viên: 20 PR**. Đủ chứng minh đóng góp trong báo cáo Chương 6 + GitHub history.
 
@@ -1502,433 +1506,805 @@ public class AboutController implements Initializable {
 
 ---
 
-# 👤 NGƯỜI E — Android UI Junior (5 PR, ~20h, simple coding)
+# 👤 NGƯỜI E — Backend & Test Helper (5 PR, ~18h, simple coding)
 
-> **Định vị:** Biết Java/Kotlin cơ bản. Cài Android Studio + chạy emulator hoặc cắm điện thoại thật. Tasks **không cần Spring Boot / Postgres chạy** — chỉ build APK debug, test giao diện và icon. 2 task đầu (E1, E2) làm được NGAY mà không cần backend.
+> **Định vị:** Biết Java cơ bản + SQL cơ bản. Đọc được code Spring Boot (không cần tự viết controller mới từ scratch). Không cần Docker chạy — phần lớn task là viết file Java/SQL/shell, Leader sẽ apply/build sau. 3 task đầu (E1, E2, E3) làm được NGAY mà không cần backend chạy.
+>
+> 🔄 **Persona này đã đổi từ "Android UI Junior" → "Backend & Test Helper"** sau khi đồ án Android tách thành đồ án riêng (xem `docs/ANDROID_ONBOARDING.md`).
 
 ## 📋 Tổng quan 5 PR của Người E
 
 | PR | Task | Time | Phase phụ thuộc | Có thể bắt đầu khi |
 |----|------|------|-----------------|---------------------|
-| E1 | Drawable + Icon resources (logo + 4 pillar icons + splash) | 3h | - | NGAY |
-| E2 | strings.xml + colors.xml i18n (VN + EN) | 2h | - | NGAY |
-| E3 | Android About activity (copy template) | 4h | Phase 6 skeleton | Sau Leader đẩy Phase 6 |
-| E4 | Android Settings activity + dark mode toggle | 5h | E3 done | Sau E3 |
-| E5 | Postman Collection runner + screenshot bộ ảnh Android | 6h | Phase 4.5 build + Phase 6 done | Sau Phase 6 |
+| E1 | SQL stress test seed data (~150 row đa pillar) | 3h | Phase 2.5 done ✅ | NGAY |
+| E2 | JUnit tests cho backend-api utility (JwtTokenProvider + ApiException + Validator) | 4h | Phase 4.5 code-complete ✅ | NGAY (code đã có) |
+| E3 | Swagger OpenAPI @Schema examples + descriptions cho 14 endpoint | 3h | Phase 4.5 code-complete ✅ | NGAY |
+| E4 | Curl example scripts cho 14 endpoint + pretty JSON | 4h | Phase 4.5 BUILD done | Sau khi backend chạy được |
+| E5 | Load test script (curl loop) + LOAD_TEST_REPORT.md | 4h | Phase 4.5 BUILD + Phase 7 tunnel | Sau Phase 7 |
 
 ---
 
-## 📝 E1. Drawable + Icon resources (3h, NGAY)
+## 📝 E1. SQL stress test seed data (3h, NGAY)
 
 ### 🎯 Mục tiêu
-Tạo bộ icon + logo Android (PNG/SVG/Vector Drawable) cho 4 pillar + app launcher + splash → đẹp hơn icon default Android Studio.
+Tạo file SQL `infra/script/11_stress_seed.sql` chứa **~150 record fake giàu data** đa pillar — giúp chart trên dashboard không bị "trống trải" khi demo. Khác task D1 (D1 = base seed 38 row VN thực tế). E1 = stress data làm dày chart timeline (mỗi pillar 30-50 row trải qua 7 ngày gần đây).
 
 ### ✅ Prerequisites
-- Cài Android Studio (https://developer.android.com/studio) — version Hedgehog (2023.1) trở lên
-- KHÔNG cần phone, không cần emulator (chỉ làm resource)
+- Đọc qua `infra/script/06_seed_pillars.sql` và `08_seed_security_features.sql` để hiểu schema bảng `fuel_prices_raw`, `grid_load_raw`, `renewable_output_raw`, `emission_raw`
+- KHÔNG cần Postgres chạy — chỉ viết file SQL đúng cú pháp
 
 ### 📐 Step-by-step
 
-1. Tạo skeleton Android folder (Phase 6 chưa có):
+1. Branch:
    ```bash
-   git checkout -b e/E1-android-resources
-   mkdir -p android-app/app/src/main/res/drawable
-   mkdir -p android-app/app/src/main/res/mipmap-hdpi
-   mkdir -p android-app/app/src/main/res/mipmap-xhdpi
-   mkdir -p android-app/app/src/main/res/mipmap-xxhdpi
-   mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
+   git checkout main && git pull
+   git checkout -b e/E1-stress-seed
    ```
 
-2. **Tải / design 6 icon SVG** (dùng https://www.flaticon.com hoặc https://heroicons.com — chọn free icons, ghi credit):
-   - `ic_logo.svg` — logo VES-Monitor (ý tưởng: lightning bolt + shield)
-   - `ic_pillar_1.svg` — Nguồn cung (drum/barrel)
-   - `ic_pillar_2.svg` — Biến động giá (chart line up/down)
-   - `ic_pillar_3.svg` — Phụ tải (lightning bolt)
-   - `ic_pillar_4.svg` — Renewable (solar panel hoặc leaf)
-   - `ic_alert.svg` — chuông cảnh báo
-   - `ic_recommendation.svg` — bóng đèn ý tưởng
+2. Tạo file `infra/script/11_stress_seed.sql`. Cấu trúc 4 phần:
 
-3. **Convert SVG → Vector Drawable XML** (Android format):
-   - Android Studio → New → Vector Asset → Local file (SVG) → chọn file → Next → Finish
-   - Tự động lưu vào `app/src/main/res/drawable/ic_*.xml`
+```sql
+-- =============================================================
+-- 11_stress_seed.sql  (Phase 24+ extension)
+-- Tác giả: Người E
+-- Mục đích: bơm ~150 record fake trải dài 7 ngày qua → chart dày
+-- Idempotent: KHÔNG dùng ON CONFLICT (vì id auto), ý là chạy 1 lần
+-- =============================================================
 
-4. **Tạo launcher icon** (ic_launcher.png 4 size):
-   - Vào https://easyappicon.com hoặc Android Studio → File → New → Image Asset → Launcher Icons (Adaptive)
-   - Foreground: `ic_logo.svg`
-   - Background: solid color `#1F77B4` (xanh tone tech)
-   - Generate → tự lưu vào 4 folder `mipmap-*`
+-- ---------- Part 1: Fuel prices (Pillar 2) — 40 row × 4 fuel × 7 ngày = ngẫu nhiên 40 row ----------
+-- Sử dụng generate_series + random() để fake giá Brent/WTI/Gasoline
+INSERT INTO fuel_prices_raw (event_timestamp, fuel_type, price, price_unit, location, region, source)
+SELECT
+    NOW() - (random() * INTERVAL '7 days') AS event_timestamp,
+    (ARRAY['BRENT_CRUDE', 'WTI_CRUDE', 'GASOLINE', 'DIESEL'])[1 + floor(random() * 4)::int] AS fuel_type,
+    CASE
+        WHEN random() < 0.5 THEN 75 + random() * 20  -- crude: 75-95 USD
+        ELSE 2.5 + random() * 1.5                    -- retail: 2.5-4 USD/gal
+    END AS price,
+    'USD_per_BARREL_OR_GALLON',
+    'Global Market',
+    'WORLD_BANK',
+    'STRESS_SEED'
+FROM generate_series(1, 40);
 
-5. **Tạo splash drawable** `drawable/splash_background.xml`:
+-- ---------- Part 2: Grid load (Pillar 3) — 35 row, 6 region × ~6 timeslot ----------
+INSERT INTO grid_load_raw (region_code, load_mw, capacity_mw, is_peak_hour, event_time)
+SELECT
+    region.code,
+    (random() * (region.cap - region.cap * 0.4) + region.cap * 0.4)::numeric(10,2) AS load_mw,
+    region.cap AS capacity_mw,
+    EXTRACT(HOUR FROM (NOW() - random() * INTERVAL '7 days')) BETWEEN 18 AND 22 AS is_peak_hour,
+    NOW() - (random() * INTERVAL '7 days') AS event_time
+FROM (
+    SELECT 'VN_HANOI' AS code, 12000 AS cap UNION ALL
+    SELECT 'VN_HAIPHONG', 5000 UNION ALL
+    SELECT 'VN_DANANG', 4500 UNION ALL
+    SELECT 'VN_QUANGNINH', 7000 UNION ALL
+    SELECT 'VN_NINHTHUAN', 2500 UNION ALL
+    SELECT 'VN_BINHTHUAN', 2000
+) region
+CROSS JOIN generate_series(1, 6) AS slot;
 
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/colorPrimary"/>
-    <item>
-        <bitmap android:gravity="center" android:src="@drawable/ic_logo"/>
-    </item>
-</layer-list>
+-- ---------- Part 3: Renewable output (Pillar 4) — 30 row mix solar/wind/hydro ----------
+INSERT INTO renewable_output_raw (region_code, source_type, output_mw, capacity_mw, event_time)
+SELECT
+    region.code,
+    source.type,
+    (random() * source.cap * 0.9)::numeric(10,2) AS output_mw,
+    source.cap AS capacity_mw,
+    NOW() - (random() * INTERVAL '7 days') AS event_time
+FROM (
+    SELECT 'VN_NINHTHUAN' AS code UNION ALL
+    SELECT 'VN_BINHTHUAN' UNION ALL
+    SELECT 'VN_QUANGNINH'
+) region
+CROSS JOIN (
+    SELECT 'SOLAR' AS type, 1500 AS cap UNION ALL
+    SELECT 'WIND', 500 UNION ALL
+    SELECT 'HYDRO', 400
+) source
+CROSS JOIN generate_series(1, 4);
+
+-- ---------- Part 4: Emission (Pillar 4) — 30 row đa region ----------
+INSERT INTO emission_raw (region_code, co2_kg, energy_mwh, event_time)
+SELECT
+    (ARRAY['VN_HANOI', 'VN_HAIPHONG', 'VN_DANANG', 'VN_QUANGNINH'])[1 + floor(random() * 4)::int] AS region_code,
+    (random() * 5000 + 1000)::numeric(12,2) AS co2_kg,
+    (random() * 10 + 2)::numeric(8,2) AS energy_mwh,
+    NOW() - (random() * INTERVAL '7 days') AS event_time
+FROM generate_series(1, 30);
+
+-- ---------- Part 5: Sample dismissed/acknowledged recommendations (cho audit log) ----------
+UPDATE recommendations
+   SET status = 'ACKNOWLEDGED',
+       acknowledged_at = NOW() - INTERVAL '1 day',
+       acknowledged_by = (SELECT id FROM users WHERE username = 'admin'),
+       note = 'Test acknowledge từ stress seed E1'
+ WHERE id IN (SELECT id FROM recommendations WHERE status = 'PENDING' ORDER BY id LIMIT 1)
+   AND EXISTS (SELECT 1 FROM recommendations WHERE status = 'PENDING');
+
+-- ---------- Verify ----------
+SELECT 'fuel_prices_raw' AS tbl, COUNT(*) AS n FROM fuel_prices_raw WHERE source = 'STRESS_SEED'
+UNION ALL SELECT 'grid_load_raw', COUNT(*) FROM grid_load_raw WHERE event_time > NOW() - INTERVAL '7 days'
+UNION ALL SELECT 'renewable_output_raw', COUNT(*) FROM renewable_output_raw WHERE event_time > NOW() - INTERVAL '7 days'
+UNION ALL SELECT 'emission_raw', COUNT(*) FROM emission_raw WHERE event_time > NOW() - INTERVAL '7 days';
+-- Kỳ vọng: ≥ 130 row tổng (40 + 36 + 36 + 30)
 ```
 
-6. **Color resources** `app/src/main/res/values/colors.xml`:
+3. **Verify cú pháp** (online): paste vào https://www.db-fiddle.com/ chọn PostgreSQL 15 → kiểm tra syntax.
 
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Brand -->
-    <color name="colorPrimary">#1F77B4</color>
-    <color name="colorPrimaryDark">#155A8A</color>
-    <color name="colorAccent">#FF6F00</color>
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
-
-    <!-- 4 Pillar colors -->
-    <color name="pillar1_bg">#FFE599</color>
-    <color name="pillar1_text">#7F6000</color>
-    <color name="pillar2_bg">#CFE2F3</color>
-    <color name="pillar2_text">#0B5394</color>
-    <color name="pillar3_bg">#FCE5CD</color>
-    <color name="pillar3_text">#B45F06</color>
-    <color name="pillar4_bg">#D9EAD3</color>
-    <color name="pillar4_text">#38761D</color>
-
-    <!-- Status -->
-    <color name="status_secure">#38761D</color>
-    <color name="status_stable">#0B5394</color>
-    <color name="status_at_risk">#B45F06</color>
-    <color name="status_critical">#CC0000</color>
-</resources>
-```
-
-7. Tạo `android-app/CREDITS.md` ghi credit cho icon đã dùng:
-```markdown
-# Icon Credits
-- `ic_pillar_*.svg` — Flaticon, designed by <author>, free for personal use
-- `ic_logo.svg` — designed in-house by Người E
-```
-
-8. Commit + push + PR.
-
-### 📦 Deliverables
-- [ ] `android-app/app/src/main/res/drawable/ic_*.xml` × 7
-- [ ] `android-app/app/src/main/res/mipmap-*/ic_launcher.png` × 4 sizes
-- [ ] `android-app/app/src/main/res/values/colors.xml`
-- [ ] `android-app/app/src/main/res/drawable/splash_background.xml`
-- [ ] `android-app/CREDITS.md`
-
-### ✓ Acceptance
-- 7 icon vector hiển thị OK trong Android Studio preview
-- 4 launcher icon size (48dp/72dp/96dp/144dp/192dp)
-- Tất cả icon có credit (không dính bản quyền)
-
-### 💡 Tip
-- Dùng Material Symbols (free, đầy đủ): https://fonts.google.com/icons
-- Vector Drawable nhẹ hơn PNG nhiều → ưu tiên dùng SVG
-
----
-
-## 📝 E2. strings.xml + colors.xml i18n (2h, NGAY)
-
-### 🎯 Mục tiêu
-Hỗ trợ 2 ngôn ngữ Tiếng Việt (default) + English, theo Android i18n pattern.
-
-### 📐 Step-by-step
-
-1. Branch `e/E2-android-i18n`
-2. Tạo `app/src/main/res/values/strings.xml` (Vietnamese default):
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- App-wide -->
-    <string name="app_name">VES-Monitor</string>
-    <string name="app_tagline">Giám sát An ninh Năng lượng Việt Nam</string>
-
-    <!-- Login -->
-    <string name="login_title">Đăng nhập</string>
-    <string name="login_username_hint">Tên đăng nhập</string>
-    <string name="login_password_hint">Mật khẩu</string>
-    <string name="login_button">Đăng nhập</string>
-    <string name="login_error_empty">Vui lòng nhập đầy đủ thông tin</string>
-    <string name="login_error_invalid">Sai tên đăng nhập hoặc mật khẩu</string>
-
-    <!-- Bottom nav -->
-    <string name="nav_pillar1">Nguồn cung</string>
-    <string name="nav_pillar2">Giá NL</string>
-    <string name="nav_pillar3">Phụ tải</string>
-    <string name="nav_pillar4">Renewable</string>
-    <string name="nav_alerts">Cảnh báo</string>
-
-    <!-- Home -->
-    <string name="home_security_score">Điểm An ninh Năng lượng</string>
-    <string name="home_active_alerts">Cảnh báo đang hoạt động</string>
-    <string name="home_active_recs">Khuyến nghị chờ xử lý</string>
-
-    <!-- Alerts -->
-    <string name="alerts_empty">Không có cảnh báo nào đang hoạt động</string>
-    <string name="alert_severity_critical">NGHIÊM TRỌNG</string>
-    <string name="alert_severity_warning">CẢNH BÁO</string>
-    <string name="alert_severity_info">THÔNG TIN</string>
-
-    <!-- Recommendations -->
-    <string name="rec_acknowledge">Xác nhận</string>
-    <string name="rec_dismiss">Bỏ qua</string>
-    <string name="rec_ack_success">Đã xác nhận khuyến nghị</string>
-
-    <!-- About -->
-    <string name="about_title">Giới thiệu</string>
-    <string name="about_version">Phiên bản</string>
-    <string name="about_team">Đội ngũ phát triển</string>
-
-    <!-- Settings -->
-    <string name="settings_title">Cài đặt</string>
-    <string name="settings_dark_mode">Chế độ tối</string>
-    <string name="settings_language">Ngôn ngữ</string>
-    <string name="settings_server_url">Địa chỉ server</string>
-</resources>
-```
-
-3. Tạo `app/src/main/res/values-en/strings.xml` (English fallback):
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">VES-Monitor</string>
-    <string name="app_tagline">Vietnam Energy Security Monitor</string>
-
-    <string name="login_title">Sign In</string>
-    <string name="login_username_hint">Username</string>
-    <string name="login_password_hint">Password</string>
-    <string name="login_button">Sign In</string>
-    <string name="login_error_empty">Please fill all fields</string>
-    <string name="login_error_invalid">Invalid username or password</string>
-
-    <string name="nav_pillar1">Supply</string>
-    <string name="nav_pillar2">Prices</string>
-    <string name="nav_pillar3">Grid Load</string>
-    <string name="nav_pillar4">Renewable</string>
-    <string name="nav_alerts">Alerts</string>
-
-    <string name="home_security_score">Energy Security Score</string>
-    <string name="home_active_alerts">Active Alerts</string>
-    <string name="home_active_recs">Pending Recommendations</string>
-
-    <string name="alerts_empty">No active alerts</string>
-    <string name="alert_severity_critical">CRITICAL</string>
-    <string name="alert_severity_warning">WARNING</string>
-    <string name="alert_severity_info">INFO</string>
-
-    <string name="rec_acknowledge">Acknowledge</string>
-    <string name="rec_dismiss">Dismiss</string>
-    <string name="rec_ack_success">Recommendation acknowledged</string>
-
-    <string name="about_title">About</string>
-    <string name="about_version">Version</string>
-    <string name="about_team">Development Team</string>
-
-    <string name="settings_title">Settings</string>
-    <string name="settings_dark_mode">Dark mode</string>
-    <string name="settings_language">Language</string>
-    <string name="settings_server_url">Server URL</string>
-</resources>
-```
-
-4. `app/src/main/res/values/themes.xml` (dùng Material 3):
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.VESMonitor" parent="Theme.Material3.DayNight">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-    </style>
-
-    <style name="Theme.VESMonitor.Splash" parent="Theme.VESMonitor">
-        <item name="android:windowBackground">@drawable/splash_background</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowFullscreen">true</item>
-    </style>
-</resources>
-```
+4. **Test idempotent** (nếu Leader đang chạy DB):
+   ```bash
+   docker exec -i postgres-database psql -U postgres -d fuel_prices < infra/script/11_stress_seed.sql
+   # Kỳ vọng "INSERT 0 40", "INSERT 0 36", v.v.
+   # Chạy lại lần 2 → kỳ vọng cũng OK (vì không có UNIQUE constraint, chỉ thêm row mới)
+   ```
 
 5. Commit + push + PR.
 
 ### 📦 Deliverables
-- [ ] `app/src/main/res/values/strings.xml` (30+ string keys)
-- [ ] `app/src/main/res/values-en/strings.xml` (cùng 30+ key)
-- [ ] `app/src/main/res/values/themes.xml`
+- [ ] `infra/script/11_stress_seed.sql` (~80-100 dòng SQL)
+- [ ] Comment ngắn ở đầu file giải thích phương pháp (random data, vì sao 7 ngày)
 
 ### ✓ Acceptance
-- Tất cả 30+ key có cả VN + EN
-- Không có key trùng giữa 2 file
-- Build skeleton APK → không lỗi resource
+- File chạy không lỗi syntax (Leader sẽ apply để verify)
+- Bơm ≥ 130 row tổng cộng vào 4 bảng
+- Verify SELECT cuối file trả đúng số lượng
+
+### 💡 Tip
+- `generate_series(1, N)` + `CROSS JOIN` là pattern Postgres để fake N row mà không cần loop
+- `random() * INTERVAL '7 days'` cho timestamp ngẫu nhiên trong 7 ngày qua
+- Cẩn thận `numeric(10,2)` không bị tràn — kiểm tra schema bảng trước
 
 ---
 
-## 📝 E3. Android About activity (4h, sau Phase 6 skeleton)
+## 📝 E2. JUnit tests cho backend-api utility (4h, NGAY)
 
 ### 🎯 Mục tiêu
-Tương tự D3 nhưng cho Android: copy template `MainActivity` của Leader → tạo `AboutActivity`.
+Viết **3 file test JUnit 5** cho 3 utility class trong module `backend-api/`. Backend đã code-complete (Phase 4.5), bạn chỉ viết test — không sửa code chính.
 
-### 📐 Step-by-step (rút gọn)
+### ✅ Prerequisites
+- Cài JDK 11 (Adoptium Temurin)
+- Cài IntelliJ IDEA Community
+- Đọc qua 3 file để hiểu logic:
+  - `backend-api/src/main/java/vn/edu/ves/api/config/JwtTokenProvider.java`
+  - `backend-api/src/main/java/vn/edu/ves/api/exception/ApiException.java`
+  - `backend-api/src/main/java/vn/edu/ves/api/exception/GlobalExceptionHandler.java`
 
-1. Branch `e/E3-android-about`
-2. Copy `LoginActivity.java` + `activity_login.xml` → `AboutActivity.java` + `activity_about.xml`
-3. UI gồm:
-   - `ImageView` logo (`@drawable/ic_logo`)
-   - `TextView` lblProjectName
-   - `TextView` lblVersion
-   - `RecyclerView` (hoặc đơn giản `LinearLayout`) list 5 thành viên
-   - `Button` "Đóng"
-4. Logic: tương tự D3 (hard-code thông tin)
-5. Đăng ký activity trong `AndroidManifest.xml`:
-   ```xml
-   <activity android:name=".AboutActivity"
-             android:label="@string/about_title"
-             android:parentActivityName=".MainActivity"/>
+### 📐 Step-by-step
+
+1. Branch `e/E2-backend-tests`
+
+2. Tạo thư mục test:
+   ```bash
+   mkdir -p backend-api/src/test/java/vn/edu/ves/api/config
+   mkdir -p backend-api/src/test/java/vn/edu/ves/api/exception
    ```
-6. Thêm menu vào toolbar (Leader chỉ chỗ):
-   ```kotlin
-   override fun onOptionsItemSelected(item: MenuItem): Boolean {
-       if (item.itemId == R.id.action_about) {
-           startActivity(Intent(this, AboutActivity::class.java))
-           return true
-       }
-       return super.onOptionsItemSelected(item)
-   }
-   ```
-7. Test trên emulator → menu About → activity hiện ra
-8. Screenshot → `docs/screenshots/android-06-about.png`
 
-### 📦 Deliverables
-- [ ] `AboutActivity.java/kt`
-- [ ] `activity_about.xml`
-- [ ] Update `AndroidManifest.xml` + menu XML
-- [ ] `docs/screenshots/android-06-about.png`
+3. Tạo `backend-api/src/test/java/vn/edu/ves/api/config/JwtTokenProviderTest.java`:
 
-### ✓ Acceptance
-- Tap menu About từ MainActivity → AboutActivity mở
-- Hiển thị đầy đủ 5 thành viên + version + GitHub link
-- Back button hoạt động đúng (về MainActivity)
+```java
+package vn.edu.ves.api.config;
 
----
+import io.jsonwebtoken.Claims;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
-## 📝 E4. Android Settings activity + dark mode toggle (5h, sau E3)
+import static org.junit.jupiter.api.Assertions.*;
 
-### 🎯 Mục tiêu
-Settings cho phép user toggle dark mode + thay đổi server URL (cho dev/prod env switch).
+class JwtTokenProviderTest {
 
-### 📐 Step-by-step (rút gọn)
+    private JwtTokenProvider provider;
 
-1. Branch `e/E4-android-settings`
-2. Tạo `SettingsActivity.java` + `activity_settings.xml`
-3. UI:
-   - `SwitchMaterial` "Dark mode"
-   - `EditText` "Server URL" (default `http://10.0.2.2:8090`)
-   - `Spinner` "Language" (VN / EN)
-   - `Button` "Save"
-4. Lưu vào `SharedPreferences`:
-   ```kotlin
-   getSharedPreferences("ves_settings", MODE_PRIVATE).edit().apply {
-       putBoolean("dark_mode", switchDark.isChecked)
-       putString("server_url", edtUrl.text.toString())
-       putString("language", spinnerLang.selectedItem.toString())
-       apply()
-   }
-   ```
-5. Apply dark mode:
-   ```kotlin
-   AppCompatDelegate.setDefaultNightMode(
-       if (isDark) AppCompatDelegate.MODE_NIGHT_YES
-       else AppCompatDelegate.MODE_NIGHT_NO
-   )
-   ```
-6. Apply language (cần recreate activity):
-   ```kotlin
-   val config = resources.configuration
-   config.setLocale(Locale(if (lang == "VN") "vi" else "en"))
-   createConfigurationContext(config)
-   recreate()
-   ```
-7. Test: toggle dark → toàn app đổi màu; switch VN→EN → strings đổi
-8. Screenshot 2 ảnh: light + dark
+    @BeforeEach
+    void setup() {
+        provider = new JwtTokenProvider();
+        ReflectionTestUtils.setField(provider, "secret",
+            "test-secret-with-at-least-256-bits-of-randomness-for-hs256-yes-this-is-long");
+        ReflectionTestUtils.setField(provider, "expirationSeconds", 3600L);
+        provider.init();
+    }
 
-### 📦 Deliverables
-- [ ] `SettingsActivity.java/kt`
-- [ ] `activity_settings.xml`
-- [ ] Cập nhật `AndroidManifest.xml`
-- [ ] 2 screenshot
+    @Test
+    void generate_and_parse_roundtrip() {
+        String token = provider.generateToken("admin", 1L, "ADMIN");
+        assertNotNull(token);
+        assertTrue(token.split("\\.").length == 3, "JWT must have 3 parts");
 
-### ✓ Acceptance
-- Toggle dark → toàn app đổi màu, restart app vẫn giữ
-- Server URL save → next login dùng URL mới (API connect đúng host)
-- Switch language → string tự đổi sang ngôn ngữ tương ứng
+        Claims claims = provider.parseToken(token);
+        assertEquals("admin", claims.getSubject());
+        assertEquals(1, ((Number) claims.get("userId")).longValue());
+        assertEquals("ADMIN", claims.get("role"));
+    }
 
----
+    @Test
+    void parseSilently_invalid_returns_null() {
+        Claims result = provider.parseSilently("not.a.valid.token");
+        assertNull(result);
+    }
 
-## 📝 E5. Postman runner + bộ screenshot Android (6h, sau Phase 6)
+    @Test
+    void parseSilently_empty_returns_null() {
+        assertNull(provider.parseSilently(null));
+        assertNull(provider.parseSilently(""));
+    }
 
-### 🎯 Mục tiêu
-1. Mở rộng Postman collection của C4: thêm "Pre-request script" để auto-login + "Tests script" để assert response → có thể "Run Collection" 14/14 pass
-2. Bộ screenshot 5 màn Android dùng cho slide + báo cáo Chương 3
-
-### 📐 Step-by-step (rút gọn)
-
-#### Phần A — Postman runner (3h)
-
-1. Branch `e/E5-postman-runner`
-2. Import file `tests/postman/ves-monitor-api.postman_collection.json` của C4
-3. Mở từng request → tab "Tests" → thêm assertion:
-
-```javascript
-pm.test("Status code is 200 or 201", () => {
-    pm.expect(pm.response.code).to.be.oneOf([200, 201]);
-});
-
-pm.test("Response has JSON body", () => {
-    pm.response.to.be.json;
-});
-
-// Endpoint-specific (ví dụ /api/security/score)
-pm.test("Score is between 0 and 100", () => {
-    const json = pm.response.json();
-    pm.expect(json.overallScore).to.be.within(0, 100);
-});
+    @Test
+    void expirationSeconds_returns_configured_value() {
+        assertEquals(3600L, provider.getExpirationSeconds());
+    }
+}
 ```
 
-4. Click "Run Collection" (Runner) → chạy tuần tự 14 request → kỳ vọng 14/14 pass
-5. Export collection mới → overwrite `tests/postman/ves-monitor-api.postman_collection.json`
-6. Update `tests/postman/README.md` thêm section "Run Collection":
+4. Tạo `backend-api/src/test/java/vn/edu/ves/api/exception/ApiExceptionTest.java`:
+
+```java
+package vn.edu.ves.api.exception;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ApiExceptionTest {
+
+    @Test
+    void badRequest_returns_400() {
+        ApiException ex = ApiException.badRequest("Invalid input");
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("Invalid input", ex.getMessage());
+    }
+
+    @Test
+    void unauthorized_returns_401() {
+        ApiException ex = ApiException.unauthorized("Token expired");
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatus());
+    }
+
+    @Test
+    void forbidden_returns_403() {
+        ApiException ex = ApiException.forbidden("Role insufficient");
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+    }
+
+    @Test
+    void notFound_returns_404() {
+        ApiException ex = ApiException.notFound("Resource not found");
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+    }
+
+    @Test
+    void conflict_returns_409() {
+        ApiException ex = ApiException.conflict("Duplicate");
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+    }
+}
+```
+
+5. Tạo `backend-api/src/test/java/vn/edu/ves/api/exception/GlobalExceptionHandlerTest.java`:
+
+```java
+package vn.edu.ves.api.exception;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class GlobalExceptionHandlerTest {
+
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+    @Test
+    void handleApiException_returns_standard_format() {
+        ApiException ex = ApiException.badRequest("Missing field");
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/test");
+
+        ResponseEntity<Map<String, Object>> resp = handler.handleApiException(ex, req);
+
+        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+        Map<String, Object> body = resp.getBody();
+        assertNotNull(body);
+        assertEquals(400, body.get("status"));
+        assertEquals("Missing field", body.get("message"));
+        assertEquals("/api/test", body.get("path"));
+        assertNotNull(body.get("timestamp"));
+    }
+
+    @Test
+    void handleGenericException_returns_500() {
+        RuntimeException ex = new RuntimeException("DB connection lost");
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/login");
+
+        ResponseEntity<Map<String, Object>> resp = handler.handleGenericException(ex, req);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
+        assertEquals(500, resp.getBody().get("status"));
+    }
+}
+```
+
+6. Build + test:
+   ```bash
+   # Cần backend-api build được trước (Phase 4.5 BUILD pending — nhưng test có thể chạy độc lập sau khi mvn dependency resolve)
+   mvn -pl backend-api -am test -Dtest='JwtTokenProviderTest,ApiExceptionTest,GlobalExceptionHandlerTest'
+   # Kỳ vọng: BUILD SUCCESS, 12 tests run, 0 failures
+   ```
+
+   > ⚠️ Nếu Maven proxy fail (NTLM Bosch): bạn không build local được. Push PR lên — Leader sẽ build trên máy có hotspot 4G hoặc CI.
+
+7. Commit + push + PR.
+
+### 📦 Deliverables
+- [ ] `backend-api/src/test/java/.../config/JwtTokenProviderTest.java` (4 @Test, ~50 dòng)
+- [ ] `backend-api/src/test/java/.../exception/ApiExceptionTest.java` (5 @Test, ~30 dòng)
+- [ ] `backend-api/src/test/java/.../exception/GlobalExceptionHandlerTest.java` (2 @Test, ~40 dòng)
+
+### ✓ Acceptance
+- 3 file test, 11 @Test methods tổng cộng
+- Tất cả test pass (Leader build verify)
+- Không sửa file source chính (chỉ thêm test)
+
+### 💡 Tip
+- Dùng `ReflectionTestUtils.setField` để inject value vào field private `@Value` (vì test không qua Spring context)
+- `MockHttpServletRequest` từ `spring-test` đã có sẵn trong Spring Boot starter test
+
+---
+
+## 📝 E3. Swagger @Schema examples cho 14 endpoint (3h, NGAY)
+
+### 🎯 Mục tiêu
+Thêm annotation `@Schema(example = "...", description = "...")` vào **14 DTO** trong `backend-api/` + thêm `@Operation(summary = "..., description = ...)` cho 14 endpoint → Swagger UI hiển thị example value cụ thể (không phải `string`, `0` mặc định), dễ đọc cho người chấm + người consume API.
+
+### ✅ Prerequisites
+- Đã có `backend-api/` (Phase 4.5 code-complete)
+- KHÔNG cần backend chạy — chỉ sửa annotation source code
+
+### 📐 Step-by-step
+
+1. Branch `e/E3-swagger-examples`
+
+2. Mở file `backend-api/src/main/java/vn/edu/ves/api/dto/LoginRequest.java`, thêm import + annotation:
+
+```java
+package vn.edu.ves.api.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import javax.validation.constraints.NotBlank;
+
+@Schema(description = "Request body cho đăng nhập")
+public class LoginRequest {
+
+    @Schema(description = "Tên đăng nhập", example = "admin", required = true)
+    @NotBlank
+    private String username;
+
+    @Schema(description = "Mật khẩu", example = "admin", required = true)
+    @NotBlank
+    private String password;
+
+    // getters/setters giữ nguyên
+}
+```
+
+3. Lặp lại cho **13 DTO khác** (mỗi DTO thêm `@Schema` ở class + mỗi field):
+
+| File | Example values gợi ý |
+|------|----------------------|
+| `LoginResponse.java` | `accessToken: "eyJhbGc..."`, `expiresIn: 28800` |
+| `UserDto.java` | `username: "admin"`, `role: "ADMIN"` |
+| `SecurityScoreDto.java` | `overallScore: 76.4`, `status: "STABLE"`, `trend: "DECREASING"` |
+| `CascadeRiskDto.java` | `pillarCount: 3`, `description: "..."` |
+| `Pillar1OutlookDto.java` | `regionCode: "VN_HANOI"`, `stockDays: 56.6`, `supplyStatus: "WARNING"` |
+| `Pillar2VolatilityDto.java` | `fuelType: "BRENT_CRUDE"`, `priceChangePct: 12.3` |
+| `Pillar3SheddingDto.java` | `regionCode: "VN_NORTH"`, `loadPct: 88.5`, `recommendedShedMw: 800` |
+| `Pillar4NetZeroDto.java` | `targetYear: 2050`, `progressPct: 23.5` |
+| `RecommendationDto.java` | `pillar: 1`, `severity: "WARNING"`, `status: "PENDING"` |
+| `AckRequest.java` | `note: "Đã chuyển stock theo plan"` |
+| `AlertDto.java` | `metricType: "GRID_LOAD_PCT"`, `severity: "CRITICAL"` |
+| `FuelPriceDto.java` | `fuelType: "BRENT_CRUDE"`, `price: 85.50` |
+| `GridLoadLatestDto.java` | `regionCode: "VN_HANOI"`, `loadPct: 88.5` |
+
+4. Mở 7 file controller, thêm `@Operation` cho mỗi method, ví dụ `PillarController.java`:
+
+```java
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Pillars", description = "Endpoints cho 4 trụ cột an ninh năng lượng")
+@RestController
+@RequestMapping("/api/pillars")
+public class PillarController {
+
+    @Operation(
+        summary = "Lấy outlook Pillar 1 — Nguồn cung",
+        description = "Trả về danh sách dự báo tồn kho nhiên liệu theo region, ưu tiên những region/fuel có stockDays < target"
+    )
+    @GetMapping("/1/outlook")
+    public List<Pillar1OutlookDto> getPillar1Outlook() {
+        return dao.fetchPillar1Outlook();
+    }
+
+    // ... lặp cho 3 endpoint pillar còn lại
+}
+```
+
+5. Lặp cho 6 controller còn lại: `AuthController`, `SecurityController`, `RecommendationController`, `AlertController`, `RawDataController`, `HealthController`.
+
+6. (Optional) Cấu hình `OpenApiConfig.java` thêm group tag order:
+```java
+@Bean
+public OpenAPI vesOpenAPI() {
+    return new OpenAPI()
+        .info(new Info()
+            .title("VES-Monitor API")
+            .version("1.0.0")
+            .description("REST API cho hệ thống giám sát an ninh năng lượng VN. JWT Bearer auth required for all endpoints except /auth/login, /health."))
+        // ... existing security config
+        ;
+}
+```
+
+7. Test bằng Swagger UI (sau khi Leader build):
+   - Mở `http://localhost:8090/swagger-ui.html`
+   - Expand mỗi endpoint → kỳ vọng "Example Value" hiển thị JSON sample thay vì `"string"` mặc định
+
+8. Commit + push + PR.
+
+### 📦 Deliverables
+- [ ] 14 file DTO updated với `@Schema` annotation
+- [ ] 7 file Controller updated với `@Operation` + `@Tag`
+- [ ] Optional: `OpenApiConfig.java` updated với description chi tiết hơn
+
+### ✓ Acceptance
+- Swagger UI hiển thị example JSON realistic ở mỗi endpoint
+- Mỗi endpoint có summary + description ngắn
+- Không sửa logic, chỉ thêm annotation
+
+### 💡 Tip
+- `@Schema(example = "...")` trên field primitives — đúng với type
+- `@Schema(implementation = SomeOtherClass.class)` nếu field là object nested
+- Nếu DTO dùng Lombok `@Data`, annotation đặt trên field private
+
+---
+
+## 📝 E4. Curl example scripts cho 14 endpoint (4h, sau Phase 4.5 BUILD)
+
+### 🎯 Mục tiêu
+Tạo bộ **14 file shell `.sh`** (1 file/endpoint) trong `scripts/curl_examples/` — mỗi file là 1 curl request hoàn chỉnh có pretty-print JSON. Dùng cho:
+- Báo cáo Chương 5 — minh hoạ API
+- Demo trên slide
+- Người mới test nhanh không cần Postman
+
+### ✅ Prerequisites
+- Phase 4.5 BUILD xong, backend chạy được trên `localhost:8090`
+- Có `jq` để pretty-print JSON: `sudo apt install jq` (WSL) hoặc `choco install jq` (Win)
+
+### 📐 Step-by-step
+
+1. Branch `e/E4-curl-examples`
+
+2. Tạo thư mục: `scripts/curl_examples/`
+
+3. Tạo `scripts/curl_examples/_setup.sh` — helper chung lấy token:
+
+```bash
+#!/usr/bin/env bash
+# Source vào các script khác: source ./_setup.sh
+set -euo pipefail
+
+BASE_URL="${BASE_URL:-http://localhost:8090}"
+
+# Lấy token (cache lại 5 phút để không gọi login mỗi lần)
+TOKEN_CACHE="/tmp/ves_token.txt"
+TOKEN_TS="/tmp/ves_token.ts"
+
+if [[ -f "$TOKEN_TS" ]] && [[ $(($(date +%s) - $(cat "$TOKEN_TS"))) -lt 300 ]]; then
+    TOKEN=$(cat "$TOKEN_CACHE")
+else
+    echo "→ Logging in..."
+    TOKEN=$(curl -s -X POST "$BASE_URL/api/auth/login" \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin","password":"admin"}' \
+        | jq -r '.accessToken')
+    echo "$TOKEN" > "$TOKEN_CACHE"
+    date +%s > "$TOKEN_TS"
+fi
+
+AUTH_HEADER="Authorization: Bearer $TOKEN"
+```
+
+4. Tạo 14 file curl, mỗi file pattern:
+
+`scripts/curl_examples/01_login.sh`:
+```bash
+#!/usr/bin/env bash
+# Endpoint: POST /api/auth/login
+# Purpose: Đăng nhập, trả JWT token (TTL 8h)
+set -euo pipefail
+BASE_URL="${BASE_URL:-http://localhost:8090}"
+
+echo "→ POST $BASE_URL/api/auth/login"
+curl -s -X POST "$BASE_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"admin"}' \
+    | jq '.'
+```
+
+`scripts/curl_examples/02_security_score.sh`:
+```bash
+#!/usr/bin/env bash
+# Endpoint: GET /api/security/score
+# Purpose: Energy Security Score 0-100 + 4 sub-score + trend
+set -euo pipefail
+source "$(dirname "$0")/_setup.sh"
+
+echo "→ GET $BASE_URL/api/security/score"
+curl -s -X GET "$BASE_URL/api/security/score" \
+    -H "$AUTH_HEADER" \
+    | jq '.'
+```
+
+`scripts/curl_examples/03_security_cascade.sh`:
+```bash
+#!/usr/bin/env bash
+# Endpoint: GET /api/security/cascade-risks
+set -euo pipefail
+source "$(dirname "$0")/_setup.sh"
+curl -s "$BASE_URL/api/security/cascade-risks" -H "$AUTH_HEADER" | jq '.'
+```
+
+Lặp tương tự cho 11 endpoint còn lại:
+- `04_pillar1_outlook.sh` → `GET /api/pillars/1/outlook`
+- `05_pillar2_volatility.sh` → `GET /api/pillars/2/volatility`
+- `06_pillar3_shedding.sh` → `GET /api/pillars/3/shedding-plan`
+- `07_pillar4_netzero.sh` → `GET /api/pillars/4/net-zero-progress`
+- `08_alerts_active.sh` → `GET /api/alerts/active`
+- `09_recommendations.sh` → `GET /api/recommendations?status=PENDING`
+- `10_recommendation_ack.sh` → `POST /api/recommendations/1/acknowledge` (body `{"note":"Test from curl"}`)
+- `11_raw_fuel_prices.sh` → `GET /api/raw/fuel-prices/latest?limit=10`
+- `12_raw_grid_load.sh` → `GET /api/raw/grid-load/latest?region=VN_NORTH`
+- `13_health.sh` → `GET /api/health`
+- `14_openapi_spec.sh` → `GET /v3/api-docs | jq` (dump full spec)
+
+5. Tạo `scripts/curl_examples/run_all.sh` chạy tuần tự 14 file → log output ra file:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+OUTPUT_DIR="./output_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$OUTPUT_DIR"
+
+for script in 0*.sh 1*.sh; do
+    [[ "$script" == "_setup.sh" ]] && continue
+    name="${script%.sh}"
+    echo "=========================================="
+    echo "Running $script ..."
+    bash "$script" > "$OUTPUT_DIR/$name.json" 2>&1 || echo "❌ Failed: $script"
+    echo "→ Saved to $OUTPUT_DIR/$name.json"
+done
+
+echo ""
+echo "✅ Done. Check $OUTPUT_DIR/ for all responses."
+```
+
+6. Tạo `scripts/curl_examples/README.md`:
 
 ```markdown
-## Run Collection (CI-style automated test)
-1. Top of Postman → click "Runner"
-2. Drag "VES-Monitor API" collection vào panel phải
-3. Click "Run VES-Monitor API"
-4. Kỳ vọng: 14/14 pass (mỗi request có ít nhất 1 assertion)
-5. Có thể schedule chạy hàng giờ qua Postman Monitor (free 1000 run/tháng)
+# Curl Examples — 14 endpoint
+
+## Sử dụng
+
+1. Cài jq: `sudo apt install jq` hoặc `choco install jq`
+2. Đảm bảo backend chạy: `curl http://localhost:8090/api/health` trả 200
+3. Chạy 1 endpoint: `bash 02_security_score.sh`
+4. Chạy tất cả + log: `bash run_all.sh`
+
+## File list
+
+| # | Script | Endpoint | Auth |
+|---|--------|----------|------|
+| 1 | 01_login.sh | POST /api/auth/login | Public |
+| 2 | 02_security_score.sh | GET /api/security/score | JWT |
+| ... | ... | ... | ... |
 ```
 
-#### Phần B — Screenshot 5 màn Android (3h)
+7. Set executable: `chmod +x scripts/curl_examples/*.sh`
 
-1. Chạy Phase 6 app trên emulator Android
-2. Capture từng màn (theo C3 style):
-   - `android-01-login.png` — Login screen
-   - `android-02-home.png` — Bottom-nav, 4 KPI card
-   - `android-03-chart.png` — Chart pillar 2 line
-   - `android-04-alerts.png` — RecyclerView list 5 alerts
-   - `android-05-recommendation.png` — Recommendation detail với ACK button
-3. Save vào `docs/screenshots/android-*.png`
+8. Test trên WSL: chạy `bash scripts/curl_examples/run_all.sh` — kỳ vọng 14/14 response JSON OK.
+
+9. Commit + push + PR.
 
 ### 📦 Deliverables
-- [ ] `tests/postman/ves-monitor-api.postman_collection.json` (updated với 14+ assertion)
-- [ ] `tests/postman/README.md` (updated)
-- [ ] `docs/screenshots/android-XX-*.png` × 5
+- [ ] `scripts/curl_examples/_setup.sh`
+- [ ] `scripts/curl_examples/01_login.sh` ... `14_openapi_spec.sh` (14 file)
+- [ ] `scripts/curl_examples/run_all.sh`
+- [ ] `scripts/curl_examples/README.md`
 
 ### ✓ Acceptance
-- Postman Runner: 14/14 request pass, 28+ assertion pass (2/request)
-- 5 screenshot Android đầy đủ, ≥ 720p
+- 14 file shell + 1 setup + 1 runner = 16 file
+- `bash run_all.sh` chạy không lỗi, 14/14 response 2xx
+- Output JSON pretty-print bằng jq
+
+### 💡 Tip
+- Mỗi file có comment header rõ endpoint + purpose (cho người đọc nhanh hiểu)
+- Token cache file `/tmp/ves_token.txt` tự refresh sau 5 phút → đỡ gọi login mỗi lần
+
+---
+
+## 📝 E5. Load test script + LOAD_TEST_REPORT.md (4h, sau Phase 4.5 BUILD + Phase 7)
+
+### 🎯 Mục tiêu
+Viết bash script chạy **load test đơn giản**: 100 concurrent client × 10 request/client = 1000 request → đo `success rate` + `p50/p95/p99 latency`. Output ra `docs/LOAD_TEST_REPORT.md` ~3-4 trang dùng cho báo cáo Chương 5 (performance evaluation).
+
+### ✅ Prerequisites
+- Backend chạy được (Phase 4.5 build done)
+- Có `jq` + `bc` (đa số Linux đã có): `sudo apt install bc`
+
+### 📐 Step-by-step
+
+1. Branch `e/E5-load-test`
+
+2. Tạo `scripts/load_test.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Simple load test: N concurrent users × M requests each
+# Usage: bash load_test.sh [N_CONCURRENT] [M_REQUESTS] [BASE_URL]
+set -euo pipefail
+
+N="${1:-100}"        # số concurrent client
+M="${2:-10}"         # số request mỗi client
+BASE_URL="${3:-http://localhost:8090}"
+
+OUTPUT_DIR="./load_test_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$OUTPUT_DIR"
+
+echo "=== Load Test ==="
+echo "  Concurrent clients : $N"
+echo "  Requests/client    : $M"
+echo "  Total requests     : $((N * M))"
+echo "  Target             : $BASE_URL"
+echo "  Output             : $OUTPUT_DIR"
+echo ""
+
+# Lấy token 1 lần dùng chung
+TOKEN=$(curl -s -X POST "$BASE_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"admin"}' | jq -r '.accessToken')
+
+if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+    echo "❌ Login failed, abort"
+    exit 1
+fi
+
+# Spawn N parallel client, mỗi client gọi M lần GET /api/security/score
+START_TS=$(date +%s.%N)
+
+for ((i=1; i<=N; i++)); do
+    (
+        for ((j=1; j<=M; j++)); do
+            t0=$(date +%s.%N)
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer $TOKEN" \
+                "$BASE_URL/api/security/score")
+            t1=$(date +%s.%N)
+            latency_ms=$(echo "($t1 - $t0) * 1000" | bc -l)
+            echo "$i,$j,$status,$latency_ms" >> "$OUTPUT_DIR/raw.csv"
+        done
+    ) &
+done
+
+wait
+END_TS=$(date +%s.%N)
+ELAPSED=$(echo "$END_TS - $START_TS" | bc -l)
+
+# Analyze
+TOTAL=$(wc -l < "$OUTPUT_DIR/raw.csv")
+SUCCESS=$(awk -F, '$3 ~ /^2/ {count++} END {print count+0}' "$OUTPUT_DIR/raw.csv")
+ERRORS=$((TOTAL - SUCCESS))
+SUCCESS_RATE=$(echo "scale=2; $SUCCESS * 100 / $TOTAL" | bc -l)
+
+# Latency percentiles (sort + pick)
+sort -t, -k4 -n "$OUTPUT_DIR/raw.csv" | awk -F, '{print $4}' > "$OUTPUT_DIR/sorted_lat.txt"
+P50_LINE=$((TOTAL * 50 / 100))
+P95_LINE=$((TOTAL * 95 / 100))
+P99_LINE=$((TOTAL * 99 / 100))
+P50=$(sed -n "${P50_LINE}p" "$OUTPUT_DIR/sorted_lat.txt")
+P95=$(sed -n "${P95_LINE}p" "$OUTPUT_DIR/sorted_lat.txt")
+P99=$(sed -n "${P99_LINE}p" "$OUTPUT_DIR/sorted_lat.txt")
+THROUGHPUT=$(echo "scale=2; $TOTAL / $ELAPSED" | bc -l)
+
+cat <<EOF | tee "$OUTPUT_DIR/summary.txt"
+=== Load Test Result ===
+Total requests   : $TOTAL
+Success (2xx)    : $SUCCESS
+Errors           : $ERRORS
+Success rate     : ${SUCCESS_RATE}%
+Elapsed time     : ${ELAPSED}s
+Throughput       : ${THROUGHPUT} req/s
+Latency p50      : ${P50} ms
+Latency p95      : ${P95} ms
+Latency p99      : ${P99} ms
+EOF
+
+echo ""
+echo "✅ Done. Raw data: $OUTPUT_DIR/raw.csv"
+```
+
+3. Test thử nhỏ trước: `bash scripts/load_test.sh 10 5` (10 client × 5 req = 50) — kỳ vọng 50/50 success.
+
+4. Chạy load test thật: `bash scripts/load_test.sh 100 10` (1000 req) → ghi `summary.txt`.
+
+5. Viết `docs/LOAD_TEST_REPORT.md`:
+
+```markdown
+# 📊 Load Test Report — VES-Monitor REST API
+
+## 1. Mục tiêu
+Đánh giá khả năng đáp ứng của backend REST API (Phase 4.5) dưới tải đồng thời.
+
+## 2. Setup
+- **Hardware**: <CPU/RAM máy chạy test>
+- **Backend**: Spring Boot 2.7.18 + HikariCP + Postgres 15
+- **Test client**: bash script `scripts/load_test.sh` chạy 100 concurrent client × 10 request = 1000 request tổng
+- **Endpoint test**: GET /api/security/score (representative — query 2 view, JSON output)
+- **Network**: localhost (loopback, không qua tunnel)
+
+## 3. Kết quả
+
+| Metric | Value |
+|--------|-------|
+| Total requests | 1000 |
+| Success (2xx) | 998 (99.8%) |
+| Errors | 2 (0.2%) |
+| Elapsed time | 4.32s |
+| Throughput | **231 req/s** |
+| Latency p50 | 18ms |
+| Latency p95 | 95ms |
+| Latency p99 | 180ms |
+
+## 4. Phân tích
+- Throughput ~230 req/s trên laptop 8GB RAM = đủ cho ~ 100 concurrent user
+- p95 < 100ms → user experience mượt
+- 2 error là rare network blip (retry OK)
+
+## 5. Hạn chế + hướng phát triển
+- Chỉ test 1 endpoint — chưa test endpoint write-heavy (POST acknowledge)
+- Chưa test với tunnel Cloudflared (network thực tế)
+- Chưa stress đến điểm sụp đổ (saturation test)
+
+## 6. Raw data
+Xem `load_test_<timestamp>/raw.csv` và `summary.txt`.
+```
+
+6. Commit + push + PR (chỉ commit `scripts/load_test.sh` + `docs/LOAD_TEST_REPORT.md`, KHÔNG commit folder `load_test_*` output).
+
+7. Thêm vào `.gitignore`:
+```
+scripts/load_test_*/
+```
+
+### 📦 Deliverables
+- [ ] `scripts/load_test.sh` (~80 dòng bash)
+- [ ] `docs/LOAD_TEST_REPORT.md` (3-4 trang)
+- [ ] `.gitignore` updated
+
+### ✓ Acceptance
+- Script chạy không lỗi, output đủ 6 metric
+- Report ≥ 3 trang có data thật từ run của bạn
+- Backend không crash trong test (Leader monitor `docker stats`)
+
+### 💡 Tip
+- Chạy trên WSL Ubuntu — bash + bc + jq ổn định
+- Nếu p99 > 1s → backend bị bottleneck, ping Leader xem có nên thêm connection pool
+- Phải lấy token 1 lần dùng chung (không spam login) — nếu không sẽ bottleneck ở auth thay vì endpoint test
 
 ---
 
@@ -1938,16 +2314,18 @@ Lưu ý: timeline này điều phối 4 thành viên (B/C/D/E) song song với L
 
 | Tuần | Leader (A) làm gì | B làm gì | C làm gì | D làm gì | E làm gì |
 |------|-------------------|----------|----------|----------|----------|
-| 1 | Phase 0+1 (foundation+docker) | B1 (vẽ diagram) | - | D1 (SQL seed VN) | E1 (Android icons) |
-| 2 | Phase 2+2.5 (schema+pillars) | B2 (Chương 1) | - | D2 (ValidatorUtils) | E2 (i18n strings) |
-| 3 | Phase 2.6+3 (security+Flink) | B3 (Chương 2 — cần B1 done) | - | (đợi Phase 5 skel) | (đợi Phase 6 skel) |
-| 4 | Phase 4 (generators) | B4 (Chương 4) | - | (đợi Phase 5 skel) | (đợi Phase 6 skel) |
-| 5 | Phase 4.5 (REST API — đang ở đây ✅) | B5 (Chương 6 + AI Log) | C1 (slide) | (đợi Phase 5 skel) | (đợi Phase 6 skel) |
-| 6 | **Phase 5 (JavaFX) — bắt đầu** | review báo cáo | C3 screenshot Swagger | D3 (About JavaFX) | (đợi Phase 6) |
-| 7 | **Phase 5 tiếp + Phase 6 bắt đầu** | format báo cáo final | C3 screenshot JavaFX | D4 (Settings JavaFX) | E3 (About Android) |
-| 8 | **Phase 6 tiếp + Phase 7 deploy** | proofreading | C2 quay video, C3 screenshot Android | D5 (CSS + Splash) | E4 (Settings Android) |
-| 9 | Phase 8 doc + integration test | combine + export PDF | C4 + C5 (test report) | review final | E5 (Postman + screenshots) |
+| 1 | Phase 0+1 (foundation+docker) | B1 (vẽ diagram) | - | D1 (SQL seed VN) | E1 (SQL stress seed) |
+| 2 | Phase 2+2.5 (schema+pillars) | B2 (Chương 1) | - | D2 (ValidatorUtils) | E2 (JUnit backend tests) |
+| 3 | Phase 2.6+3 (security+Flink) | B3 (Chương 2 — cần B1 done) | - | (đợi Phase 5 skel) | E3 (Swagger examples) |
+| 4 | Phase 4 (generators) | B4 (Chương 4) | - | (đợi Phase 5 skel) | (đợi Phase 4.5 build) |
+| 5 | Phase 4.5 (REST API — đang ở đây ✅) | B5 (Chương 6 + AI Log) | C1 (slide) | (đợi Phase 5 skel) | (đợi Phase 4.5 build) |
+| 6 | **Phase 5 (JavaFX) — bắt đầu** | review báo cáo | C3 screenshot Swagger | D3 (About JavaFX) | E4 (curl examples — sau Phase 4.5 build) |
+| 7 | **Phase 5 tiếp** | format báo cáo final | C3 screenshot JavaFX + C4 Postman | D4 (Settings JavaFX) | E4 (tiếp) |
+| 8 | **Phase 7 deploy + tunnel** | proofreading | C2 quay video | D5 (CSS + Splash) | E5 (load test sau tunnel) |
+| 9 | Phase 8 doc + integration test | combine + export PDF | C5 (test report) | review final | E5 (tiếp + report) |
 | 10 | Pre-build artifacts + Demo dress rehearsal | nộp báo cáo | diễn tập demo | demo dress rehearsal | demo dress rehearsal |
+
+> ℹ️ **Phase 6 (Android)** không còn nằm trong đồ án Java — chuyển sang **đồ án Mobile riêng** (xem `docs/ANDROID_ONBOARDING.md`). Vì vậy Tuần 7-8 không còn task Android. Leader workload giảm tương ứng.
 
 ---
 
@@ -1955,12 +2333,12 @@ Lưu ý: timeline này điều phối 4 thành viên (B/C/D/E) song song với L
 
 | Người | Workload | Số PR | Loại task | Phụ thuộc |
 |-------|----------|-------|-----------|-----------|
-| **Leader A** | ~80h | 30-40 | Toàn bộ backend/Flink/UI core/deploy | - |
+| **Leader A** | ~75-85h | 30-40 | Toàn bộ backend/Flink/JavaFX core/deploy (KHÔNG còn Android) | - |
 | **Người B** | ~30h | 5 | Báo cáo Chương 1/2/4/6 + diagram + Notion | B1 chỉ cần Phase 2; B5 cần Phase 4 |
-| **Người C** | ~25h | 5 | Slide + video + screenshots + Postman + test report | C2/C3/C5 chờ Phase 5+6+7 |
+| **Người C** | ~25h | 5 | Slide + video + screenshots + Postman + test report | C2/C3/C5 chờ Phase 5+7 |
 | **Người D** | ~20h | 5 | SQL seed + JUnit + 2 màn JavaFX + CSS | D3/D4/D5 chờ Phase 5 skeleton |
-| **Người E** | ~20h | 5 | Icon + i18n + 2 màn Android + Postman runner | E3/E4 chờ Phase 6 skeleton |
-| **TỔNG** | ~175h | ~55 PR | | |
+| **Người E** | ~18h | 5 | SQL stress seed + JUnit backend + Swagger examples + curl + load test | E4/E5 chờ Phase 4.5 build |
+| **TỔNG** | ~170h | ~55 PR | | |
 
 ---
 

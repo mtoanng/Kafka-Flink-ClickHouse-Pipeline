@@ -4,7 +4,9 @@
 
 [![Status](https://img.shields.io/badge/status-Phase%204.5%20code--complete-yellowgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
 
-> 👥 **Thành viên team**, đọc ngay **[`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)** để biết task của mình (B/C/D/E × 5 PR step-by-step). File này thay thế phân công cũ trong `UPGRADE_PLAN.md §22`.
+> 👥 **Thành viên đồ án Java**, đọc **[`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)** để biết task của mình (B/C/D/E × 5 PR step-by-step).
+>
+> 📱 **Android Developer** (đồ án Mobile **riêng biệt**), đọc **[`docs/ANDROID_ONBOARDING.md`](./docs/ANDROID_ONBOARDING.md)** — repo Android độc lập, chỉ consume 14 endpoint REST API của project này.
 
 ---
 
@@ -253,7 +255,8 @@ Swagger UI: `http://localhost:8090/swagger-ui.html`. Chi tiết build / proxy wo
 |------|-------|
 | [UPGRADE_PLAN.md](./UPGRADE_PLAN.md) | Kế hoạch nâng cấp chi tiết, §24 = Minimalist Plan (thực thi) |
 | [JAVA_FINAL_PROJECT_REQUIREMENT.md](./JAVA_FINAL_PROJECT_REQUIREMENT.md) | Yêu cầu đồ án môn Java |
-| **[docs/TEAM_TASKS.md](./docs/TEAM_TASKS.md)** | **👥 Phân công team 5 người: 4 thành viên × 5 PR step-by-step (B/C/D/E)** |
+| **[docs/TEAM_TASKS.md](./docs/TEAM_TASKS.md)** | **👥 Đồ án Java — phân công team 5 người (B/C/D/E × 5 PR step-by-step)** |
+| **[docs/ANDROID_ONBOARDING.md](./docs/ANDROID_ONBOARDING.md)** | **📱 Đồ án Android (riêng biệt) — onboarding cho Android Dev: API contract + stack + first-day setup** |
 | [backend-api/README.md](./backend-api/README.md) | Hướng dẫn build & deploy Spring Boot REST API (Phase 4.5) |
 | [docs/PROGRESS.md](./docs/PROGRESS.md) | Sổ tay tiến độ phase + verification log |
 | [docs/PHAN_CONG_CONG_VIEC_legacy.md](./docs/PHAN_CONG_CONG_VIEC_legacy.md) | Phân công công việc (legacy, đã thay bằng TEAM_TASKS.md) |

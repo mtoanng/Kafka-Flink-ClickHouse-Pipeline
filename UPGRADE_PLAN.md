@@ -1623,15 +1623,16 @@ docker stats --no-stream
 
 ## 22. Phân công thực tế (Leader-heavy) 👤 — Khi thành viên yếu
 
-> 📌 **CẬP NHẬT 2026-05-12 — Team mở rộng 5 người:** Phân công chi tiết (5 PR/người × 4 thành viên = 20 PR, step-by-step) đã được tách sang file độc lập **[`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md)** để team dễ in/share. §22 dưới đây giữ lại bản tóm tắt 3 người cũ làm tham khảo lịch sử.
+> 📌 **CẬP NHẬT 2026-05-12 (chiều)**: **Đồ án Android tách thành đồ án độc lập** (môn Mobile, repo riêng, team chỉ Leader + 1 Android Dev). Phase 6 không còn nằm trong scope đồ án Java.
+> Onboarding cho Android Dev: **[`docs/ANDROID_ONBOARDING.md`](docs/ANDROID_ONBOARDING.md)** — 14 endpoint API contract + stack recommendation + first-day setup.
 >
-> **File mới `TEAM_TASKS.md`** phân 4 persona:
+> 📋 **Đồ án Java** giữ nguyên team 5 người (Leader + 4 helpers), phân công chi tiết tại **[`docs/TEAM_TASKS.md`](docs/TEAM_TASKS.md)**:
 > - **B — Doc & PM** (non-coding, 5 PR ~30h): ERD/Use-case/Activity + báo cáo Chương 1/2/4/6 + AI Usage Log + Notion
 > - **C — Media & QA** (non-coding, 5 PR ~25h): slide 22 trang + video demo 5-7' + bộ screenshot + Postman collection + test report
 > - **D — JavaFX UI Junior** (simple coding, 5 PR ~20h): SQL seed VN + ValidatorUtils + JUnit + 2 màn JavaFX phụ (About/Settings) + CSS polish
-> - **E — Android UI Junior** (simple coding, 5 PR ~20h): icons/drawable + i18n VN+EN + 2 màn Android phụ + Postman runner + screenshots
+> - **E — Backend & Test Helper** (simple coding, 5 PR ~18h): SQL stress seed + JUnit backend (JwtTokenProvider/ApiException) + Swagger @Schema examples + 14 curl example scripts + load test
 >
-> D & E **không cần chạy backend/Flink/Docker** — chỉ build module riêng (`mvn javafx:run` hoặc Android Studio). 2 task đầu của D/E làm được NGAY, không chờ phase nào.
+> §22 dưới đây giữ lại bản tóm tắt 3 người cũ làm tham khảo lịch sử.
 
 > **Bối cảnh:** Thành viên Java của nhóm chưa thạo Spring Boot / Flink / Android / JavaFX nâng cao. Leader sẽ đảm nhận phần lớn code, mỗi thành viên còn lại được giao **3-6 task nhỏ-đơn giản** đảm bảo có PR thật, có dấu ấn trong báo cáo, không block đường găng của Leader.
 
