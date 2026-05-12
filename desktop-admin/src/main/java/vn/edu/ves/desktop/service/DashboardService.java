@@ -1,9 +1,9 @@
 package vn.edu.ves.desktop.service;
 
-import vn.edu.ves.desktop.model.Pillar1Outlook;
-import vn.edu.ves.desktop.model.Pillar2Volatility;
-import vn.edu.ves.desktop.model.Pillar3Shedding;
-import vn.edu.ves.desktop.model.Pillar4NetZero;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
+import vn.edu.ves.desktop.model.Pillar2MarketResilience;
+import vn.edu.ves.desktop.model.Pillar3GridReliability;
+import vn.edu.ves.desktop.model.Pillar4EnergyTransition;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 
@@ -13,20 +13,21 @@ import java.util.Optional;
 /**
  * Service tổng hợp data cho màn Dashboard.
  *
- * <p>Tách interface để DashboardController có thể inject mock khi test
- * và để dễ thay DAO source về sau (REST API thay JDBC chẳng hạn).</p>
+ * <p>Phase 7.1: rewired to IEA/APERC pillar taxonomy. 4 getters renamed to
+ * {@code getSupplySecurity / getMarketResilience / getGridReliability /
+ * getEnergyTransition} for clarity.</p>
  */
 public interface DashboardService {
 
     Optional<SecurityScore> getSecurityScore();
 
-    List<Pillar1Outlook> getPillar1();
+    List<Pillar1SupplySecurity> getSupplySecurity();
 
-    List<Pillar2Volatility> getPillar2();
+    List<Pillar2MarketResilience> getMarketResilience();
 
-    List<Pillar3Shedding> getPillar3();
+    List<Pillar3GridReliability> getGridReliability();
 
-    List<Pillar4NetZero> getPillar4();
+    List<Pillar4EnergyTransition> getEnergyTransition();
 
     List<Recommendation> getActiveRecommendations();
 }

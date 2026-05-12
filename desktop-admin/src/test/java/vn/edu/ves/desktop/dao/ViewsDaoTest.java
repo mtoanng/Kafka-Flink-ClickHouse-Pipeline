@@ -3,10 +3,10 @@ package vn.edu.ves.desktop.dao;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import vn.edu.ves.desktop.model.Pillar1Outlook;
-import vn.edu.ves.desktop.model.Pillar2Volatility;
-import vn.edu.ves.desktop.model.Pillar3Shedding;
-import vn.edu.ves.desktop.model.Pillar4NetZero;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
+import vn.edu.ves.desktop.model.Pillar2MarketResilience;
+import vn.edu.ves.desktop.model.Pillar3GridReliability;
+import vn.edu.ves.desktop.model.Pillar4EnergyTransition;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 
@@ -20,11 +20,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * H2 in-memory tests cho {@link ViewsDao}.
+ * H2 in-memory tests cho {@link ViewsDao} (Phase 7.1, IEA/APERC pillar shape).
  *
- * <p>Dùng MODE=PostgreSQL (H2 2.2.224) để hỗ trợ <code>::text</code> cast.
- * Tạo "view" giả lập bằng cách CREATE TABLE + INSERT data fix → DAO query SELECT
- * như thường (view và table cùng readable).</p>
+ * <p>Vì view SQL trên Postgres rất phức tạp (REGR_SLOPE, STDDEV_SAMP, FULL OUTER JOIN),
+ * ta tạo bảng giả lập có cùng SHAPE column thay vì re-implement view trong H2.
+ * Mỗi DAO chỉ làm SELECT * FROM v_… nên đủ để chứng minh column mapping đúng.</p>
  */
 public class ViewsDaoTest {
 
@@ -53,39 +53,61 @@ public class ViewsDaoTest {
         assertTrue("v_security_score phải có row", opt.isPresent());
         SecurityScore s = opt.get();
         assertNotNull(s.getOverallScore());
-        assertEquals("SECURE", s.getStatus());
+        assertEquals("ELEVATED", s.getStatus());
         assertTrue(s.getOverallScore().doubleValue() > 0);
     }
 
     @Test
-    public void fetchPillar1Outlook_returnsRowsWithRecommendation() {
-        List<Pillar1Outlook> rows = dao.fetchPillar1Outlook();
+    public void fetchPillar1SupplySecurity_returnsRowsWithIeaIndicators() {
+        List<Pillar1SupplySecurity> rows = dao.fetchPillar1SupplySecurity();
         assertEquals(2, rows.size());
-        Pillar1Outlook first = rows.get(0);
+        Pillar1SupplySecurity first = rows.get(0);
         assertEquals("VN_NORTH", first.getRegionCode());
-        assertNotNull(first.getRecommendationText());
+        assertNotNull(first.getIdr());
+        assertNotNull(first.getSfri());
+        assertNotNull(first.getHhiSupply());
+        assertNotNull(first.getN1Resilience());
+        assertNotNull(first.getPillar1Score());
+        assertEquals("ELEVATED", first.getStatus());
     }
 
     @Test
-    public void fetchPillar2Volatility_returnsRows() {
-        List<Pillar2Volatility> rows = dao.fetchPillar2Volatility();
+    public void fetchPillar2MarketResilience_returnsRows() {
+        List<Pillar2MarketResilience> rows = dao.fetchPillar2MarketResilience();
         assertEquals(1, rows.size());
-        assertEquals("WTI_CRUDE", rows.get(0).getFuelType());
-        assertEquals("STABLE", rows.get(0).getSignal());
+        Pillar2MarketResilience p = rows.get(0);
+        assertEquals("WTI_CRUDE", p.getFuelType());
+        assertEquals("SECURE", p.getStatus());
+        assertNotNull(p.getSigma30d());
+        assertNotNull(p.getPriceGapPct());
+        assertNotNull(p.getBetaCrude());
+        assertNotNull(p.getAffordabilityIdx());
     }
 
     @Test
-    public void fetchPillar3Shedding_returnsRowsOrderedByPriority() {
-        List<Pillar3Shedding> rows = dao.fetchPillar3Shedding();
+    public void fetchPillar3GridReliability_returnsRowsWithReserveMargin() {
+        List<Pillar3GridReliability> rows = dao.fetchPillar3GridReliability();
         assertEquals(2, rows.size());
-        assertEquals(1L, rows.get(0).getPriorityLevel());
+        Pillar3GridReliability p = rows.get(0);
+        assertEquals("VN_NORTH", p.getRegionCode());
+        assertNotNull(p.getReserveMarginPct());
+        assertNotNull(p.getPeakLoadFactor());
+        assertNotNull(p.getSheddingProb());
+        assertNotNull(p.getFreqStabilityIdx());
+        assertEquals("ELEVATED", p.getStatus());
     }
 
     @Test
-    public void fetchPillar4NetZero_returnsRowsWithStatus() {
-        List<Pillar4NetZero> rows = dao.fetchPillar4NetZero();
+    public void fetchPillar4EnergyTransition_returnsRowsWithStatus() {
+        List<Pillar4EnergyTransition> rows = dao.fetchPillar4EnergyTransition();
         assertEquals(2, rows.size());
-        assertEquals("ON_TRACK", rows.get(0).getStatus());
+        Pillar4EnergyTransition p = rows.get(0);
+        assertEquals("VN_NORTH", p.getRegionCode());
+        assertNotNull(p.getRenewablePct());
+        assertNotNull(p.getCo2Intensity());
+        assertNotNull(p.getCurtailmentRate());
+        assertNotNull(p.getNetzeroProgress());
+        assertEquals("ELEVATED", p.getStatus());
     }
 
     @Test
@@ -101,10 +123,10 @@ public class ViewsDaoTest {
 
     private static final String[] VIEW_NAMES = {
             "v_security_score",
-            "v_pillar1_supply_outlook",
-            "v_pillar2_volatility_signal",
-            "v_pillar3_load_shedding_plan",
-            "v_pillar4_net_zero_progress",
+            "v_pillar1_supply_security",
+            "v_pillar2_market_resilience",
+            "v_pillar3_grid_reliability",
+            "v_pillar4_energy_transition",
             "v_active_recommendations"
     };
 
@@ -113,8 +135,7 @@ public class ViewsDaoTest {
             try {
                 H2TestSupport.exec(c, "DROP VIEW IF EXISTS " + v);
             } catch (Exception ignore) {
-                // H2 IF EXISTS ném khi object tồn tại nhưng là TABLE (không phải VIEW).
-                // Bỏ qua — DROP TABLE bên dưới sẽ dọn nốt.
+                // H2 IF EXISTS may throw when object exists as TABLE — drop next.
             }
             H2TestSupport.exec(c, "DROP TABLE IF EXISTS " + v);
         }
@@ -128,71 +149,61 @@ public class ViewsDaoTest {
                 " pillar3_score NUMERIC(5,2), pillar4_score NUMERIC(5,2)," +
                 " overall_score NUMERIC(5,2), status VARCHAR(20), computed_at TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_security_score VALUES (80.5, 72.3, 60.1, 85.0, 74.5, 'SECURE', CURRENT_TIMESTAMP)");
+                "INSERT INTO v_security_score VALUES (64.83, 64.06, 90.93, 72.15, 73.97, 'ELEVATED', CURRENT_TIMESTAMP)");
 
-        // v_pillar1_supply_outlook
+        // v_pillar1_supply_security
         H2TestSupport.exec(c,
-                "CREATE TABLE v_pillar1_supply_outlook (" +
-                " region_code VARCHAR(20), region_name VARCHAR(100), fuel_type VARCHAR(50)," +
-                " stock_volume_kl NUMERIC(14,2), daily_consumption_kl NUMERIC(14,2)," +
-                " stock_days NUMERIC(6,1), target_days INT," +
-                " days_to_critical NUMERIC(6,1), days_above_target NUMERIC(6,1)," +
-                " target_achievement_pct NUMERIC(5,1), status VARCHAR(20)," +
-                " recommendation_text VARCHAR(500), suggested_donor_region VARCHAR(20)," +
-                " reported_at TIMESTAMP)");
+                "CREATE TABLE v_pillar1_supply_security (" +
+                " region_code VARCHAR(20), fuel_type VARCHAR(50)," +
+                " idr NUMERIC(5,3), sfri NUMERIC(6,1)," +
+                " hhi_supply NUMERIC(10,2), n1_resilience NUMERIC(6,1)," +
+                " pillar1_score NUMERIC(5,2), status VARCHAR(20), computed_at TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar1_supply_outlook VALUES " +
-                "('VN_NORTH','Miền Bắc','GASOLINE',120000.0,2000.0,60.0,90,30.0,0.0,66.7," +
-                " 'WARNING','Tăng tồn kho thêm 60000 kl','VN_SOUTH',CURRENT_TIMESTAMP)");
+                "INSERT INTO v_pillar1_supply_security VALUES " +
+                "('VN_NORTH','GASOLINE',0.650,75.0,3450.0,40.5,65.20,'ELEVATED',CURRENT_TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar1_supply_outlook VALUES " +
-                "('VN_SOUTH','Miền Nam','GASOLINE',200000.0,2500.0,80.0,90,50.0,0.0,88.9," +
-                " 'BELOW_TARGET','Tiến độ 89% mục tiêu',NULL,CURRENT_TIMESTAMP)");
+                "INSERT INTO v_pillar1_supply_security VALUES " +
+                "('VN_SOUTH','DIESEL',0.580,82.0,2900.0,52.0,68.10,'ELEVATED',CURRENT_TIMESTAMP)");
 
-        // v_pillar2_volatility_signal
+        // v_pillar2_market_resilience
         H2TestSupport.exec(c,
-                "CREATE TABLE v_pillar2_volatility_signal (" +
-                " fuel_type VARCHAR(50), location VARCHAR(100), sample_count INT," +
-                " avg_price NUMERIC(12,4), sigma NUMERIC(12,4)," +
-                " relative_volatility_pct NUMERIC(5,2), range_abs NUMERIC(12,4)," +
-                " signal VARCHAR(20), last_event TIMESTAMP)");
+                "CREATE TABLE v_pillar2_market_resilience (" +
+                " fuel_type VARCHAR(50), sigma_30d NUMERIC(12,4), price_gap_pct NUMERIC(6,2)," +
+                " beta_crude NUMERIC(6,3), affordability_idx NUMERIC(5,2)," +
+                " pillar2_score NUMERIC(5,2), status VARCHAR(20), computed_at TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar2_volatility_signal VALUES " +
-                "('WTI_CRUDE','New York',10,82.4500,0.4200,0.51,1.2300,'STABLE',CURRENT_TIMESTAMP)");
+                "INSERT INTO v_pillar2_market_resilience VALUES " +
+                "('WTI_CRUDE',0.4200,-0.50,1.020,80.50,82.10,'SECURE',CURRENT_TIMESTAMP)");
 
-        // v_pillar3_load_shedding_plan
+        // v_pillar3_grid_reliability
         H2TestSupport.exec(c,
-                "CREATE TABLE v_pillar3_load_shedding_plan (" +
-                " priority_level BIGINT, region_code VARCHAR(20), region_name VARCHAR(100)," +
-                " load_mw NUMERIC(12,2), capacity_mw NUMERIC(12,2), load_pct NUMERIC(5,2)," +
-                " is_peak_hour BOOLEAN, suggested_shed_mw NUMERIC(12,2)," +
-                " action_type VARCHAR(50), recommendation_text VARCHAR(500), event_time TIMESTAMP)");
+                "CREATE TABLE v_pillar3_grid_reliability (" +
+                " region_code VARCHAR(20), reserve_margin_pct NUMERIC(5,2)," +
+                " peak_load_factor NUMERIC(6,3), shedding_prob NUMERIC(6,4)," +
+                " freq_stability_idx NUMERIC(5,2)," +
+                " pillar3_score NUMERIC(5,2), status VARCHAR(20), computed_at TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar3_load_shedding_plan VALUES " +
-                "(1,'VN_NORTH','Miền Bắc',9200.0,10000.0,92.0,TRUE,1200.0,'PEAK_SHAVING'," +
-                " 'WARNING: Kích hoạt peak shaving 1200 MW',CURRENT_TIMESTAMP)");
+                "INSERT INTO v_pillar3_grid_reliability VALUES " +
+                "('VN_NORTH',15.50,1.120,0.0500,87.50,72.40,'ELEVATED',CURRENT_TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar3_load_shedding_plan VALUES " +
-                "(2,'VN_SOUTH','Miền Nam',8800.0,10000.0,88.0,TRUE,800.0,'DEMAND_RESPONSE'," +
-                " 'WATCH',CURRENT_TIMESTAMP)");
+                "INSERT INTO v_pillar3_grid_reliability VALUES " +
+                "('VN_SOUTH',8.20,1.250,0.1200,76.30,55.10,'STRESSED',CURRENT_TIMESTAMP)");
 
-        // v_pillar4_net_zero_progress
+        // v_pillar4_energy_transition
         H2TestSupport.exec(c,
-                "CREATE TABLE v_pillar4_net_zero_progress (" +
-                " region_code VARCHAR(20), region_name VARCHAR(100)," +
-                " renewable_mw NUMERIC(12,2), avg_load_mw NUMERIC(12,2)," +
-                " current_renewable_share_pct NUMERIC(5,2)," +
-                " target_2026_pct NUMERIC(5,2), target_2030_pct NUMERIC(5,2)," +
-                " status VARCHAR(20), recommendation_text VARCHAR(500))");
+                "CREATE TABLE v_pillar4_energy_transition (" +
+                " region_code VARCHAR(20), renewable_pct NUMERIC(5,2)," +
+                " co2_intensity NUMERIC(10,2), curtailment_rate NUMERIC(5,2)," +
+                " netzero_progress NUMERIC(5,2)," +
+                " pillar4_score NUMERIC(5,2), status VARCHAR(20), computed_at TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar4_net_zero_progress VALUES " +
-                "('VN_NORTH','Miền Bắc',2500.0,8000.0,31.25,25.0,47.0,'ON_TRACK','ON_TRACK mục tiêu 2026')");
+                "INSERT INTO v_pillar4_energy_transition VALUES " +
+                "('VN_NORTH',32.50,420.00,5.20,46.43,72.30,'ELEVATED',CURRENT_TIMESTAMP)");
         H2TestSupport.exec(c,
-                "INSERT INTO v_pillar4_net_zero_progress VALUES " +
-                "('VN_SOUTH','Miền Nam',1200.0,9000.0,13.33,25.0,47.0,'BEHIND','Đang BEHIND mục tiêu 2026')");
+                "INSERT INTO v_pillar4_energy_transition VALUES " +
+                "('VN_SOUTH',18.20,580.00,2.10,26.00,55.80,'STRESSED',CURRENT_TIMESTAMP)");
 
-        // v_active_recommendations — DAO query dùng 'suggested_data::text AS suggested_data_text'
-        // → H2 MODE=PostgreSQL 2.x hỗ trợ '::' cast operator → giữ column tên 'suggested_data' VARCHAR.
+        // v_active_recommendations — DAO query uses 'suggested_data::text AS suggested_data_text'
         H2TestSupport.exec(c,
                 "CREATE TABLE v_active_recommendations (" +
                 " id BIGINT, pillar SMALLINT, action_type VARCHAR(50), severity VARCHAR(20)," +
@@ -200,11 +211,11 @@ public class ViewsDaoTest {
                 " suggested_at TIMESTAMP, age_seconds INT, expires_at TIMESTAMP, is_expired BOOLEAN)");
         H2TestSupport.exec(c,
                 "INSERT INTO v_active_recommendations VALUES " +
-                "(1,1,'TRANSFER_STOCK','WARNING','Pillar 1 stock low'," +
-                " 'Region VN_NORTH cần thêm 60000 kl','{}',CURRENT_TIMESTAMP,120,NULL,FALSE)");
+                "(1,1,'TRANSFER_STOCK','WARNING','Supply Security low'," +
+                " 'Region VN_NORTH SFRI 75 days below IEA 90 threshold','{}',CURRENT_TIMESTAMP,120,NULL,FALSE)");
         H2TestSupport.exec(c,
                 "INSERT INTO v_active_recommendations VALUES " +
-                "(2,3,'PEAK_SHAVING','CRITICAL','Pillar 3 overload'," +
-                " 'Region VN_NORTH load 92%','{}',CURRENT_TIMESTAMP,30,NULL,FALSE)");
+                "(2,3,'PEAK_SHAVING','CRITICAL','Grid Reliability stressed'," +
+                " 'Region VN_SOUTH reserve margin 8.2%','{}',CURRENT_TIMESTAMP,30,NULL,FALSE)");
     }
 }

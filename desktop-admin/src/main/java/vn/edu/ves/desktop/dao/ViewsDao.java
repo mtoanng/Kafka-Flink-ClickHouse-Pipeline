@@ -1,9 +1,9 @@
 package vn.edu.ves.desktop.dao;
 
-import vn.edu.ves.desktop.model.Pillar1Outlook;
-import vn.edu.ves.desktop.model.Pillar2Volatility;
-import vn.edu.ves.desktop.model.Pillar3Shedding;
-import vn.edu.ves.desktop.model.Pillar4NetZero;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
+import vn.edu.ves.desktop.model.Pillar2MarketResilience;
+import vn.edu.ves.desktop.model.Pillar3GridReliability;
+import vn.edu.ves.desktop.model.Pillar4EnergyTransition;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 import vn.edu.ves.desktop.util.DatabaseConfig;
@@ -17,14 +17,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Read-only DAO cho 6 view "actionable" của Phase 2.5/2.6:
+ * Read-only DAO cho 6 view của Phase 7.1 (IEA/APERC framework).
  *
  * <ul>
- *   <li><code>v_security_score</code> — overall score gauge.</li>
- *   <li><code>v_pillar1_supply_outlook</code> — Pillar 1 inventory + recommendation.</li>
- *   <li><code>v_pillar2_volatility_signal</code> — Pillar 2 σ rolling 1h.</li>
- *   <li><code>v_pillar3_load_shedding_plan</code> — Pillar 3 overload + shed plan.</li>
- *   <li><code>v_pillar4_net_zero_progress</code> — Pillar 4 renewable share roadmap.</li>
+ *   <li><code>v_security_score</code> — composite ESI (top-bar gauge).</li>
+ *   <li><code>v_pillar1_supply_security</code> — Availability (IDR/SFRI/HHI/N-1).</li>
+ *   <li><code>v_pillar2_market_resilience</code> — Affordability (σ30d/gap/β/affordability).</li>
+ *   <li><code>v_pillar3_grid_reliability</code> — Accessibility (reserve/peak/shed/freq).</li>
+ *   <li><code>v_pillar4_energy_transition</code> — Acceptability (renewable/CO2/curtail/netzero).</li>
  *   <li><code>v_active_recommendations</code> — recommendations PENDING.</li>
  * </ul>
  */
@@ -64,118 +64,103 @@ public class ViewsDao extends BaseDao {
         }
     }
 
-    public List<Pillar1Outlook> fetchPillar1Outlook() {
-        final String sql = "SELECT region_code, region_name, fuel_type, stock_volume_kl, " +
-                "daily_consumption_kl, stock_days, target_days, days_to_critical, " +
-                "days_above_target, target_achievement_pct, status, recommendation_text, " +
-                "suggested_donor_region, reported_at FROM v_pillar1_supply_outlook";
-        List<Pillar1Outlook> out = new ArrayList<>();
+    public List<Pillar1SupplySecurity> fetchPillar1SupplySecurity() {
+        final String sql = "SELECT region_code, fuel_type, idr, sfri, hhi_supply, n1_resilience, " +
+                "pillar1_score, status, computed_at FROM v_pillar1_supply_security";
+        List<Pillar1SupplySecurity> out = new ArrayList<>();
         try (Connection c = dbConfig.openConnection();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                Pillar1Outlook p = new Pillar1Outlook();
+                Pillar1SupplySecurity p = new Pillar1SupplySecurity();
                 p.setRegionCode(rs.getString("region_code"));
-                p.setRegionName(getStringOrNull(rs, "region_name"));
                 p.setFuelType(rs.getString("fuel_type"));
-                p.setStockVolumeKl(rs.getBigDecimal("stock_volume_kl"));
-                p.setDailyConsumptionKl(rs.getBigDecimal("daily_consumption_kl"));
-                p.setStockDays(rs.getBigDecimal("stock_days"));
-                p.setTargetDays(rs.getInt("target_days"));
-                p.setDaysToCritical(rs.getBigDecimal("days_to_critical"));
-                p.setDaysAboveTarget(rs.getBigDecimal("days_above_target"));
-                p.setTargetAchievementPct(rs.getBigDecimal("target_achievement_pct"));
+                p.setIdr(rs.getBigDecimal("idr"));
+                p.setSfri(rs.getBigDecimal("sfri"));
+                p.setHhiSupply(rs.getBigDecimal("hhi_supply"));
+                p.setN1Resilience(rs.getBigDecimal("n1_resilience"));
+                p.setPillar1Score(rs.getBigDecimal("pillar1_score"));
                 p.setStatus(getStringOrNull(rs, "status"));
-                p.setRecommendationText(getStringOrNull(rs, "recommendation_text"));
-                p.setSuggestedDonorRegion(getStringOrNull(rs, "suggested_donor_region"));
-                p.setReportedAt(getLocalDateTimeOrNull(rs, "reported_at"));
+                p.setComputedAt(getLocalDateTimeOrNull(rs, "computed_at"));
                 out.add(p);
             }
         } catch (SQLException e) {
-            log.error("fetchPillar1Outlook() lỗi: {}", e.getMessage(), e);
+            log.error("fetchPillar1SupplySecurity() lỗi: {}", e.getMessage(), e);
         }
         return out;
     }
 
-    public List<Pillar2Volatility> fetchPillar2Volatility() {
-        final String sql = "SELECT fuel_type, location, sample_count, avg_price, sigma, " +
-                "relative_volatility_pct, range_abs, signal, last_event " +
-                "FROM v_pillar2_volatility_signal";
-        List<Pillar2Volatility> out = new ArrayList<>();
+    public List<Pillar2MarketResilience> fetchPillar2MarketResilience() {
+        final String sql = "SELECT fuel_type, sigma_30d, price_gap_pct, beta_crude, affordability_idx, " +
+                "pillar2_score, status, computed_at FROM v_pillar2_market_resilience";
+        List<Pillar2MarketResilience> out = new ArrayList<>();
         try (Connection c = dbConfig.openConnection();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                Pillar2Volatility p = new Pillar2Volatility();
+                Pillar2MarketResilience p = new Pillar2MarketResilience();
                 p.setFuelType(rs.getString("fuel_type"));
-                p.setLocation(getStringOrNull(rs, "location"));
-                p.setSampleCount(rs.getInt("sample_count"));
-                p.setAvgPrice(rs.getBigDecimal("avg_price"));
-                p.setSigma(rs.getBigDecimal("sigma"));
-                p.setRelativeVolatilityPct(rs.getBigDecimal("relative_volatility_pct"));
-                p.setRangeAbs(rs.getBigDecimal("range_abs"));
-                p.setSignal(getStringOrNull(rs, "signal"));
-                p.setLastEvent(getLocalDateTimeOrNull(rs, "last_event"));
-                out.add(p);
-            }
-        } catch (SQLException e) {
-            log.error("fetchPillar2Volatility() lỗi: {}", e.getMessage(), e);
-        }
-        return out;
-    }
-
-    public List<Pillar3Shedding> fetchPillar3Shedding() {
-        final String sql = "SELECT priority_level, region_code, region_name, load_mw, capacity_mw, " +
-                "load_pct, is_peak_hour, suggested_shed_mw, action_type, recommendation_text, event_time " +
-                "FROM v_pillar3_load_shedding_plan";
-        List<Pillar3Shedding> out = new ArrayList<>();
-        try (Connection c = dbConfig.openConnection();
-             PreparedStatement ps = c.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Pillar3Shedding p = new Pillar3Shedding();
-                p.setPriorityLevel(rs.getLong("priority_level"));
-                p.setRegionCode(rs.getString("region_code"));
-                p.setRegionName(getStringOrNull(rs, "region_name"));
-                p.setLoadMw(rs.getBigDecimal("load_mw"));
-                p.setCapacityMw(rs.getBigDecimal("capacity_mw"));
-                p.setLoadPct(rs.getBigDecimal("load_pct"));
-                p.setPeakHour(rs.getBoolean("is_peak_hour"));
-                p.setSuggestedShedMw(rs.getBigDecimal("suggested_shed_mw"));
-                p.setActionType(getStringOrNull(rs, "action_type"));
-                p.setRecommendationText(getStringOrNull(rs, "recommendation_text"));
-                p.setEventTime(getLocalDateTimeOrNull(rs, "event_time"));
-                out.add(p);
-            }
-        } catch (SQLException e) {
-            log.error("fetchPillar3Shedding() lỗi: {}", e.getMessage(), e);
-        }
-        return out;
-    }
-
-    public List<Pillar4NetZero> fetchPillar4NetZero() {
-        final String sql = "SELECT region_code, region_name, renewable_mw, avg_load_mw, " +
-                "current_renewable_share_pct, target_2026_pct, target_2030_pct, status, recommendation_text " +
-                "FROM v_pillar4_net_zero_progress";
-        List<Pillar4NetZero> out = new ArrayList<>();
-        try (Connection c = dbConfig.openConnection();
-             PreparedStatement ps = c.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Pillar4NetZero p = new Pillar4NetZero();
-                p.setRegionCode(rs.getString("region_code"));
-                p.setRegionName(getStringOrNull(rs, "region_name"));
-                p.setRenewableMw(rs.getBigDecimal("renewable_mw"));
-                p.setAvgLoadMw(rs.getBigDecimal("avg_load_mw"));
-                p.setCurrentRenewableSharePct(rs.getBigDecimal("current_renewable_share_pct"));
-                p.setTarget2026Pct(rs.getBigDecimal("target_2026_pct"));
-                p.setTarget2030Pct(rs.getBigDecimal("target_2030_pct"));
+                p.setSigma30d(rs.getBigDecimal("sigma_30d"));
+                p.setPriceGapPct(rs.getBigDecimal("price_gap_pct"));
+                p.setBetaCrude(rs.getBigDecimal("beta_crude"));
+                p.setAffordabilityIdx(rs.getBigDecimal("affordability_idx"));
+                p.setPillar2Score(rs.getBigDecimal("pillar2_score"));
                 p.setStatus(getStringOrNull(rs, "status"));
-                p.setRecommendationText(getStringOrNull(rs, "recommendation_text"));
+                p.setComputedAt(getLocalDateTimeOrNull(rs, "computed_at"));
                 out.add(p);
             }
         } catch (SQLException e) {
-            log.error("fetchPillar4NetZero() lỗi: {}", e.getMessage(), e);
+            log.error("fetchPillar2MarketResilience() lỗi: {}", e.getMessage(), e);
+        }
+        return out;
+    }
+
+    public List<Pillar3GridReliability> fetchPillar3GridReliability() {
+        final String sql = "SELECT region_code, reserve_margin_pct, peak_load_factor, shedding_prob, " +
+                "freq_stability_idx, pillar3_score, status, computed_at FROM v_pillar3_grid_reliability";
+        List<Pillar3GridReliability> out = new ArrayList<>();
+        try (Connection c = dbConfig.openConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Pillar3GridReliability p = new Pillar3GridReliability();
+                p.setRegionCode(rs.getString("region_code"));
+                p.setReserveMarginPct(rs.getBigDecimal("reserve_margin_pct"));
+                p.setPeakLoadFactor(rs.getBigDecimal("peak_load_factor"));
+                p.setSheddingProb(rs.getBigDecimal("shedding_prob"));
+                p.setFreqStabilityIdx(rs.getBigDecimal("freq_stability_idx"));
+                p.setPillar3Score(rs.getBigDecimal("pillar3_score"));
+                p.setStatus(getStringOrNull(rs, "status"));
+                p.setComputedAt(getLocalDateTimeOrNull(rs, "computed_at"));
+                out.add(p);
+            }
+        } catch (SQLException e) {
+            log.error("fetchPillar3GridReliability() lỗi: {}", e.getMessage(), e);
+        }
+        return out;
+    }
+
+    public List<Pillar4EnergyTransition> fetchPillar4EnergyTransition() {
+        final String sql = "SELECT region_code, renewable_pct, co2_intensity, curtailment_rate, " +
+                "netzero_progress, pillar4_score, status, computed_at FROM v_pillar4_energy_transition";
+        List<Pillar4EnergyTransition> out = new ArrayList<>();
+        try (Connection c = dbConfig.openConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Pillar4EnergyTransition p = new Pillar4EnergyTransition();
+                p.setRegionCode(rs.getString("region_code"));
+                p.setRenewablePct(rs.getBigDecimal("renewable_pct"));
+                p.setCo2Intensity(rs.getBigDecimal("co2_intensity"));
+                p.setCurtailmentRate(rs.getBigDecimal("curtailment_rate"));
+                p.setNetzeroProgress(rs.getBigDecimal("netzero_progress"));
+                p.setPillar4Score(rs.getBigDecimal("pillar4_score"));
+                p.setStatus(getStringOrNull(rs, "status"));
+                p.setComputedAt(getLocalDateTimeOrNull(rs, "computed_at"));
+                out.add(p);
+            }
+        } catch (SQLException e) {
+            log.error("fetchPillar4EnergyTransition() lỗi: {}", e.getMessage(), e);
         }
         return out;
     }

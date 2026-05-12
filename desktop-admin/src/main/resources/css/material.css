@@ -136,10 +136,11 @@
     -fx-text-fill: #455a64;
 }
 
-.score-status.status-secure   { -fx-text-fill: #38761D; }
-.score-status.status-stable   { -fx-text-fill: #1976d2; }
-.score-status.status-at-risk  { -fx-text-fill: #B45F06; }
-.score-status.status-critical { -fx-text-fill: #CC0000; }
+/* Phase 7.1 — IEA / APERC status palette */
+.score-status.status-secure   { -fx-text-fill: #2E7D32; }   /* green   */
+.score-status.status-elevated { -fx-text-fill: #F9A825; }   /* yellow  */
+.score-status.status-stressed { -fx-text-fill: #EF6C00; }   /* orange  */
+.score-status.status-critical { -fx-text-fill: #C62828; }   /* red     */
 
 .user-info {
     -fx-font-size: 12px;
@@ -158,16 +159,18 @@
     -fx-text-fill: #263238;
 }
 
-/* Pillar background tints (theo plan) */
-.pillar-1 { -fx-background-color: #FFFBEA; }   /* yellow */
-.pillar-2 { -fx-background-color: #E3F2FD; }   /* blue */
-.pillar-3 { -fx-background-color: #FFF3E0; }   /* orange */
-.pillar-4 { -fx-background-color: #E8F5E9; }   /* green */
+/* Pillar background tints — Phase 7.1
+   (P1 Availability=amber, P2 Affordability=blue, P3 Accessibility=peach, P4 Acceptability=mint) */
+.pillar-1 { -fx-background-color: #FFFBEA; }
+.pillar-2 { -fx-background-color: #E3F2FD; }
+.pillar-3 { -fx-background-color: #FFF3E0; }
+.pillar-4 { -fx-background-color: #E8F5E9; }
 
-/* Status text colors (dùng cho cell custom nếu cần) */
-.status-secure   { -fx-text-fill: #38761D; -fx-font-weight: 600; }
-.status-warning  { -fx-text-fill: #B45F06; -fx-font-weight: 600; }
-.status-critical { -fx-text-fill: #CC0000; -fx-font-weight: 600; }
+/* IEA / APERC status text colours — usable on any node */
+.status-secure   { -fx-text-fill: #2E7D32; -fx-font-weight: 600; }
+.status-elevated { -fx-text-fill: #F9A825; -fx-font-weight: 600; }
+.status-stressed { -fx-text-fill: #EF6C00; -fx-font-weight: 600; }
+.status-critical { -fx-text-fill: #C62828; -fx-font-weight: 600; }
 
 .rec-sidebar {
     -fx-background-color: white;

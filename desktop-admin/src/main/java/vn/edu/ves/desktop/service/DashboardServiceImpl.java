@@ -1,10 +1,10 @@
 package vn.edu.ves.desktop.service;
 
 import vn.edu.ves.desktop.dao.ViewsDao;
-import vn.edu.ves.desktop.model.Pillar1Outlook;
-import vn.edu.ves.desktop.model.Pillar2Volatility;
-import vn.edu.ves.desktop.model.Pillar3Shedding;
-import vn.edu.ves.desktop.model.Pillar4NetZero;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
+import vn.edu.ves.desktop.model.Pillar2MarketResilience;
+import vn.edu.ves.desktop.model.Pillar3GridReliability;
+import vn.edu.ves.desktop.model.Pillar4EnergyTransition;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 
@@ -14,8 +14,8 @@ import java.util.Optional;
 /**
  * Thin delegation tới {@link ViewsDao}.
  *
- * <p>Phase 5.2: chỉ pass-through. Khi cần thêm caching / business rule (vd auto refresh
- * theo trend / threshold) sẽ wrap vào đây thay vì controller.</p>
+ * <p>Phase 7.1: rewired to IEA/APERC framework. Service layer kept thin so we can
+ * later wrap caching / business rules without churning the controller.</p>
  */
 public class DashboardServiceImpl implements DashboardService {
 
@@ -35,23 +35,23 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public List<Pillar1Outlook> getPillar1() {
-        return viewsDao.fetchPillar1Outlook();
+    public List<Pillar1SupplySecurity> getSupplySecurity() {
+        return viewsDao.fetchPillar1SupplySecurity();
     }
 
     @Override
-    public List<Pillar2Volatility> getPillar2() {
-        return viewsDao.fetchPillar2Volatility();
+    public List<Pillar2MarketResilience> getMarketResilience() {
+        return viewsDao.fetchPillar2MarketResilience();
     }
 
     @Override
-    public List<Pillar3Shedding> getPillar3() {
-        return viewsDao.fetchPillar3Shedding();
+    public List<Pillar3GridReliability> getGridReliability() {
+        return viewsDao.fetchPillar3GridReliability();
     }
 
     @Override
-    public List<Pillar4NetZero> getPillar4() {
-        return viewsDao.fetchPillar4NetZero();
+    public List<Pillar4EnergyTransition> getEnergyTransition() {
+        return viewsDao.fetchPillar4EnergyTransition();
     }
 
     @Override

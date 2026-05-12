@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- Phase 5.2 — Dashboard: top bar Security Score + 4 pillar TabPane + recommendations sidebar -->
+<!-- Phase 7.1 — Dashboard rewired for IEA/APERC pillar taxonomy.
+     Bilingual labels (English · Vietnamese). Status pill drives material.css
+     classes .status-secure / .status-elevated / .status-stressed / .status-critical -->
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.chart.BarChart?>
@@ -37,13 +39,13 @@
 
             <VBox spacing="2.0">
                 <Label styleClass="brand" text="VES-Monitor"/>
-                <Label styleClass="brand-sub" text="Energy Security Dashboard"/>
+                <Label styleClass="brand-sub" text="Energy Security Dashboard · IEA/APERC Framework"/>
             </VBox>
 
             <Separator orientation="VERTICAL"/>
 
             <VBox alignment="CENTER" spacing="2.0">
-                <Label styleClass="score-caption" text="Security Score"/>
+                <Label styleClass="score-caption" text="Energy Security Index (ESI)"/>
                 <HBox alignment="CENTER" spacing="10.0">
                     <ProgressIndicator fx:id="scoreGauge" prefHeight="60.0" prefWidth="60.0"/>
                     <VBox alignment="CENTER_LEFT" spacing="2.0">
@@ -75,22 +77,25 @@
                 <TabPane tabClosingPolicy="UNAVAILABLE">
                     <tabs>
 
-                        <!-- =========== PILLAR 1 =========== -->
-                        <Tab text="Pillar 1 — Nguồn cung">
+                        <!-- =========== PILLAR 1 — Supply Security =========== -->
+                        <Tab text="Supply Security · An ninh nguồn cung">
                             <content>
                                 <VBox spacing="12.0" styleClass="pillar-1">
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title" text="Pillar 1 — Nguồn cung &amp; Hạ tầng (v_pillar1_supply_outlook)"/>
+                                    <Label styleClass="pillar-title"
+                                           text="Pillar 1 — Availability (IDR · SFRI · HHI · N-1) — IEA/APERC"/>
                                     <TableView fx:id="tblPillar1" prefHeight="240.0">
                                         <columns>
                                             <TableColumn fx:id="colP1Region" prefWidth="100.0" text="Region"/>
-                                            <TableColumn fx:id="colP1Fuel" prefWidth="100.0" text="Fuel"/>
-                                            <TableColumn fx:id="colP1StockDays" prefWidth="100.0" text="Stock days"/>
-                                            <TableColumn fx:id="colP1Target" prefWidth="100.0" text="Target days"/>
-                                            <TableColumn fx:id="colP1Status" prefWidth="120.0" text="Status"/>
-                                            <TableColumn fx:id="colP1Rec" prefWidth="360.0" text="Recommendation"/>
+                                            <TableColumn fx:id="colP1Fuel" prefWidth="110.0" text="Fuel"/>
+                                            <TableColumn fx:id="colP1Idr" prefWidth="90.0" text="IDR"/>
+                                            <TableColumn fx:id="colP1Sfri" prefWidth="110.0" text="SFRI (days)"/>
+                                            <TableColumn fx:id="colP1Hhi" prefWidth="100.0" text="HHI"/>
+                                            <TableColumn fx:id="colP1N1" prefWidth="110.0" text="N-1 (days)"/>
+                                            <TableColumn fx:id="colP1Score" prefWidth="90.0" text="Score"/>
+                                            <TableColumn fx:id="colP1Status" prefWidth="110.0" text="Status"/>
                                         </columns>
                                     </TableView>
                                     <BarChart fx:id="chartPillar1" prefHeight="260.0" legendVisible="false">
@@ -98,59 +103,63 @@
                                             <CategoryAxis label="Region / Fuel" side="BOTTOM"/>
                                         </xAxis>
                                         <yAxis>
-                                            <NumberAxis label="Stock days" side="LEFT"/>
+                                            <NumberAxis label="SFRI — days of cover" side="LEFT"/>
                                         </yAxis>
                                     </BarChart>
                                 </VBox>
                             </content>
                         </Tab>
 
-                        <!-- =========== PILLAR 2 =========== -->
-                        <Tab text="Pillar 2 — Biến động giá">
+                        <!-- =========== PILLAR 2 — Market Resilience =========== -->
+                        <Tab text="Market Resilience · Khả năng chịu giá">
                             <content>
                                 <VBox spacing="12.0" styleClass="pillar-2">
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title" text="Pillar 2 — Biến động Kinh tế (v_pillar2_volatility_signal)"/>
+                                    <Label styleClass="pillar-title"
+                                           text="Pillar 2 — Affordability (σ30d · price gap · β crude · affordability) — IEA/IMF"/>
                                     <TableView fx:id="tblPillar2" prefHeight="240.0">
                                         <columns>
-                                            <TableColumn fx:id="colP2Fuel" prefWidth="120.0" text="Fuel"/>
-                                            <TableColumn fx:id="colP2Loc" prefWidth="120.0" text="Location"/>
-                                            <TableColumn fx:id="colP2Avg" prefWidth="100.0" text="Avg price"/>
-                                            <TableColumn fx:id="colP2Sigma" prefWidth="100.0" text="σ"/>
-                                            <TableColumn fx:id="colP2RelVol" prefWidth="120.0" text="Rel volatility %"/>
-                                            <TableColumn fx:id="colP2Signal" prefWidth="100.0" text="Signal"/>
+                                            <TableColumn fx:id="colP2Fuel" prefWidth="130.0" text="Fuel"/>
+                                            <TableColumn fx:id="colP2Sigma" prefWidth="110.0" text="σ_30d"/>
+                                            <TableColumn fx:id="colP2Gap" prefWidth="120.0" text="Price gap %"/>
+                                            <TableColumn fx:id="colP2Beta" prefWidth="100.0" text="β crude"/>
+                                            <TableColumn fx:id="colP2Afford" prefWidth="140.0" text="Affordability idx"/>
+                                            <TableColumn fx:id="colP2Score" prefWidth="90.0" text="Score"/>
+                                            <TableColumn fx:id="colP2Status" prefWidth="110.0" text="Status"/>
                                         </columns>
                                     </TableView>
                                     <LineChart fx:id="chartPillar2" prefHeight="260.0" legendVisible="false">
                                         <xAxis>
-                                            <CategoryAxis label="Fuel @ Location" side="BOTTOM"/>
+                                            <CategoryAxis label="Fuel" side="BOTTOM"/>
                                         </xAxis>
                                         <yAxis>
-                                            <NumberAxis label="Avg price (window 1h)" side="LEFT"/>
+                                            <NumberAxis label="σ_30d (price volatility)" side="LEFT"/>
                                         </yAxis>
                                     </LineChart>
                                 </VBox>
                             </content>
                         </Tab>
 
-                        <!-- =========== PILLAR 3 =========== -->
-                        <Tab text="Pillar 3 — Phụ tải lưới">
+                        <!-- =========== PILLAR 3 — Grid Reliability =========== -->
+                        <Tab text="Grid Reliability · Độ tin cậy lưới điện">
                             <content>
                                 <VBox spacing="12.0" styleClass="pillar-3">
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title" text="Pillar 3 — Phụ tải &amp; Tiêu thụ (v_pillar3_load_shedding_plan)"/>
+                                    <Label styleClass="pillar-title"
+                                           text="Pillar 3 — Accessibility (reserve · peak · shed prob · freq) — NERC/IEEE"/>
                                     <TableView fx:id="tblPillar3" prefHeight="240.0">
                                         <columns>
-                                            <TableColumn fx:id="colP3Region" prefWidth="100.0" text="Region"/>
-                                            <TableColumn fx:id="colP3LoadMw" prefWidth="120.0" text="Load (MW)"/>
-                                            <TableColumn fx:id="colP3CapMw" prefWidth="120.0" text="Capacity (MW)"/>
-                                            <TableColumn fx:id="colP3LoadPct" prefWidth="100.0" text="Load %"/>
-                                            <TableColumn fx:id="colP3Action" prefWidth="180.0" text="Action"/>
-                                            <TableColumn fx:id="colP3Shed" prefWidth="150.0" text="Suggested shed (MW)"/>
+                                            <TableColumn fx:id="colP3Region" prefWidth="110.0" text="Region"/>
+                                            <TableColumn fx:id="colP3Reserve" prefWidth="140.0" text="Reserve margin %"/>
+                                            <TableColumn fx:id="colP3Peak" prefWidth="130.0" text="Peak factor"/>
+                                            <TableColumn fx:id="colP3Shed" prefWidth="130.0" text="Shed prob"/>
+                                            <TableColumn fx:id="colP3Freq" prefWidth="130.0" text="Freq stability"/>
+                                            <TableColumn fx:id="colP3Score" prefWidth="90.0" text="Score"/>
+                                            <TableColumn fx:id="colP3Status" prefWidth="110.0" text="Status"/>
                                         </columns>
                                     </TableView>
                                     <BarChart fx:id="chartPillar3" prefHeight="260.0" legendVisible="false">
@@ -158,28 +167,31 @@
                                             <CategoryAxis label="Region" side="BOTTOM"/>
                                         </xAxis>
                                         <yAxis>
-                                            <NumberAxis label="Load %" side="LEFT" upperBound="100" lowerBound="0" autoRanging="false" tickUnit="10"/>
+                                            <NumberAxis label="Reserve margin %" side="LEFT"/>
                                         </yAxis>
                                     </BarChart>
                                 </VBox>
                             </content>
                         </Tab>
 
-                        <!-- =========== PILLAR 4 =========== -->
-                        <Tab text="Pillar 4 — Net Zero">
+                        <!-- =========== PILLAR 4 — Energy Transition =========== -->
+                        <Tab text="Energy Transition · Chuyển dịch năng lượng">
                             <content>
                                 <VBox spacing="12.0" styleClass="pillar-4">
                                     <padding>
                                         <Insets bottom="12.0" left="16.0" right="16.0" top="12.0"/>
                                     </padding>
-                                    <Label styleClass="pillar-title" text="Pillar 4 — Chuyển đổi &amp; Môi trường (v_pillar4_net_zero_progress)"/>
+                                    <Label styleClass="pillar-title"
+                                           text="Pillar 4 — Acceptability (renewable% · CO2 intensity · curtailment · netzero) — IPCC AR6"/>
                                     <TableView fx:id="tblPillar4" prefHeight="240.0">
                                         <columns>
-                                            <TableColumn fx:id="colP4Region" prefWidth="100.0" text="Region"/>
-                                            <TableColumn fx:id="colP4Renew" prefWidth="140.0" text="Renewable (MW)"/>
-                                            <TableColumn fx:id="colP4Load" prefWidth="140.0" text="Avg load (MW)"/>
-                                            <TableColumn fx:id="colP4SharePct" prefWidth="140.0" text="Share %"/>
-                                            <TableColumn fx:id="colP4Status" prefWidth="140.0" text="Status"/>
+                                            <TableColumn fx:id="colP4Region" prefWidth="110.0" text="Region"/>
+                                            <TableColumn fx:id="colP4Renew" prefWidth="130.0" text="Renewable %"/>
+                                            <TableColumn fx:id="colP4Co2" prefWidth="140.0" text="CO2 intensity"/>
+                                            <TableColumn fx:id="colP4Curtail" prefWidth="130.0" text="Curtailment %"/>
+                                            <TableColumn fx:id="colP4Netzero" prefWidth="140.0" text="Net-Zero progress"/>
+                                            <TableColumn fx:id="colP4Score" prefWidth="90.0" text="Score"/>
+                                            <TableColumn fx:id="colP4Status" prefWidth="110.0" text="Status"/>
                                         </columns>
                                     </TableView>
                                     <PieChart fx:id="chartPillar4" prefHeight="280.0" title="Renewable share by region"/>

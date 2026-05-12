@@ -22,10 +22,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vn.edu.ves.desktop.model.Pillar1Outlook;
-import vn.edu.ves.desktop.model.Pillar2Volatility;
-import vn.edu.ves.desktop.model.Pillar3Shedding;
-import vn.edu.ves.desktop.model.Pillar4NetZero;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
+import vn.edu.ves.desktop.model.Pillar2MarketResilience;
+import vn.edu.ves.desktop.model.Pillar3GridReliability;
+import vn.edu.ves.desktop.model.Pillar4EnergyTransition;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 import vn.edu.ves.desktop.model.User;
@@ -36,7 +36,6 @@ import vn.edu.ves.desktop.service.DashboardServiceImpl;
 import vn.edu.ves.desktop.util.AlertHelper;
 import vn.edu.ves.desktop.util.SessionManager;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
@@ -48,14 +47,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * Controller cho <code>fxml/dashboard.fxml</code>.
  *
- * <p>Trách nhiệm Phase 5.2:</p>
+ * <p>Phase 7.1 — wired to the IEA / APERC pillar taxonomy:</p>
  * <ul>
- *   <li>Top bar: Security Score gauge (ProgressIndicator) + status + tên user + nav buttons.</li>
- *   <li>TabPane 4 pillar: mỗi tab có TableView + chart minh họa.</li>
- *   <li>Sidebar phải: ListView recommendations active (đọc <code>v_active_recommendations</code>).</li>
- *   <li>Auto-refresh 30s qua ScheduledExecutorService, runLater để update UI.</li>
- *   <li>Nav buttons: Regions / AlertRules / Users (Users chỉ visible khi admin).</li>
+ *   <li>Pillar 1 — Supply Security (IDR / SFRI / HHI / N-1).</li>
+ *   <li>Pillar 2 — Market Resilience (σ30d / price gap / β crude / affordability).</li>
+ *   <li>Pillar 3 — Grid Reliability (reserve margin / peak factor / shed prob / freq).</li>
+ *   <li>Pillar 4 — Energy Transition (renewable% / CO2 intensity / curtailment / netzero).</li>
  * </ul>
+ *
+ * <p>Composite ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4 drives the top-bar gauge.</p>
  */
 public class DashboardController {
 
@@ -79,60 +79,66 @@ public class DashboardController {
     @FXML private Button btnUsers;
     @FXML private Button btnLogout;
 
-    // ---- pillar 1 ----
-    @FXML private TableView<Pillar1Outlook> tblPillar1;
-    @FXML private TableColumn<Pillar1Outlook, String> colP1Region;
-    @FXML private TableColumn<Pillar1Outlook, String> colP1Fuel;
-    @FXML private TableColumn<Pillar1Outlook, BigDecimal> colP1StockDays;
-    @FXML private TableColumn<Pillar1Outlook, Integer> colP1Target;
-    @FXML private TableColumn<Pillar1Outlook, String> colP1Status;
-    @FXML private TableColumn<Pillar1Outlook, String> colP1Rec;
+    // ---- pillar 1 — Supply Security ----
+    @FXML private TableView<Pillar1SupplySecurity> tblPillar1;
+    @FXML private TableColumn<Pillar1SupplySecurity, String> colP1Region;
+    @FXML private TableColumn<Pillar1SupplySecurity, String> colP1Fuel;
+    @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1Idr;
+    @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1Sfri;
+    @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1Hhi;
+    @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1N1;
+    @FXML private TableColumn<Pillar1SupplySecurity, BigDecimal> colP1Score;
+    @FXML private TableColumn<Pillar1SupplySecurity, String> colP1Status;
     @FXML private BarChart<String, Number> chartPillar1;
 
-    // ---- pillar 2 ----
-    @FXML private TableView<Pillar2Volatility> tblPillar2;
-    @FXML private TableColumn<Pillar2Volatility, String> colP2Fuel;
-    @FXML private TableColumn<Pillar2Volatility, String> colP2Loc;
-    @FXML private TableColumn<Pillar2Volatility, BigDecimal> colP2Avg;
-    @FXML private TableColumn<Pillar2Volatility, BigDecimal> colP2Sigma;
-    @FXML private TableColumn<Pillar2Volatility, BigDecimal> colP2RelVol;
-    @FXML private TableColumn<Pillar2Volatility, String> colP2Signal;
+    // ---- pillar 2 — Market Resilience ----
+    @FXML private TableView<Pillar2MarketResilience> tblPillar2;
+    @FXML private TableColumn<Pillar2MarketResilience, String> colP2Fuel;
+    @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Sigma;
+    @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Gap;
+    @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Beta;
+    @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Afford;
+    @FXML private TableColumn<Pillar2MarketResilience, BigDecimal> colP2Score;
+    @FXML private TableColumn<Pillar2MarketResilience, String> colP2Status;
     @FXML private LineChart<String, Number> chartPillar2;
 
-    // ---- pillar 3 ----
-    @FXML private TableView<Pillar3Shedding> tblPillar3;
-    @FXML private TableColumn<Pillar3Shedding, String> colP3Region;
-    @FXML private TableColumn<Pillar3Shedding, BigDecimal> colP3LoadMw;
-    @FXML private TableColumn<Pillar3Shedding, BigDecimal> colP3CapMw;
-    @FXML private TableColumn<Pillar3Shedding, BigDecimal> colP3LoadPct;
-    @FXML private TableColumn<Pillar3Shedding, String> colP3Action;
-    @FXML private TableColumn<Pillar3Shedding, BigDecimal> colP3Shed;
+    // ---- pillar 3 — Grid Reliability ----
+    @FXML private TableView<Pillar3GridReliability> tblPillar3;
+    @FXML private TableColumn<Pillar3GridReliability, String> colP3Region;
+    @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Reserve;
+    @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Peak;
+    @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Shed;
+    @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Freq;
+    @FXML private TableColumn<Pillar3GridReliability, BigDecimal> colP3Score;
+    @FXML private TableColumn<Pillar3GridReliability, String> colP3Status;
     @FXML private BarChart<String, Number> chartPillar3;
 
-    // ---- pillar 4 ----
-    @FXML private TableView<Pillar4NetZero> tblPillar4;
-    @FXML private TableColumn<Pillar4NetZero, String> colP4Region;
-    @FXML private TableColumn<Pillar4NetZero, BigDecimal> colP4Renew;
-    @FXML private TableColumn<Pillar4NetZero, BigDecimal> colP4Load;
-    @FXML private TableColumn<Pillar4NetZero, BigDecimal> colP4SharePct;
-    @FXML private TableColumn<Pillar4NetZero, String> colP4Status;
+    // ---- pillar 4 — Energy Transition ----
+    @FXML private TableView<Pillar4EnergyTransition> tblPillar4;
+    @FXML private TableColumn<Pillar4EnergyTransition, String> colP4Region;
+    @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Renew;
+    @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Co2;
+    @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Curtail;
+    @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Netzero;
+    @FXML private TableColumn<Pillar4EnergyTransition, BigDecimal> colP4Score;
+    @FXML private TableColumn<Pillar4EnergyTransition, String> colP4Status;
     @FXML private PieChart chartPillar4;
 
     // ---- sidebar ----
     @FXML private ListView<Recommendation> lstRecommendations;
     @FXML private Label lblRecCount;
 
-    private final ObservableList<Pillar1Outlook> p1Data = FXCollections.observableArrayList();
-    private final ObservableList<Pillar2Volatility> p2Data = FXCollections.observableArrayList();
-    private final ObservableList<Pillar3Shedding> p3Data = FXCollections.observableArrayList();
-    private final ObservableList<Pillar4NetZero> p4Data = FXCollections.observableArrayList();
+    private final ObservableList<Pillar1SupplySecurity> p1Data = FXCollections.observableArrayList();
+    private final ObservableList<Pillar2MarketResilience> p2Data = FXCollections.observableArrayList();
+    private final ObservableList<Pillar3GridReliability> p3Data = FXCollections.observableArrayList();
+    private final ObservableList<Pillar4EnergyTransition> p4Data = FXCollections.observableArrayList();
     private final ObservableList<Recommendation> recData = FXCollections.observableArrayList();
 
     private DashboardService dashboardService = new DashboardServiceImpl();
     private final AuthService authService = new AuthServiceImpl();
     private ScheduledExecutorService scheduler;
 
-    /** Setter cho test. */
+    /** Setter for test. */
     public void setDashboardService(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
     }
@@ -166,41 +172,47 @@ public class DashboardController {
         if (tblPillar1 == null) return;
         colP1Region.setCellValueFactory(new PropertyValueFactory<>("regionCode"));
         colP1Fuel.setCellValueFactory(new PropertyValueFactory<>("fuelType"));
-        colP1StockDays.setCellValueFactory(new PropertyValueFactory<>("stockDays"));
-        colP1Target.setCellValueFactory(new PropertyValueFactory<>("targetDays"));
+        colP1Idr.setCellValueFactory(new PropertyValueFactory<>("idr"));
+        colP1Sfri.setCellValueFactory(new PropertyValueFactory<>("sfri"));
+        colP1Hhi.setCellValueFactory(new PropertyValueFactory<>("hhiSupply"));
+        colP1N1.setCellValueFactory(new PropertyValueFactory<>("n1Resilience"));
+        colP1Score.setCellValueFactory(new PropertyValueFactory<>("pillar1Score"));
         colP1Status.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colP1Rec.setCellValueFactory(new PropertyValueFactory<>("recommendationText"));
         tblPillar1.setItems(p1Data);
     }
 
     private void configurePillar2() {
         if (tblPillar2 == null) return;
         colP2Fuel.setCellValueFactory(new PropertyValueFactory<>("fuelType"));
-        colP2Loc.setCellValueFactory(new PropertyValueFactory<>("location"));
-        colP2Avg.setCellValueFactory(new PropertyValueFactory<>("avgPrice"));
-        colP2Sigma.setCellValueFactory(new PropertyValueFactory<>("sigma"));
-        colP2RelVol.setCellValueFactory(new PropertyValueFactory<>("relativeVolatilityPct"));
-        colP2Signal.setCellValueFactory(new PropertyValueFactory<>("signal"));
+        colP2Sigma.setCellValueFactory(new PropertyValueFactory<>("sigma30d"));
+        colP2Gap.setCellValueFactory(new PropertyValueFactory<>("priceGapPct"));
+        colP2Beta.setCellValueFactory(new PropertyValueFactory<>("betaCrude"));
+        colP2Afford.setCellValueFactory(new PropertyValueFactory<>("affordabilityIdx"));
+        colP2Score.setCellValueFactory(new PropertyValueFactory<>("pillar2Score"));
+        colP2Status.setCellValueFactory(new PropertyValueFactory<>("status"));
         tblPillar2.setItems(p2Data);
     }
 
     private void configurePillar3() {
         if (tblPillar3 == null) return;
         colP3Region.setCellValueFactory(new PropertyValueFactory<>("regionCode"));
-        colP3LoadMw.setCellValueFactory(new PropertyValueFactory<>("loadMw"));
-        colP3CapMw.setCellValueFactory(new PropertyValueFactory<>("capacityMw"));
-        colP3LoadPct.setCellValueFactory(new PropertyValueFactory<>("loadPct"));
-        colP3Action.setCellValueFactory(new PropertyValueFactory<>("actionType"));
-        colP3Shed.setCellValueFactory(new PropertyValueFactory<>("suggestedShedMw"));
+        colP3Reserve.setCellValueFactory(new PropertyValueFactory<>("reserveMarginPct"));
+        colP3Peak.setCellValueFactory(new PropertyValueFactory<>("peakLoadFactor"));
+        colP3Shed.setCellValueFactory(new PropertyValueFactory<>("sheddingProb"));
+        colP3Freq.setCellValueFactory(new PropertyValueFactory<>("freqStabilityIdx"));
+        colP3Score.setCellValueFactory(new PropertyValueFactory<>("pillar3Score"));
+        colP3Status.setCellValueFactory(new PropertyValueFactory<>("status"));
         tblPillar3.setItems(p3Data);
     }
 
     private void configurePillar4() {
         if (tblPillar4 == null) return;
         colP4Region.setCellValueFactory(new PropertyValueFactory<>("regionCode"));
-        colP4Renew.setCellValueFactory(new PropertyValueFactory<>("renewableMw"));
-        colP4Load.setCellValueFactory(new PropertyValueFactory<>("avgLoadMw"));
-        colP4SharePct.setCellValueFactory(new PropertyValueFactory<>("currentRenewableSharePct"));
+        colP4Renew.setCellValueFactory(new PropertyValueFactory<>("renewablePct"));
+        colP4Co2.setCellValueFactory(new PropertyValueFactory<>("co2Intensity"));
+        colP4Curtail.setCellValueFactory(new PropertyValueFactory<>("curtailmentRate"));
+        colP4Netzero.setCellValueFactory(new PropertyValueFactory<>("netzeroProgress"));
+        colP4Score.setCellValueFactory(new PropertyValueFactory<>("pillar4Score"));
         colP4Status.setCellValueFactory(new PropertyValueFactory<>("status"));
         tblPillar4.setItems(p4Data);
     }
@@ -228,9 +240,9 @@ public class DashboardController {
         if (severity == null) return "";
         switch (severity) {
             case "CRITICAL":
-                return "-fx-text-fill: #cc0000; -fx-font-weight: 600;";
+                return "-fx-text-fill: #C62828; -fx-font-weight: 600;";
             case "WARNING":
-                return "-fx-text-fill: #b45f06; -fx-font-weight: 600;";
+                return "-fx-text-fill: #EF6C00; -fx-font-weight: 600;";
             default:
                 return "-fx-text-fill: #455a64;";
         }
@@ -254,10 +266,10 @@ public class DashboardController {
             protected DashboardSnapshot call() {
                 DashboardSnapshot snap = new DashboardSnapshot();
                 snap.score = dashboardService.getSecurityScore().orElse(null);
-                snap.p1 = dashboardService.getPillar1();
-                snap.p2 = dashboardService.getPillar2();
-                snap.p3 = dashboardService.getPillar3();
-                snap.p4 = dashboardService.getPillar4();
+                snap.p1 = dashboardService.getSupplySecurity();
+                snap.p2 = dashboardService.getMarketResilience();
+                snap.p3 = dashboardService.getGridReliability();
+                snap.p4 = dashboardService.getEnergyTransition();
                 snap.recs = dashboardService.getActiveRecommendations();
                 return snap;
             }
@@ -304,7 +316,8 @@ public class DashboardController {
         }
         if (lblScoreStatus != null) {
             lblScoreStatus.setText(score.getStatus() == null ? "" : score.getStatus());
-            lblScoreStatus.getStyleClass().removeAll("status-secure", "status-stable", "status-at-risk", "status-critical");
+            lblScoreStatus.getStyleClass().removeAll(
+                    "status-secure", "status-elevated", "status-stressed", "status-critical");
             String css = scoreStatusStyle(score.getStatus());
             if (css != null) lblScoreStatus.getStyleClass().add(css);
         }
@@ -313,88 +326,88 @@ public class DashboardController {
         }
     }
 
+    /** Maps IEA status string → CSS style class. */
     private String scoreStatusStyle(String status) {
         if (status == null) return null;
         switch (status) {
-            case "SECURE": return "status-secure";
-            case "STABLE": return "status-stable";
-            case "AT_RISK": return "status-at-risk";
+            case "SECURE":   return "status-secure";
+            case "ELEVATED": return "status-elevated";
+            case "STRESSED": return "status-stressed";
             case "CRITICAL": return "status-critical";
-            default: return null;
+            default:         return null;
         }
     }
 
-    private void refreshPillar1Chart(List<Pillar1Outlook> rows) {
+    private void refreshPillar1Chart(List<Pillar1SupplySecurity> rows) {
         if (chartPillar1 == null) return;
         chartPillar1.getData().clear();
         if (rows == null || rows.isEmpty()) return;
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Stock days (per region/fuel)");
-        for (Pillar1Outlook r : rows) {
+        series.setName("SFRI — days of cover");
+        for (Pillar1SupplySecurity r : rows) {
             String label = (r.getRegionCode() == null ? "?" : r.getRegionCode()) + "/" +
                     (r.getFuelType() == null ? "?" : r.getFuelType());
-            Number val = r.getStockDays() == null ? 0 : r.getStockDays();
+            Number val = r.getSfri() == null ? 0 : r.getSfri();
             series.getData().add(new XYChart.Data<>(label, val));
         }
         chartPillar1.getData().add(series);
     }
 
-    private void refreshPillar2Chart(List<Pillar2Volatility> rows) {
+    private void refreshPillar2Chart(List<Pillar2MarketResilience> rows) {
         if (chartPillar2 == null) return;
         chartPillar2.getData().clear();
         if (rows == null || rows.isEmpty()) return;
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Avg price (1h window)");
-        for (Pillar2Volatility r : rows) {
-            String label = (r.getFuelType() == null ? "?" : r.getFuelType()) +
-                    (r.getLocation() == null ? "" : "@" + r.getLocation());
-            Number val = r.getAvgPrice() == null ? 0 : r.getAvgPrice();
+        series.setName("σ_30d — price volatility");
+        for (Pillar2MarketResilience r : rows) {
+            String label = r.getFuelType() == null ? "?" : r.getFuelType();
+            Number val = r.getSigma30d() == null ? 0 : r.getSigma30d();
             series.getData().add(new XYChart.Data<>(label, val));
         }
         chartPillar2.getData().add(series);
     }
 
-    private void refreshPillar3Chart(List<Pillar3Shedding> rows) {
+    private void refreshPillar3Chart(List<Pillar3GridReliability> rows) {
         if (chartPillar3 == null) return;
         chartPillar3.getData().clear();
         if (rows == null || rows.isEmpty()) return;
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Load %");
-        for (Pillar3Shedding r : rows) {
+        series.setName("Reserve margin %");
+        for (Pillar3GridReliability r : rows) {
             String label = r.getRegionCode() == null ? "?" : r.getRegionCode();
-            Number val = r.getLoadPct() == null ? 0 : r.getLoadPct();
-            XYChart.Data<String, Number> d = new XYChart.Data<>(label, val);
-            series.getData().add(d);
+            Number val = r.getReserveMarginPct() == null ? 0 : r.getReserveMarginPct();
+            series.getData().add(new XYChart.Data<>(label, val));
         }
         chartPillar3.getData().add(series);
         Platform.runLater(() -> colorPillar3Bars(rows));
     }
 
-    private void colorPillar3Bars(List<Pillar3Shedding> rows) {
+    /** Colour bars by reserve margin — low margin = red, comfortable = green. */
+    private void colorPillar3Bars(List<Pillar3GridReliability> rows) {
         if (chartPillar3.getData().isEmpty()) return;
         XYChart.Series<String, Number> series = chartPillar3.getData().get(0);
         int idx = 0;
         for (XYChart.Data<String, Number> d : series.getData()) {
             if (d.getNode() == null) continue;
-            Pillar3Shedding row = idx < rows.size() ? rows.get(idx) : null;
-            String style = "-fx-bar-fill: #1976d2;";
-            if (row != null && row.getLoadPct() != null) {
-                double pct = row.getLoadPct().doubleValue();
-                if (pct >= 95) style = "-fx-bar-fill: #cc0000;";
-                else if (pct >= 85) style = "-fx-bar-fill: #b45f06;";
-                else if (pct >= 70) style = "-fx-bar-fill: #f1c232;";
+            Pillar3GridReliability row = idx < rows.size() ? rows.get(idx) : null;
+            String style = "-fx-bar-fill: #2E7D32;";
+            if (row != null && row.getReserveMarginPct() != null) {
+                double pct = row.getReserveMarginPct().doubleValue();
+                if (pct < 5) style = "-fx-bar-fill: #C62828;";
+                else if (pct < 10) style = "-fx-bar-fill: #EF6C00;";
+                else if (pct < 20) style = "-fx-bar-fill: #F9A825;";
             }
             d.getNode().setStyle(style);
             idx++;
         }
     }
 
-    private void refreshPillar4Chart(List<Pillar4NetZero> rows) {
+    private void refreshPillar4Chart(List<Pillar4EnergyTransition> rows) {
         if (chartPillar4 == null) return;
         chartPillar4.getData().clear();
         if (rows == null || rows.isEmpty()) return;
-        for (Pillar4NetZero r : rows) {
-            BigDecimal share = r.getCurrentRenewableSharePct();
+        for (Pillar4EnergyTransition r : rows) {
+            BigDecimal share = r.getRenewablePct();
             if (share == null) continue;
             String label = (r.getRegionCode() == null ? "?" : r.getRegionCode()) + " (" +
                     share.setScale(1, RoundingMode.HALF_UP) + "%)";
@@ -455,7 +468,7 @@ public class DashboardController {
         }
     }
 
-    /** Gọi từ MainApp khi window close để giải phóng scheduler. */
+    /** Called from MainApp on window close to release scheduler. */
     public void shutdownScheduler() {
         if (scheduler != null) {
             scheduler.shutdownNow();
@@ -463,13 +476,13 @@ public class DashboardController {
         }
     }
 
-    /** Snapshot tổng hợp data nhặt trong background thread, apply atomic ở UI thread. */
+    /** Snapshot — assembled on background thread, applied atomically on FX thread. */
     private static class DashboardSnapshot {
         SecurityScore score;
-        List<Pillar1Outlook> p1;
-        List<Pillar2Volatility> p2;
-        List<Pillar3Shedding> p3;
-        List<Pillar4NetZero> p4;
+        List<Pillar1SupplySecurity> p1;
+        List<Pillar2MarketResilience> p2;
+        List<Pillar3GridReliability> p3;
+        List<Pillar4EnergyTransition> p4;
         List<Recommendation> recs;
     }
 }

@@ -3,7 +3,7 @@ package vn.edu.ves.desktop.service;
 import org.junit.Before;
 import org.junit.Test;
 import vn.edu.ves.desktop.dao.ViewsDao;
-import vn.edu.ves.desktop.model.Pillar1Outlook;
+import vn.edu.ves.desktop.model.Pillar1SupplySecurity;
 import vn.edu.ves.desktop.model.Recommendation;
 import vn.edu.ves.desktop.model.SecurityScore;
 
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Tests cho {@link DashboardServiceImpl} với Mockito mock {@link ViewsDao}.
+ * Phase 7.1 — verifies new IEA-style getter names delegate correctly.
  */
 public class DashboardServiceTest {
 
@@ -37,8 +38,8 @@ public class DashboardServiceTest {
     @Test
     public void getSecurityScore_delegatesToDao() {
         SecurityScore expected = new SecurityScore();
-        expected.setOverallScore(new BigDecimal("75.0"));
-        expected.setStatus("STABLE");
+        expected.setOverallScore(new BigDecimal("73.97"));
+        expected.setStatus("ELEVATED");
         when(viewsDao.fetchSecurityScore()).thenReturn(Optional.of(expected));
 
         Optional<SecurityScore> result = service.getSecurityScore();
@@ -48,13 +49,13 @@ public class DashboardServiceTest {
     }
 
     @Test
-    public void getPillar1_returnsAllRowsFromDao() {
-        Pillar1Outlook row = new Pillar1Outlook();
+    public void getSupplySecurity_returnsAllRowsFromDao() {
+        Pillar1SupplySecurity row = new Pillar1SupplySecurity();
         row.setRegionCode("VN_NORTH");
         row.setFuelType("GASOLINE");
-        when(viewsDao.fetchPillar1Outlook()).thenReturn(List.of(row));
+        when(viewsDao.fetchPillar1SupplySecurity()).thenReturn(List.of(row));
 
-        List<Pillar1Outlook> result = service.getPillar1();
+        List<Pillar1SupplySecurity> result = service.getSupplySecurity();
         assertEquals(1, result.size());
         assertEquals("VN_NORTH", result.get(0).getRegionCode());
     }
@@ -70,24 +71,24 @@ public class DashboardServiceTest {
     @Test
     public void allDelegations_callDaoExactlyOnce() {
         when(viewsDao.fetchSecurityScore()).thenReturn(Optional.empty());
-        when(viewsDao.fetchPillar1Outlook()).thenReturn(Collections.emptyList());
-        when(viewsDao.fetchPillar2Volatility()).thenReturn(Collections.emptyList());
-        when(viewsDao.fetchPillar3Shedding()).thenReturn(Collections.emptyList());
-        when(viewsDao.fetchPillar4NetZero()).thenReturn(Collections.emptyList());
+        when(viewsDao.fetchPillar1SupplySecurity()).thenReturn(Collections.emptyList());
+        when(viewsDao.fetchPillar2MarketResilience()).thenReturn(Collections.emptyList());
+        when(viewsDao.fetchPillar3GridReliability()).thenReturn(Collections.emptyList());
+        when(viewsDao.fetchPillar4EnergyTransition()).thenReturn(Collections.emptyList());
         when(viewsDao.fetchActiveRecommendations()).thenReturn(Collections.emptyList());
 
         service.getSecurityScore();
-        service.getPillar1();
-        service.getPillar2();
-        service.getPillar3();
-        service.getPillar4();
+        service.getSupplySecurity();
+        service.getMarketResilience();
+        service.getGridReliability();
+        service.getEnergyTransition();
         service.getActiveRecommendations();
 
         verify(viewsDao).fetchSecurityScore();
-        verify(viewsDao).fetchPillar1Outlook();
-        verify(viewsDao).fetchPillar2Volatility();
-        verify(viewsDao).fetchPillar3Shedding();
-        verify(viewsDao).fetchPillar4NetZero();
+        verify(viewsDao).fetchPillar1SupplySecurity();
+        verify(viewsDao).fetchPillar2MarketResilience();
+        verify(viewsDao).fetchPillar3GridReliability();
+        verify(viewsDao).fetchPillar4EnergyTransition();
         verify(viewsDao).fetchActiveRecommendations();
     }
 }
