@@ -2,11 +2,23 @@
 
 > Nền tảng **giám sát an ninh năng lượng Việt Nam** thời gian thực qua **Kafka + Flink + PostgreSQL**, bao quát **4 pillars** (Nguồn cung, Biến động Kinh tế, Phụ tải, Chuyển đổi & Môi trường) — kèm **JavaFX Admin Desktop** (môn Java) và **Android App** (môn Mobile). Tận dụng 90% code stream-processing có sẵn cho Pillar 2 (giá nhiên liệu thế giới), bổ sung light coverage cho 3 pillars còn lại.
 
-[![Status](https://img.shields.io/badge/status-Phase%205%20code--complete-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
+[![Status](https://img.shields.io/badge/status-Phase%207%20demo--grade-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11%2B-orange)]() [![Spring%20Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![License](https://img.shields.io/badge/license-Educational-blue)]()
 
 > 👥 **Thành viên đồ án Java**, đọc **[`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)** để biết task của mình (B/C/D/E × 5 PR step-by-step).
 >
 > 📱 **Android Developer** (đồ án Mobile **riêng biệt**), đọc **[`docs/ANDROID_ONBOARDING.md`](./docs/ANDROID_ONBOARDING.md)** — repo Android độc lập, chỉ consume 14 endpoint REST API của project này.
+
+---
+
+## 🆕 Phase 7 (13 May 2026) — Domain quality + Real-time UX + Interactive maps ✅
+
+JavaFX desktop app upgraded from "Phase 5 functional" → "demo-grade":
+
+- **🛡️ IEA/APERC pillar redesign** — 4 pillars renamed to international standard (Supply Security / Market Resilience / Grid Reliability / Energy Transition) with **16 sub-indicators** (IDR, SFRI, HHI, N-1, σ30d, price gap, β-crude, affordability, reserve margin, peak factor, shed prob, freq stability, renewable %, CO2 intensity, curtailment, net-zero progress). Composite ESI uses IEA weights `0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4`. New status ladder: `SECURE / ELEVATED / STRESSED / CRITICAL`. Implemented entirely as SQL views in `infra/script/08_pillars_v2.sql` — **Flink job untouched**.
+- **⚡ Real-time visibility** — live events/sec ticker (Flink REST + EMA smoothing), pillar sparkline canvases (3-min trailing window), pulse drop-shadow on new `CRITICAL` alerts, slide-in toast popups, fade-in for new recommendations. Refresh cadence split: live 3 s / tables 10 s.
+- **🗺️ Interactive maps** — new "Maps · Bản đồ" tab with **VN SVG (3 zones)** coloured by Pillar 3 score + clickable drill-down filter on the dashboard, and a **Leaflet World Map** (`+javafx-web`) with 7 hubs (WTI Houston, Brent London, Singapore, Vũng Tàu, Hải Phòng, …) showing live price/delta popups. Graceful offline overlay if OSM tiles can't load.
+
+> Test suite **77/77 PASS**, `mvn package` clean, no Lombok / Spring / extra deps on the desktop module. See [`UPGRADE_PLAN.md` §24.5 Phase 7](./UPGRADE_PLAN.md) and [`docs/PROGRESS.md` Phase 7 sections](./docs/PROGRESS.md) for the full log.
 
 ---
 

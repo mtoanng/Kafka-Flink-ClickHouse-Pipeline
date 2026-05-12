@@ -2552,6 +2552,27 @@ GET  /api/stream/fuel-prices          # SSE realtime
 
 ---
 
+#### 🛡️ Phase 7 — Domain quality + Real-time UX + Interactive maps (13 May 2026) — ✅ COMPLETE
+
+> Sub-phase add-on after the original §24 plan once Phase 5/6 build + E2E ran green. Lifts the desktop app from "Phase 5 functional" to "demo-grade" by aligning pillars with international frameworks, animating the streaming feel, and adding geospatial drill-downs.
+
+| Sub-phase | Status | Commit | Highlights |
+|---|---|---|---|
+| **7.0** Stage pending config fixes | ✅ | `ad1f0db` | DB defaults sync (`fuel_prices` / `123456`); `switchScene` catches `Exception`. 62/62 tests still PASS. |
+| **7.1** IEA/APERC pillar redesign | ✅ | `6c48d1e` | 4 pillars renamed (Supply Security / Market Resilience / Grid Reliability / Energy Transition) + 16 sub-indicators (IDR, SFRI, HHI, N-1, σ30d, price gap, β-crude, affordability, reserve margin, peak factor, shed prob, freq stability, renewable %, CO2 intensity, curtailment, netzero progress). Composite ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4. `infra/script/08_pillars_v2.sql` applied live (ESI = 73.97 ELEVATED). |
+| **7.2** Real-time visibility | ✅ | `08fb6c1` | Live ticker (Flink REST), Sparkline canvas widget, PulseEffect on new CRITICAL alerts, Toast popups, fade-in for new recommendations. Refresh split: live 3 s / tables 10 s (was 30 s). 71/71 tests. |
+| **7.3** Interactive maps | ✅ | `837ddba` | `VietnamMap` SVG (3 zones coloured by Pillar 3) + `WorldMapView` Leaflet (7 hubs tinted by Pillar 2). New "Maps · Bản đồ" tab; click VN zone → drill-down filter. `+javafx-web` 17.0.10. 77/77 tests + `mvn package` clean. |
+| **7.4** Docs + final polish | ✅ | — | `docs/PROGRESS.md` Phase 7 sections, this row, root `README.md` callout. |
+
+| Field | Value |
+|-------|-------|
+| **Tests added** | 15 net new (4 FlinkClient + 3 Sparkline + 2 PulseEffect + 6 VietnamMap). Cumulative: **77 / 77 PASS**. |
+| **New files** | 4 model + 4 widget + 2 service + 1 DAO rewrite + 1 controller + 2 web assets + 2 FXML + 1 SQL view file + 4 test classes. |
+| **Anti-patterns honoured** | No Lombok, no Spring on desktop, JUnit 4 retained, JavaFX 17 LTS retained, no `module-info.java`, no `--no-verify`, no `--force`, no LLM. Live Docker stack untouched. |
+| **Manual user action** | `mvn -pl desktop-admin javafx:run` to see the new dashboard + maps live. World map needs internet for OpenStreetMap tiles — offline fallback overlay is wired but text-only. |
+
+---
+
 ### 24.6 Cắt scope: NÊN BỎ những gì (so với §23 Full)
 
 | Tính năng §23 đề xuất | Quyết định Minimalist + Light 4-pillar | Lý do |

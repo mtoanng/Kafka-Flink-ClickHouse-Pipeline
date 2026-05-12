@@ -24,6 +24,10 @@
 | 7 | Deploy + Cloudflared | ⬜ | — | — | — | |
 | 8 | Doc + Demo Prep | ⬜ | — | — | — | |
 | **E2E** | **End-to-end runtime smoke (full stack)** | ✅ | — | 2026-05-13 | **18/18 Flink vertices RUNNING, 4 topics flowing (+660/+132/+198/+24 msgs in 90s), 34 active alerts, 8 active recommendations, v_security_score=70.50 STABLE, 7 REST endpoints 200 OK** | **Full pipeline verified live on HEAD `16eb665`: Lite Docker stack (~1.59 GB RAM), Flink job submitted from pre-built `fuel-flink-job-1.1.1.jar`, 3 generators on WSL host, backend `ves-backend-api.jar` on :8090. Detailed runbook + payload samples + shutdown procedure in [`docs/DEMO_RUN_LOG.md`](DEMO_RUN_LOG.md).** |
+| **7.0** | **Phase 7.0 — DB config sync + visible nav errors** | ✅ | — | 2026-05-13 | 62/62 desktop tests pass | DB defaults match docker (`fuel_prices` / `123456`); `switchScene` now catches `Exception` so FXML load failures surface to the user. Commit `ad1f0db`. |
+| **7.1** | **Phase 7.1 — Pillar redesign (IEA/APERC framework)** | ✅ | — | 2026-05-13 | 62/62 desktop tests pass + 6 SQL views live (ESI=73.97 ELEVATED) | 4 pillars renamed: Supply Security / Market Resilience / Grid Reliability / Energy Transition. 16 sub-indicators (IDR, SFRI, HHI, N-1, σ30d, price gap, β-crude, affordability, reserve margin, peak factor, shed prob, freq stability, renewable %, CO2 intensity, curtailment, netzero progress). Composite ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4 (IEA weights). Status thresholds SECURE/ELEVATED/STRESSED/CRITICAL. `infra/script/08_pillars_v2.sql` applied live. Java models + DAO + UI rewired with bilingual EN · VI labels. Commit `6c48d1e`. |
+| **7.2** | **Phase 7.2 — Real-time visibility** | ✅ | — | 2026-05-13 | 71/71 desktop tests (9 new) | Live event ticker (Flink REST `/jobs/.../metrics`, EMA-smoothed 3s cadence), Sparkline canvas widget (3-min trailing window per pillar), PulseEffect drop-shadow on new CRITICAL rows, Toast widget for CRITICAL alerts, fade-in for new recommendations, refresh cadence split (live 3s / tables 10s, down from 30s), `FlinkClient` HttpURLConnection wrapper. Commit `08fb6c1`. |
+| **7.3** | **Phase 7.3 — Interactive maps** | ✅ | — | 2026-05-13 | 77/77 desktop tests (6 new) + `mvn package` clean | `VietnamMap` widget (3 SVGPath polygons coloured by Pillar 3 score, click-to-drill-down), `WorldMapView` (JavaFX WebView + Leaflet 1.9.4 + OpenStreetMap with offline overlay fallback), 7 hub markers tinted by Pillar 2 price delta, new "Maps · Bản đồ" 5th tab loaded via nested FXML. `pom.xml` adds `javafx-web` 17.0.10. Commit `837ddba`. |
 
 **Legend:** ⬜ Pending | 🟡 In progress | ✅ Done | ❌ Failed (rolled back)
 
@@ -712,4 +716,155 @@ First end-to-end runtime test of the complete pipeline. **All acceptance criteri
 - Tag `v0.6-e2e-verified` after this commit lands.
 - Re-run snapshot with a fresh volume (`bash scripts/stop.sh --volumes && bash scripts/run.sh --wait`) before recording final demo video — that gives "clean canvas" counts for slides.
 - User to launch JavaFX desktop (`mvn -pl desktop-admin javafx:run`) against this same running stack to capture the dashboard UI screenshot.
+
+---
+
+## Phase 7.0 — DB config sync + visible nav errors (13 May 2026)
+
+Three local-modified files left over from the previous foreground session were promoted to a single self-contained commit before any Phase 7 work began.
+
+| File | Change |
+|---|---|
+| `desktop-admin/src/main/resources/application.properties` | `db.url` → `jdbc:postgresql://localhost:5432/fuel_prices` (was `fuel_db`), `db.password` → `123456` (was `postgres`) so JDBC defaults match `infra/docker-compose.yml`. |
+| `desktop-admin/.../util/DatabaseConfig.java` | Default fall-back constants updated to match the new docker user/database/password. |
+| `desktop-admin/.../controller/DashboardController.java` | `switchScene` now catches `Exception` (was `IOException` only) so FXML load failures surface a user-visible alert instead of a console-only stack trace. |
+
+- `mvn -pl desktop-admin -am clean test` → 62/62 PASS.
+- Commit `ad1f0db`, pushed to `origin/main`.
+
+---
+
+## Phase 7.1 — Pillar redesign theo IEA / APERC framework (13 May 2026)
+
+### Motivation
+Phase 5 pillars were labelled with informal Vietnamese descriptors ("Nguồn cung", "Biến động giá", …). For the academic / demo audience this Phase swaps them out for the internationally recognised **IEA / APERC Energy Security** taxonomy (Availability / Affordability / Accessibility / Acceptability).
+
+### New taxonomy
+
+| # | Old | New (EN · VI) | Framework reference |
+|---|---|---|---|
+| 1 | Nguồn cung | **Supply Security · An ninh nguồn cung** | IEA + APERC indicators 1, 7 |
+| 2 | Giá nhiên liệu | **Market Resilience · Khả năng chịu giá** | IEA + IMF Energy Price Volatility |
+| 3 | Lưới điện | **Grid Reliability · Độ tin cậy lưới điện** | NERC + IEEE 1366 (SAIDI/SAIFI proxies) |
+| 4 | Phát thải | **Energy Transition · Chuyển dịch năng lượng** | IPCC AR6 + Net-Zero 2050 pathway |
+
+### 16 sub-indicators (4 per pillar)
+
+| Pillar | Sub-indicators |
+|---|---|
+| P1 Supply Security | `idr` (Import Dependency Ratio, 0–1), `sfri` (Strategic Fuel Reserve Index = days of cover, IEA target ≥ 90), `hhi_supply` (Herfindahl-Hirschman Index of fuel-mix concentration 0–10000), `n1_resilience` (N-1 days of cover if largest source disrupted) |
+| P2 Market Resilience | `sigma_30d` (rolling std-dev), `price_gap_pct` (VN vs Brent benchmark), `beta_crude` (OLS slope vs Brent returns), `affordability_idx` (price / income proxy 0–100) |
+| P3 Grid Reliability | `reserve_margin_pct`, `peak_load_factor` (peak/avg), `shedding_prob` (P(load > 95%)), `freq_stability_idx` (100 − σ_load × 10) |
+| P4 Energy Transition | `renewable_pct`, `co2_intensity` (kg/MWh), `curtailment_rate`, `netzero_progress` (current vs 2050 linear path to 70%) |
+
+### Composite Energy Security Index (ESI)
+`ESI = 0.30 · P1 + 0.20 · P2 + 0.30 · P3 + 0.20 · P4` — IEA-style weighting, availability + accessibility weighted higher because supply disruption and grid blackouts are higher-frequency / higher-impact than slow market drift or decarbonisation pace.
+
+### Status thresholds
+| Score | Status | Hex |
+|---|---|---|
+| ≥ 80 | SECURE | `#2E7D32` |
+| 60–79 | ELEVATED | `#F9A825` |
+| 40–59 | STRESSED | `#EF6C00` |
+| < 40 | CRITICAL | `#C62828` |
+
+### Action log
+1. ✅ New SQL file `infra/script/08_pillars_v2.sql`:
+   - Drops the 5 Phase 2.6 views with `CASCADE`.
+   - Creates `v_pillar1_supply_security`, `v_pillar2_market_resilience`, `v_pillar3_grid_reliability`, `v_pillar4_energy_transition`, and a refreshed `v_security_score` with the IEA weight formula.
+   - All views compute on-read from existing raw / agg tables — **no Flink job redeploy needed** so the live E2E pipeline keeps flowing.
+2. ✅ Applied to live `postgres-database` container via `docker cp` + `psql -f`. Verified: 6 P1 rows, 5 P2, 3 P3, 3 P4, ESI single-row = `pillar1=64.83 / pillar2=64.06 / pillar3=90.93 / pillar4=72.15 / overall=73.97 ELEVATED`.
+3. ✅ Renamed Java models: `Pillar1Outlook` → `Pillar1SupplySecurity`, `Pillar2Volatility` → `Pillar2MarketResilience`, `Pillar3Shedding` → `Pillar3GridReliability`, `Pillar4NetZero` → `Pillar4EnergyTransition`. Old files deleted.
+4. ✅ Rewired `dao/ViewsDao` to new view column shape; `service/DashboardService` methods renamed (`getSupplySecurity`, `getMarketResilience`, `getGridReliability`, `getEnergyTransition`).
+5. ✅ `controller/DashboardController` updated: new FXML fx:id wiring, new bar / line / pie chart values (now driven by SFRI / σ30d / reserve margin / renewable %), new status CSS class mapping (`status-elevated`, `status-stressed`).
+6. ✅ `fxml/dashboard.fxml` — 4 Tab labels switched to bilingual EN · VI, 8 new TableColumns per pillar; `css/material.css` IEA palette added.
+7. ✅ Test fixtures in `ViewsDaoTest` + `DashboardServiceTest` rewritten to mirror new view columns. 62 / 62 tests green.
+
+### Verification snapshot (Phase 7.1)
+- **Files changed**: 17 (4 new model + 4 deleted model + DAO + Service interface + impl + Controller + FXML + CSS + 2 tests + 08_pillars_v2.sql).
+- **Tests**: 62 / 62 PASS.
+- **Lint**: clean.
+- **Live DB**: `v_security_score` = 73.97 ELEVATED at apply time.
+- **Commit**: `6c48d1e`.
+
+---
+
+## Phase 7.2 — Real-time visibility (live ticker + sparklines + pulse + toast) (13 May 2026)
+
+### Goal
+Make the streaming nature of the pipeline tangible in the UI. Before this phase the dashboard refreshed every 30 s with no animation, so the audience had no signal that data was flowing live.
+
+### Features delivered
+1. **Live event ticker** in the top bar — `⚡ N events/sec · Last tick HH:MM:SS`. Source: Flink JobManager REST `/jobs/<id>/metrics?get=numRecordsInPerSecond`, summed across all RUNNING jobs and EMA-smoothed. Falls back to a silent "offline" state if the cluster is unreachable.
+2. **Per-pillar sparklines** — 60 × 20 px `Canvas` widget inline in each pillar tab header. Stores a FIFO 60-sample window (3 minutes at 3 s cadence) of the pillar score; auto-fills + auto-strokes.
+3. **Pulse effect** on freshly arrived CRITICAL alerts — `Timeline`-driven red drop-shadow on the recommendation `ListCell`, ~2 s, restores the original effect on completion.
+4. **Toast popups** for new CRITICAL alerts — anchored top-right of the owner window, fade in / hold 5 s / fade out 250 ms, severity-tinted left border.
+5. **Fade-in transition** on new ListView rows (700 ms 0 → 1 alpha).
+6. **Refresh cadence split**: live ticker every **3 s**, table reload every **10 s** (was 30 s for everything). Both configurable via `ui.refresh.live.s` and `ui.refresh.table.s` in `application.properties`.
+
+### New files
+- `util/FlinkClient.java` — HttpURLConnection wrapper, regex-parsed JSON, short timeouts, returns 0 on any error.
+- `service/LiveMetricsService.java` + `LiveMetricsServiceImpl.java` — daemon `ScheduledExecutorService`, EMA smoothing, callback to UI thread.
+- `widget/Sparkline.java`, `widget/PulseEffect.java`, `widget/Toast.java`.
+
+### Test additions
+- `util/FlinkClientTest` (4 tests) — embedded `com.sun.net.httpserver.HttpServer` mocks 3 endpoints (`/jobs/overview`, `/jobs/<id>/metrics`) covering parse, sum-across-jobs, and unreachable-host paths.
+- `widget/SparklineTest` (3 tests) — capacity honoured, clear resets, NaN / negative coercion to 0.
+- `widget/PulseEffectTest` (2 tests) — drop-shadow attaches + activeCount tracking; `stopAll` clears state.
+
+### Verification snapshot (Phase 7.2)
+- **Files changed**: 13 (7 new src + 3 new test + DashboardController wiring + FXML + CSS + application.properties).
+- **Tests**: 71 / 71 PASS (9 new on top of 62).
+- **Lint**: clean.
+- **Commit**: `08fb6c1`.
+
+---
+
+## Phase 7.3 — Interactive maps (VN SVG zones + Leaflet world hubs) (13 May 2026)
+
+### Goal
+Add geospatial context to the dashboard: a clickable 3-zone Vietnam map (Pillar 3 colour coded) plus a global map of fuel pricing hubs with live markers driven by Pillar 2 data.
+
+### Sub-component breakdown
+
+| | Tech | Purpose |
+|---|---|---|
+| `widget/VietnamMap` | Pure JavaFX, 3 `SVGPath` polygons in a `Group` | Click-to-filter pillar tables by VN_NORTH / VN_CENTRAL / VN_SOUTH. Legend with IEA palette. |
+| `widget/WorldMapView` | JavaFX `WebView` + Leaflet 1.9.4 + OpenStreetMap | 7 marker hubs (Houston, NY, London, Dubai, Singapore, Hải Phòng, Vũng Tàu). Offline overlay if tile CDN unreachable. |
+| `controller/MapsController` + `fxml/maps.fxml` | Nested FXML loaded into 5th tab "Maps · Bản đồ" | 10 s refresh, pushes scores → VN map, JSON → Leaflet via `WebEngine.executeScript("updateMarkers(...)")`. |
+
+### Dependencies
+`pom.xml` now requires `org.openjfx:javafx-web:17.0.10` (pulled successfully from Maven Central via the cached APAC proxy — 32 MB jar).
+
+### Action log
+1. ✅ `pom.xml` — added `javafx-web` dependency, verified resolves on first `mvn compile`.
+2. ✅ `widget/VietnamMap` — 3 SVGPath polygons approximating VN silhouette, hover stroke widen, click handler emits region code. Static `colorForScore` / `statusForScore` helpers exposed for unit testing.
+3. ✅ `widget/WorldMapView` — wraps `WebView`, queues `updateMarkers` calls until the JS page reports `Worker.State.SUCCEEDED`.
+4. ✅ `resources/web/worldmap.html` + `worldmap.css` — Leaflet from `unpkg` CDN with SRI hashes, OpenStreetMap raster tiles. `tileerror` listener flips on an offline-card overlay listing the configured hubs even when the network is dead. JS exposes `window.updateMarkers(json)` for the Java side.
+5. ✅ `controller/MapsController` — own scheduler (10 s cadence), `setOnZoneSelected` callback wired by parent dashboard, `buildMarkersJson` translates the Pillar 2 list into the marker payload.
+6. ✅ `fxml/maps.fxml` — nested `TabPane` with "Vietnam · 3 zones" and "World · Fuel hubs".
+7. ✅ `fxml/dashboard.fxml` — new 5th `Tab` ("Maps · Bản đồ") containing a `StackPane` placeholder; `DashboardController.configureMapsTab()` loads the nested FXML at startup.
+8. ✅ VN-zone click drill-down — `DashboardController.onMapZoneSelected(regionCode)` filters `p1Data`, `p3Data`, `p4Data` to the selected region.
+9. ✅ `widget/VietnamMapTest` (6 tests) — colour ladder thresholds at 80 / 60 / 40 (incl. null neutral grey) + status labels.
+
+### Verification snapshot (Phase 7.3)
+- **Files changed**: 11 (4 new src + 1 new test + 2 new resource (html/css) + 1 new FXML + DashboardController wiring + dashboard.fxml + css + pom).
+- **Tests**: 77 / 77 PASS (6 new on top of 71).
+- **`mvn package`**: BUILD SUCCESS, `ves-desktop-admin.jar` produced.
+- **Lint**: clean.
+- **Commit**: `837ddba`.
+
+### Operational notes
+- The world map requires internet access to load Leaflet from unpkg + OSM tile servers. If the host is behind the Bosch proxy without internet, the overlay shows a clear "Map tiles unavailable offline" message and falls back to a textual hub list — no crash.
+- VN map is purely local (no network).
+- Existing E2E pipeline (Docker stack, generators, backend) untouched.
+
+---
+
+## Phase 7.4 — Docs + final polish (13 May 2026)
+
+- This file (`docs/PROGRESS.md`) updated with Phase 7.0 → 7.3 detailed sections + phase-tracking table rows.
+- `UPGRADE_PLAN.md` Phase 7 status set to ✅ with sub-phase checklist.
+- Root `README.md` gains a "Phase 7 features" callout.
+- Final commit `docs: Phase 7 progress log + UPGRADE_PLAN status`, push to `origin/main`.
 
