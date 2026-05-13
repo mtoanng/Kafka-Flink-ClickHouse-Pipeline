@@ -2,7 +2,7 @@
 
 > **Phase 5** của UPGRADE_PLAN §24.5 — JavaFX 17 admin desktop, 3-layer, JDBC trực tiếp Postgres.
 
-[![Status](https://img.shields.io/badge/status-Phase%205%20code--complete-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11-orange)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![Tests](https://img.shields.io/badge/tests-62%20%40Test-blue)]()
+[![Status](https://img.shields.io/badge/status-v1.0.0%20release-brightgreen)]() [![Java](https://img.shields.io/badge/Java-11-orange)]() [![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]() [![Tests](https://img.shields.io/badge/tests-77%2F77%20PASS-success)]()
 
 ---
 
@@ -46,7 +46,7 @@ mvn -pl desktop-admin -am clean compile
 mvn -pl desktop-admin javafx:run
 ```
 
-> ⚠️ **Build pending notice** (Phase 5.0-5.5): code-complete + lint clean nhưng **chưa chạy `mvn` test** do parent project trên máy Bosch laptop bị NTLM proxy block khi pull JavaFX 17 deps (~30 MB). Khi có hotspot 4G hoặc cntlm bridge, chạy `mvn -pl desktop-admin -am clean test` để verify ~62 test method tự động pass.
+> ✅ **Tests verified**: `mvn -pl desktop-admin -am clean test` → **77 / 77 PASS** in ~18 s (24 DAO integration + 22 service unit + 16 util unit + 15 widget / Flink client). NTLM-proxy notice (Phase 5.0 era) đã hết hiệu lực — JavaFX 17 deps đã cache trong `~/.m2/` sau lần build đầu.
 
 ### Override DB connection
 
@@ -105,9 +105,10 @@ desktop-admin/
     │   │   ├── model/
     │   │   │   ├── User, Role
     │   │   │   ├── Region
-    │   │   │   ├── AlertRule, MetricType, Operator, Severity
+    │   │   │   ├── AlertRule, Operator, Severity
     │   │   │   ├── SecurityScore
-    │   │   │   ├── Pillar1Outlook, Pillar2Volatility, Pillar3Shedding, Pillar4NetZero
+    │   │   │   ├── Pillar1SupplySecurity, Pillar2MarketResilience,
+    │   │   │   │   Pillar3GridReliability, Pillar4EnergyTransition  (Phase 7.1 IEA/APERC rename)
     │   │   │   └── Recommendation
     │   │   ├── util/
     │   │   │   ├── DatabaseConfig.java     Singleton config + Connection factory
@@ -131,24 +132,29 @@ desktop-admin/
     └── test/
         └── java/vn/edu/ves/desktop/
             ├── dao/
-            │   ├── H2TestSupport.java      H2 in-memory + reflection override config
-            │   ├── UserDaoTest.java        7 tests
-            │   ├── RegionDaoTest.java      6 tests
-            │   ├── AlertRuleDaoTest.java   5 tests
-            │   └── ViewsDaoTest.java       6 tests
+            │   ├── H2TestSupport.java       H2 in-memory + reflection override config
+            │   ├── UserDaoTest.java         7 tests
+            │   ├── RegionDaoTest.java       6 tests
+            │   ├── AlertRuleDaoTest.java    5 tests
+            │   └── ViewsDaoTest.java        6 tests
             ├── service/
-            │   ├── AuthServiceTest.java    6 tests
-            │   ├── DashboardServiceTest    4 tests
-            │   ├── RegionServiceTest.java  4 tests
-            │   ├── AlertRuleServiceTest    3 tests
-            │   └── UserServiceTest.java    5 tests
-            └── util/
-                ├── PasswordUtilTest.java   5 tests
-                ├── SessionManagerTest      6 tests
-                └── ValidatorTest.java      5 tests
+            │   ├── AuthServiceTest.java     6 tests
+            │   ├── DashboardServiceTest     4 tests
+            │   ├── RegionServiceTest.java   4 tests
+            │   ├── AlertRuleServiceTest     3 tests
+            │   └── UserServiceTest.java     5 tests
+            ├── util/
+            │   ├── PasswordUtilTest.java    5 tests
+            │   ├── SessionManagerTest       6 tests
+            │   ├── ValidatorTest.java       5 tests
+            │   └── FlinkClientTest.java     4 tests   (Phase 7.2 — embedded HttpServer)
+            └── widget/
+                ├── SparklineTest.java       3 tests   (Phase 7.2)
+                ├── PulseEffectTest.java     2 tests   (Phase 7.2)
+                └── VietnamMapTest.java      6 tests   (Phase 7.3)
 ```
 
-**Tổng: 62 @Test methods** (≥10 yêu cầu môn Java).
+**Tổng: 77 @Test methods** (Phase 5 baseline 62 + Phase 7.2/7.3 +15 widget & Flink-client). ≥10 yêu cầu môn Java.
 
 ---
 

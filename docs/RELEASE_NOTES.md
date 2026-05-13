@@ -184,7 +184,7 @@ Expected snapshot at T+3 min (per [`docs/DEMO_RUN_LOG.md`](./DEMO_RUN_LOG.md)):
 - [`docs/ANDROID_ONBOARDING.md`](./ANDROID_ONBOARDING.md) — Android sibling onboarding
 - [`docs/PROXY_SETUP.md`](./PROXY_SETUP.md) · [`docs/MAVEN_SETUP.md`](./MAVEN_SETUP.md) — env workarounds
 - [`docs/openapi.json`](./openapi.json) — OpenAPI 3 spec for the REST API
-- [`docs/VES-Monitor.postman_collection.json`](./VES-Monitor.postman_collection.json) — Postman collection (13 requests + auth pre-script)
+- [`docs/VES-Monitor.postman_collection.json`](./VES-Monitor.postman_collection.json) — Postman collection (8 folders / 19 requests + auto-`{{token}}` script on `Auth/Login`)
 - [`docs/diagrams/`](./diagrams/) — 4 Mermaid diagrams + index README + export instructions
 
 ### Artifacts
@@ -223,4 +223,4 @@ These items are **out of scope for `v1.0.0`** but documented here for continuity
 ---
 
 **Released by**: VES-Monitor team, 13 May 2026 ICT.
-**Tagged**: `v1.0.0` at commit `3d30b39`. **Current `main` HEAD** (post-release fixes applied): `e64d447`.
+**Tagged**: `v1.0.0` at commit `3d30b39`. **Current `main` HEAD**: `c1f833f` (Phase 7.6 backend pillar migration applied at `e64d447`; subsequent commits are docs-only — see [`AUDIT_REPORT.md`](./AUDIT_REPORT.md)).

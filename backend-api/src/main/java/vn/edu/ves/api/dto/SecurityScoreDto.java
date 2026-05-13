@@ -17,6 +17,6 @@ public class SecurityScoreDto {
     private BigDecimal pillar3Score;
     private BigDecimal pillar4Score;
     private BigDecimal overallScore;
-    private String     status;          // SECURE | STABLE | AT_RISK | CRITICAL
+    private String     status;          // SECURE | ELEVATED | STRESSED | CRITICAL (Phase 7.1 IEA enum)
     private OffsetDateTime computedAt;
 }

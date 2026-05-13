@@ -182,10 +182,10 @@ JWT-secured, JdbcTemplate, Springdoc OpenAPI — 13 endpoints listed in the **AP
 | `GET`  | `/api/health`                     | – | DB ping (public, used by tunnel probe) |
 
 - **Swagger UI**: http://localhost:8090/swagger-ui.html
-- **Postman collection**: [`docs/VES-Monitor.postman_collection.json`](./docs/VES-Monitor.postman_collection.json)
-- **OpenAPI spec (raw)**: [`docs/openapi.json`](./docs/openapi.json)
+- **Postman collection**: [`docs/VES-Monitor.postman_collection.json`](./docs/VES-Monitor.postman_collection.json) — 8 folders / 19 requests (auto-`{{token}}` script on `Auth/Login`)
+- **OpenAPI spec (raw)**: [`docs/openapi.json`](./docs/openapi.json) — 20 paths (13 canonical + 6 legacy aliases + 1 acknowledge sub-path)
 
-> 🟡 As of Phase 7.6, 5 endpoints (`/api/pillars/*` + `/api/security/cascade-risks`) are being migrated to the new IEA-APERC view schema. JavaFX is unaffected (uses direct JDBC).
+> ✅ Phase 7.6 (post-tag `v1.0.0` @ `e64d447`): the 5 endpoints flagged at tag time (`/api/pillars/*` + `/api/security/cascade-risks`) have been migrated to the new IEA-APERC view schema. 13 / 13 REST endpoints return `200 OK` on `origin/main`; legacy paths are kept as backward-compat aliases. See [`docs/RELEASE_NOTES.md`](./docs/RELEASE_NOTES.md#-post-release-fixes).
 
 ---
 
@@ -344,7 +344,7 @@ Full milestone-by-milestone log + verification snapshots: [`docs/PROGRESS.md`](.
 | 0 → 2.6 | Foundation · Docker Lite · 4-pillar schema · 8 action views | `v0.0` → `v0.2.6` |
 | 3 → 4 | Flink alert engine · 4-pillar Flink job (18 vertex) · auto-recommendation | `v0.3` · `v0.4` |
 | 4.5 | Spring Boot REST API · 13 endpoints · JWT · Swagger | code-complete |
-| 5.0 → 5.5 | JavaFX desktop 5 screens · 62 tests · 10 design patterns | code-complete |
+| 5.0 → 5.5 | JavaFX desktop 5 screens · 77 tests · 10 design patterns | code-complete |
 | 6 | Android split into sibling repo [`mtoanng/DataStream`](https://github.com/mtoanng/DataStream) | (separate) |
 | 7.0 → 7.5 | DB sync · IEA/APERC redesign · live ticker / sparklines / pulse / toast · interactive maps · QA pass | live-verified |
 | **7.7** | **Submission documentation pack** (this README · diagrams · slides · demo script · release notes) | **`v1.0.0`** |
