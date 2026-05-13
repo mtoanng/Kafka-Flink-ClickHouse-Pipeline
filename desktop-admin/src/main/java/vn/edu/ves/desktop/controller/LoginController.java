@@ -29,14 +29,13 @@ import java.util.Objects;
  * <ul>
  *   <li>Wire field <code>username/password</code> → gọi {@link AuthService#login(String, String)}.</li>
  *   <li>Disable nút login khi đang xác thực để tránh double-submit.</li>
- *   <li>Load màn Dashboard sau khi login OK (Phase 5.2 sẽ thay placeholder bằng dashboard thật).</li>
+ *   <li>Load màn Dashboard sau khi login OK.</li>
  * </ul>
  */
 public class LoginController {
 
     private static final Logger log = LoggerFactory.getLogger(LoginController.class);
     private static final String DASHBOARD_FXML = "/fxml/dashboard.fxml";
-    private static final String DASHBOARD_PLACEHOLDER_FXML = "/fxml/dashboard_placeholder.fxml";
     private static final String MATERIAL_CSS = "/css/material.css";
 
     @FXML private TextField txtUsername;
@@ -89,11 +88,9 @@ public class LoginController {
 
     private void switchToDashboard() {
         try {
-            URL fxmlUrl = getClass().getResource(DASHBOARD_FXML);
-            if (fxmlUrl == null) {
-                fxmlUrl = getClass().getResource(DASHBOARD_PLACEHOLDER_FXML);
-            }
-            Objects.requireNonNull(fxmlUrl, "Không tìm thấy dashboard FXML trên classpath");
+            URL fxmlUrl = Objects.requireNonNull(
+                    getClass().getResource(DASHBOARD_FXML),
+                    "Không tìm thấy " + DASHBOARD_FXML + " trên classpath");
             FXMLLoader loader = new FXMLLoader(fxmlUrl);
             Parent root = loader.load();
             Stage stage = (Stage) btnLogin.getScene().getWindow();
