@@ -163,7 +163,8 @@
 - **JWT HS256** stateless · token 8 h · 3 role (ADMIN / MANAGER / VIEWER).
 - **Springdoc OpenAPI 1.7.0** → Swagger UI tại `/swagger-ui.html`.
 - 📦 Postman collection: [`docs/VES-Monitor.postman_collection.json`](./VES-Monitor.postman_collection.json).
-- 🟡 **Hiện trạng**: 8/13 endpoints `200 OK`; 5 endpoints `500` đang được migrate theo schema Phase 7.1 (sibling worker fix Phase 7.6).
+- ✅ **Hiện trạng** (post-Phase 7.6, `e64d447`): **13/13 endpoints `200 OK`** — `PillarDao` + `SecurityDao` đã migrate sang IEA/APERC views; legacy paths giữ làm backward-compat aliases. 11 `@WebMvcTest` smoke test PASS.
+  - Tag `v1.0.0` (`3d30b39`) freeze snapshot 8/13 trước Phase 7.6 — xem [`docs/RELEASE_NOTES.md`](./RELEASE_NOTES.md) "Known issues" + "Post-release fixes".
 
 > Speaker note: chuyển sang OpenAPI dropdown trong demo → cho thấy mọi endpoint đều có Swagger doc đầy đủ.
 
@@ -210,9 +211,10 @@
   - 22 service unit (Mockito mock DAO)
   - 16 util unit (PasswordUtil, SessionManager, Validator)
   - 15 widget / Flink client (embedded HttpServer)
-- **Backend tests**: 6-10 đang được sibling worker bổ sung theo Phase 7.6.
+- **Backend tests**: **11 / 11 PASS** (`mvn -pl backend-api -am test`) — 8 pillar + 3 security `@WebMvcTest` smoke (Phase 7.6).
+- **Total test count**: **88 / 88 PASS** (77 desktop + 11 backend).
 - **Lint**: clean toàn bộ 4 module.
-- **FXML XML parse**: 7/7 valid.
+- **FXML XML parse**: 6/6 valid.
 - **CI gate**: `mvn clean package -DskipTests` BUILD SUCCESS (`ves-desktop-admin.jar` thin 144 KB + `ves-backend-api.jar` fat 30.3 MB).
 
 > Speaker note: nhấn vào "77/77 PASS" và "lint clean toàn module" — chỉ số minh hoạ kỷ luật code.

@@ -86,7 +86,7 @@ desktop-admin/
     │   │   ├── controller/
     │   │   │   ├── LoginController.java
     │   │   │   ├── DashboardController.java
-    │   │   │   ├── DashboardPlaceholderController.java   (Phase 5.1 stub)
+    │   │   │   ├── MapsController.java
     │   │   │   ├── RegionController.java
     │   │   │   ├── AlertRuleController.java
     │   │   │   └── UserController.java
@@ -123,7 +123,7 @@ desktop-admin/
     │       ├── fxml/
     │       │   ├── login.fxml
     │       │   ├── dashboard.fxml
-    │       │   ├── dashboard_placeholder.fxml  (Phase 5.1 stub, không dùng nữa)
+    │       │   ├── maps.fxml
     │       │   ├── region.fxml
     │       │   ├── alertRule.fxml
     │       │   └── user.fxml

@@ -247,9 +247,10 @@ mvn clean package -DskipTests
 | `desktop-admin` | Util unit (PasswordUtil, SessionManager, Validator) | 16 | — |
 | `desktop-admin` | Widget / Flink client (embedded HttpServer) | 15 | — |
 | **`desktop-admin` total** | | **77 / 77 PASS** | **~18 s** |
-| `backend-api` | endpoint integration (Phase 7.6 in progress) | 6-10 | — |
+| `backend-api` | `@WebMvcTest` smoke (8 pillar + 3 security) | **11 / 11 PASS** | ~9 s |
+| **All-module total** | | **88 / 88 PASS** | |
 
-Lint: clean across all 4 modules. FXML XML parse: 7/7 valid.
+Lint: clean across all 4 modules. FXML XML parse: 6/6 valid.
 
 ---
 
@@ -293,7 +294,7 @@ Real-time-processing-with-Kafka-Flink-Postgres/
 │   ├── README.md
 │   └── src/main/java/vn/edu/ves/desktop/
 │       ├── MainApp.java                # JavaFX entry
-│       ├── controller/                 # 7 controllers (Login, Dashboard, Region, AlertRule, User, Maps, DashboardPlaceholder)
+│       ├── controller/                 # 6 controllers (Login, Dashboard, Region, AlertRule, User, Maps)
 │       ├── service/                    # 6 services (Auth, Dashboard, Region, AlertRule, User, LiveMetrics)
 │       ├── dao/                        # 4 DAOs + BaseDao
 │       ├── model/                      # 13 POJO models
