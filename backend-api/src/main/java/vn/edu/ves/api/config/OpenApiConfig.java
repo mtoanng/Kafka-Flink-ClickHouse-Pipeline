@@ -20,7 +20,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("VES-Monitor REST API")
-                        .description("Vietnam Energy Security Real-time Monitor — 14 endpoint cover 4 pillars + Security actions.")
+                        .description("Vietnam Energy Security Real-time Monitor — 13 canonical endpoints (4 pillars + Security + alerts + recommendations + raw data + auth + health). Each pillar additionally exposes a Phase 2.5/2.6 legacy alias (see PillarController).")
                         .version("1.0"))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()

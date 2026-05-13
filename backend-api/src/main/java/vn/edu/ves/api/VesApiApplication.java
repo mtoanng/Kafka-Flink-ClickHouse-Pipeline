@@ -6,25 +6,31 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * VES-Monitor Backend REST API — Spring Boot 2.7 / Java 11.
  *
- * Endpoint groups (14 total):
- *   POST  /api/auth/login                       Đăng nhập → JWT
+ * <p>13 canonical endpoints (post Phase 7.6 IEA/APERC migration). Each
+ * pillar endpoint additionally exposes its Phase 2.5/2.6 legacy alias for
+ * backward-compat (see {@link vn.edu.ves.api.controller.PillarController}).</p>
+ *
+ * <pre>
+ *   POST  /api/auth/login                       Đăng nhập → JWT (public)
  *   GET   /api/auth/me                          User hiện tại
  *
- *   GET   /api/pillars/1/outlook                Pillar 1 — supply outlook + recommendation
- *   GET   /api/pillars/2/volatility             Pillar 2 — rolling σ + signal
- *   GET   /api/pillars/3/shedding-plan          Pillar 3 — load shedding priority
- *   GET   /api/pillars/4/net-zero               Pillar 4 — renewable share vs roadmap
+ *   GET   /api/pillars/1/supply-security        Pillar 1 — IDR / SFRI / HHI / N-1
+ *   GET   /api/pillars/2/market-resilience      Pillar 2 — σ30d / price_gap / β_crude / affordability
+ *   GET   /api/pillars/3/grid-reliability       Pillar 3 — reserve margin / peak factor / shed prob / freq stability
+ *   GET   /api/pillars/4/energy-transition      Pillar 4 — renewable% / CO2 intensity / curtailment / netzero progress
  *
- *   GET   /api/security/score                   Energy Security Score 0-100 (Light ESI)
- *   GET   /api/security/cascade-risks           Compound risks multi-pillar
- *   GET   /api/recommendations?status=PENDING   Active recommendations
- *   POST  /api/recommendations/{id}/acknowledge ACK + audit (user + note)
+ *   GET   /api/security/score                   Composite ESI 0-100 (IEA weights 0.30/0.20/0.30/0.20)
+ *   GET   /api/security/cascade-risks           [DEPRECATED] returns empty array (view dropped Phase 7.1)
  *
- *   GET   /api/alerts/active                    Cảnh báo chưa acknowledge
+ *   GET   /api/recommendations                  Active recommendations (PENDING, not expired)
+ *   POST  /api/recommendations/{id}/acknowledge ACK / DISMISS + audit (user + note)
+ *
+ *   GET   /api/alerts/active                    Cảnh báo chưa acknowledge (multi-pillar)
  *   GET   /api/fuel-prices/latest               Pillar 2 — giá nhiên liệu mới nhất
  *   GET   /api/grid-load/latest                 Pillar 3 — phụ tải mới nhất per region
  *
- *   GET   /api/health                           Self-check (không cần JWT)
+ *   GET   /api/health                           Self-check (public, không cần JWT)
+ * </pre>
  */
 @SpringBootApplication
 public class VesApiApplication {

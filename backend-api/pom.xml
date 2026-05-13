@@ -23,7 +23,10 @@
         - VesApiApplication              entry-point Spring Boot
         - config/SecurityConfig          + JwtTokenProvider + JwtAuthFilter
         - dao/{User, Pillar, Security, Recommendation, Alert}Dao   (JdbcTemplate trên views)
-        - controller/...                 14 endpoint REST (Auth/Pillar/Security/Recommendation/Alert/Health)
+        - controller/...                 7 controllers, 13 canonical endpoints
+                                          (Auth/Pillar/Security/Recommendation/Alert/RawData/Health).
+                                          Mỗi pillar còn expose 1-2 legacy alias path (Phase 2.5/2.6)
+                                          → OpenAPI tổng cộng 20 paths.
         - dto/...                        Record-like POJO mapping cột view
         - exception/GlobalExceptionHandler
 
