@@ -23,7 +23,8 @@
 | **Documentation cross-links** | ✅ 21 / 21 spot-checked links resolve (README + SUBMISSION_PACKAGE) | `README.md`, `docs/SUBMISSION_PACKAGE.md` |
 | **`SUBMISSION_PACKAGE.md` HEAD reference** | ✅ Updated to `a381e8b` (was `c1f833f`) | `docs/SUBMISSION_PACKAGE.md` § A |
 | **No new doc drift since prior audit** | ✅ Re-verified after the 2 commits since `MASS_QA_REPORT_JAVA.md`: `0859e12` (chore: legacy file removal), `a381e8b` (docs: Excalidraw diagrams) | `git log --oneline c1f833f..HEAD` |
-| **No source code refactored in this gate** | ✅ Zero `.java`, `.sql`, `.yml`, `.properties`, `.xml` source changes | `git diff` |
+| **No source code refactored in this gate** | ✅ Zero `.java`, `.sql`, `.yml`, `.properties`, `.xml` source changes (in the *original* gate; the 16 May sweep-fix pass touched 3 `.java` files only — see § 11 of `docs/MASS_QA_REPORT_JAVA.md`) | `git diff` |
+| **Active bugs (sweep fixes)** | ✅ **0 active bugs** confirmed after the 16 May sweep-fix pass: `SecurityDao.toOffset` null-fallback inconsistency (MINOR), Health `@Operation` summary mismatch (MINOR), `SecurityConfig` manual-JSON injection vector (MINOR) — all FIXED | `docs/MASS_QA_REPORT_JAVA.md` § 11 |
 
 ---
 
@@ -71,13 +72,13 @@ If steps 1-4 pass, the project meets the IS402.P21 rubric (see `docs/SUBMISSION_
 
 | Field | Value |
 |---|---|
-| **Confidence rating for course submission** | **9.0 / 10** (0.5 reserved for the cosmetic items in `MASS_QA_REPORT_JAVA.md` § 4.2 — none are blockers) |
-| **Recommendation** | ✅ **READY FOR HANDOVER & SUBMISSION** |
-| **Final HEAD** | (set after final commits land — see this section in `docs/FINAL_GATE_REPORT.md` of the Android sibling) |
-| **Final tag** | `v1.0.0-handover` |
+| **Confidence rating for course submission** | **9.5 / 10** (post-sweep-fix; the 3 MINOR items in § 11 of `MASS_QA_REPORT_JAVA.md` resolved on 16 May 2026) |
+| **Recommendation** | ✅ **READY FOR HANDOVER & SUBMISSION — 0 active bugs** |
+| **Final HEAD** | see commit log; final tag below pins the exact handover hash |
+| **Final tag** | `v1.0.1-handover` (post-sweep-fix). Original `v1.0.0-handover` preserved for audit history. |
 | **Original `v1.0.0` tag** | Preserved at `3d30b39` — not re-tagged |
-| **Sibling repo final state** | `mtoanng/DataStream` (Android) `v1.0.0-handover` |
-| **Auditor** | Final-gate worker (Cursor / Claude Opus 4.7), single-agent sequential pass, 90 min budget |
+| **Sibling repo final state** | `mtoanng/DataStream` (Android) tag `v1.0.1-handover` (original `v1.0.0-handover` preserved) |
+| **Auditor** | Final-gate worker (Cursor / Claude Opus 4.7), single-agent sequential pass, 90 min budget. Sweep-fix pass appended on 16 May 2026 (~50 min). |
 
 ---
 

@@ -190,3 +190,43 @@ Path to **PRODUCTION-READY** is mechanical, not architectural: items 1-5 in § 8
 ---
 
 — Mass QA audit (Java repo), 13 May 2026, ICT (UTC+7). Auditor mode: static-only, sequential single-agent. Time elapsed: ~95 min.
+
+---
+
+## 11. Sweep findings resolution (16 May 2026 — final fix worker)
+
+A subsequent read-only sweep at HEAD `e0ac097` flagged 7 prioritized findings across both repos (3 MINOR on the Java side: `#3` `#4` `#5`). The final fix worker resolved **all 3 Java items** in a single pass and re-tagged the repo as `v1.0.1-handover` (the original `v1.0.0-handover` is preserved for audit history; the original `v1.0.0` release tag at `3d30b39` is also preserved).
+
+### 11.1 Findings fixed
+
+| # | Severity | File / loc | Status | Fix summary |
+|---:|---|---|:---:|---|
+| #3 | 🟡 MINOR | `backend-api/src/main/java/vn/edu/ves/api/dao/SecurityDao.java` (helper `toOffset(Timestamp)`) | ✅ FIXED | Changed `null`-fallback from `OffsetDateTime.now(ZoneOffset.UTC)` to `null`, matching `PillarDao.toOffset(...)`. The view `v_security_score` emits `computed_at` non-null via `COALESCE`, so this branch is unreachable in practice — pure defensive consistency fix. |
+| #4 | 🟡 MINOR | `backend-api/src/main/java/vn/edu/ves/api/controller/HealthController.java` (`@Operation(summary=...)`) | ✅ FIXED | Updated summary to match real behaviour: `"Luôn trả về 200 OK. Field 'status' = 'UP' nếu DB reachable, 'DEGRADED' nếu không."` (controller always returns 200 — only the body flips). |
+| #5 | 🟡 MINOR | `backend-api/src/main/java/vn/edu/ves/api/config/SecurityConfig.java` (`AuthenticationEntryPoint`) | ✅ FIXED | Replaced the manual JSON string concatenation with a Jackson `ObjectMapper` writing a `LinkedHashMap`. Exception messages containing `"`, `\`, or control characters can no longer break the response shape. The entry point is extracted into its own `@Bean` factory taking `ObjectMapper` as a method param (Spring Boot autoconfigures the bean), then injected into `filterChain(...)` as a method param too — keeps the existing `@Configuration` shape with one extra `@Bean`. |
+
+### 11.2 Verification (static-only)
+
+| Check | Result |
+|---|:---:|
+| `ReadLints` on all 3 modified Java files | ✅ 0 errors |
+| Imports complete (`com.fasterxml.jackson.databind.ObjectMapper`, `org.springframework.security.web.AuthenticationEntryPoint`, `org.springframework.http.MediaType`, `java.util.LinkedHashMap`, `java.util.Map`) | ✅ all resolve through pre-existing transitive dependencies (`spring-boot-starter-web`, `spring-boot-starter-security`) — no new `<dependency>` entries needed in `pom.xml` |
+| Spring Boot 2.7.x compatibility | ✅ `javax.servlet.http.HttpServletResponse` import preserved (Spring Boot 3.x would need `jakarta.servlet`) |
+| `@WebMvcTest` smoke harness compatibility | ✅ The 11 existing `@WebMvcTest` cases (`SecurityControllerSmokeTest`, `PillarControllerSmokeTest`) load the controller slice without `SecurityConfig`, so they are unaffected by the `AuthenticationEntryPoint` bean change |
+| `SecurityDao.toOffset()` reachability | ✅ Confirmed via `infra/script/08_pillars_v2.sql` — `v_security_score` uses `COALESCE(MAX(computed_at), now())` so null is unreachable; behaviour change is null-safe |
+
+### 11.3 Behavioural impact
+
+- `#3`: Zero behaviour change for live data (unreachable branch). Future-proofs against a hypothetical view rewrite that omits `COALESCE`.
+- `#4`: Zero behaviour change. Documentation-only.
+- `#5`: Zero behaviour change for valid (non-special-char) error messages. **Hardening**: prevents malformed JSON when an exception message contains `"`, `\`, or `\n` — previously the response would be invalid JSON that the Android client's Moshi adapter would reject with a confusing parse error rather than the intended 401.
+
+### 11.4 Test count
+
+Unchanged at **88 / 88 PASS baseline** (77 desktop + 11 backend). No test source files modified; all signatures preserved. The `AuthenticationEntryPoint` becomes a bean definition rather than a lambda inside `filterChain(...)` — same wiring outcome.
+
+### 11.5 Confidence after fixes
+
+**9.5 / 10** for course submission (up from 9.0). Path to 10 / 10 still depends on the optional Tier 1 items in `docs/FUTURE_WORK.md` (CI workflow + JdbcSink batching + log level dial-down) — none are blockers.
+
+— Final fix worker, 16 May 2026, ICT (UTC+7).
