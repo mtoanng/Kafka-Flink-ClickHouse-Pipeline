@@ -1,19 +1,25 @@
 package vn.edu.ves.api.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import javax.servlet.http.HttpServletResponse;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Security config — stateless JWT, no session.
@@ -32,7 +38,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           AuthenticationEntryPoint authenticationEntryPoint) throws Exception {
         http
                 .cors().configurationSource(corsConfigurationSource())
                 .and()
@@ -52,12 +59,27 @@ public class SecurityConfig {
                 .and()
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling()
-                    .authenticationEntryPoint((req, res, ex) -> {
-                        res.setStatus(401);
-                        res.setContentType("application/json");
-                        res.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"" + ex.getMessage() + "\"}");
-                    });
+                    .authenticationEntryPoint(authenticationEntryPoint);
         return http.build();
+    }
+
+    /**
+     * Auth entry point — emits a strict-JSON 401 body. Uses Jackson rather than manual
+     * string concatenation so that exception messages containing quotes, backslashes,
+     * or control characters cannot break the JSON shape (or, in the worst case, leak
+     * raw user input into a Content-Type=application/json response).
+     */
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint(ObjectMapper mapper) {
+        return (req, res, ex) -> {
+            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            res.setCharacterEncoding("UTF-8");
+            Map<String, String> body = new LinkedHashMap<>();
+            body.put("error", "UNAUTHORIZED");
+            body.put("message", ex.getMessage() == null ? "Unauthorized" : ex.getMessage());
+            mapper.writeValue(res.getWriter(), body);
+        };
     }
 
     @Bean

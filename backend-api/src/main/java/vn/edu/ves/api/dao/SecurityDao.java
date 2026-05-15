@@ -64,7 +64,14 @@ public class SecurityDao {
         return Collections.emptyList();
     }
 
+    /**
+     * Defensive consistency with {@code PillarDao.toOffset(...)}: return {@code null}
+     * when the column is NULL instead of fabricating "now". The view always emits
+     * non-null via {@code COALESCE} so this branch is unreachable in practice;
+     * aligning the two helpers prevents a future caller from mistaking a freshly-
+     * generated timestamp for a real database value.
+     */
     private static OffsetDateTime toOffset(Timestamp ts) {
-        return ts == null ? OffsetDateTime.now(ZoneOffset.UTC) : ts.toInstant().atOffset(ZoneOffset.UTC);
+        return ts == null ? null : ts.toInstant().atOffset(ZoneOffset.UTC);
     }
 }

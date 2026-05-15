@@ -29,7 +29,9 @@ public class HealthController {
     }
 
     @GetMapping
-    @Operation(summary = "Trả về 200 nếu DB OK, ngược lại 503", security = {})
+    @Operation(
+            summary = "Luôn trả về 200 OK. Field `status` = `UP` nếu DB reachable, `DEGRADED` nếu không.",
+            security = {})
     public Map<String, Object> health() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("service",   "ves-backend-api");
