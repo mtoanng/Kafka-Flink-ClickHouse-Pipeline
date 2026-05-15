@@ -13,7 +13,8 @@
 | **Repository** | https://github.com/mtoanng/Real-time-processing-with-Kafka-Flink-Postgres |
 | **Tag** | `v1.0.0` |
 | **Tag commit** | `3d30b39` (tag points here — snapshot at submission time) |
-| **Current `main` HEAD** | `c1f833f` (`docs: add AUDIT_REPORT.md` — post-v1.0.0 janitor pass). Phase 7.6 backend pillar migration landed at `e64d447`; subsequent commits are docs-only. See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes". |
+| **Current `main` HEAD** | `a381e8b` (`docs: add Excalidraw architecture diagrams (5 files)`). Phase 7.6 backend pillar migration landed at `e64d447`; subsequent 6 commits are docs / chore only (audit reports, Excalidraw diagrams, legacy file cleanup). See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes". |
+| **Handover tag** | `v1.0.0-handover` (sibling repo `mtoanng/DataStream` carries the matching `v1.0.0-handover` tag at the same handover gate). |
 | **Branch** | `main` |
 | **Release date** | 13 May 2026 |
 | **Release notes** | [`docs/RELEASE_NOTES.md`](./RELEASE_NOTES.md) |
@@ -222,4 +223,4 @@ mmdc -i docs/diagrams/04_pillar_framework.md -o docs/diagrams/04_pillar_framewor
 
 ---
 
-> **Submission ready** — `v1.0.0` tagged at `3d30b39` on `origin/main`, 13 May 2026. Current `main` HEAD is `c1f833f` (Phase 7.6 backend pillar migration was applied at `e64d447`; commits after that are docs-only — see § F → "Post-release fixes" and [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes"). Tag is preserved as-is — no re-tag was issued.
+> **Submission ready** — `v1.0.0` tagged at `3d30b39` on `origin/main`, 13 May 2026. Current `main` HEAD is `a381e8b` (Phase 7.6 backend pillar migration was applied at `e64d447`; commits after that are docs / chore only — see § F → "Post-release fixes" and [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) → "Post-release fixes"). Tag `v1.0.0` is preserved as-is — no re-tag was issued. A new `v1.0.0-handover` tag was added at the final handover gate (see [`HANDOVER_CHECKLIST.md`](../HANDOVER_CHECKLIST.md)).
