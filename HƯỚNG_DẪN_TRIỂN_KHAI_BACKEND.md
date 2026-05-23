@@ -1,4 +1,4 @@
-# HƯỚNG DẪN TRIỂN KHAI VÀ CHẠY ĐẦY ĐỦ BACKEND ("VES-Monitor") PHỤC VỤ APP ANDROID
+# HƯỚNG DẪN TRIỂN KHAI VÀ CHẠY ĐẦY ĐỦ BACKEND ("VES-Monitor") PHỤC VỤ API SERVING
 
 ## 1️⃣ PHẦN MỀM YÊU CẦU TRÊN MÁY TÍNH
 
