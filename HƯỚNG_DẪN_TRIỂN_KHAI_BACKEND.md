@@ -56,6 +56,8 @@ mvn clean package -DskipTests
 > - data-generators/grid-load-generator/target/grid-load-generator-1.0.0.jar
 > - data-generators/renewable-generator/target/renewable-generator-1.0.0.jar
 
+
+![alt text](image-1.png)
 ---
 
 ## 4️⃣ KHỞI ĐỘNG STACK DOCKER (Postgres, Kafka, Flink, Zookeeper)
@@ -70,6 +72,8 @@ bash scripts/run.sh
     bash scripts/healthcheck.sh
     ```
 
+![alt text](image.png)
+
 ---
 
 ## 5️⃣ TẠO KAFKA TOPICS
@@ -78,6 +82,7 @@ bash scripts/run.sh
 bash scripts/create_kafka_topics.sh
 ```
 
+![alt text](image-2.png)
 ---
 
 ## 6️⃣ CHẠY DATA GENERATORS (3 process Java sinh dữ liệu → Kafka)
@@ -87,6 +92,7 @@ bash scripts/start_generators.sh
 ```
 - Kiểm tra file log: `/tmp/ves-logs/*.log` (phải có log mới liên tục).
 
+![alt text](image-3.png)
 ---
 
 ## 7️⃣ SUBMIT FLINK JOB (bắt buộc, nếu không sẽ không có data lên database!)
@@ -96,6 +102,7 @@ bash scripts/start_generators.sh
   `flink-job/target/ves-flink-job-1.0.0.jar`, submit.
 - Chờ vài giây job chuyển trạng thái RUNNING.
 
+![alt text](image-4.png)
 ---
 
 ## 8️⃣ CHẠY BACKEND SPRING BOOT API
@@ -103,9 +110,12 @@ bash scripts/start_generators.sh
 ```bash
 java -jar backend-api/target/ves-backend-api.jar
 ```
+![alt text](image-5.png)
+
 - Mặc định listen port `8090`  
 - Test Swagger: [http://localhost:8090/swagger-ui.html](http://localhost:8090/swagger-ui.html)
 
+![alt text](image-6.png)
 ---
 
 ## 9️⃣ KIỂM TRA DỮ LIỆU VÀ API (tùy chọn)

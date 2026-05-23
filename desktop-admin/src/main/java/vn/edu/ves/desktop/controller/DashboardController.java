@@ -51,6 +51,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -209,14 +210,14 @@ public class DashboardController {
         log.info("VN map drill-down: {}", regionCode);
         // Filter p1/p3/p4 by region (p2 has no region column)
         p1Data.setAll(p1Data.stream()
-                .filter(r -> regionCode.equals(r.getRegionCode()))
-                .toList());
+            .filter(r -> regionCode.equals(r.getRegionCode()))
+            .collect(Collectors.toList()));
         p3Data.setAll(p3Data.stream()
-                .filter(r -> regionCode.equals(r.getRegionCode()))
-                .toList());
+            .filter(r -> regionCode.equals(r.getRegionCode()))
+            .collect(Collectors.toList()));
         p4Data.setAll(p4Data.stream()
-                .filter(r -> regionCode.equals(r.getRegionCode()))
-                .toList());
+            .filter(r -> regionCode.equals(r.getRegionCode()))
+            .collect(Collectors.toList()));
     }
 
     private void configureTopBar() {
