@@ -171,5 +171,3 @@ bash scripts/stop_generators.sh
 - Dữ liệu được sinh động, cập nhật liên tục, trải nghiệm chuẩn production!
 
 ---
-
-**LIÊ**
