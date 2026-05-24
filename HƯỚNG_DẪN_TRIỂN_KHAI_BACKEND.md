@@ -99,7 +99,7 @@ bash scripts/start_generators.sh
 
 - Mở Flink UI: [http://localhost:8081](http://localhost:8081)
 - Bấm **"Submit New Job"**, chọn file:  
-  `flink-job/target/ves-flink-job-1.0.0.jar`, submit.
+  `flink-jobs\fuel-flink-job\target\fuel-flink-job-1.1.1.jar`, submit.
 - Chờ vài giây job chuyển trạng thái RUNNING.
 
 ![alt text](image-4.png)
