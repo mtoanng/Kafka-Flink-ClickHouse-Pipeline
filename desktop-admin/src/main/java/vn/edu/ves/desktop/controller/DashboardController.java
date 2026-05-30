@@ -351,6 +351,7 @@ public class DashboardController {
 
     @FXML
     public void refresh() {
+        log.debug("Refresh triggered");
         Task<DashboardSnapshot> task = new Task<DashboardSnapshot>() {
             @Override
             protected DashboardSnapshot call() {
@@ -360,7 +361,7 @@ public class DashboardController {
                 snap.p2 = dashboardService.getMarketResilience();
                 snap.p3 = dashboardService.getGridReliability();
                 snap.p4 = dashboardService.getEnergyTransition();
-                snap.recs = dashboardService.getActiveRecommendations();
+                snap.recs = dashboardService.getActiveAlerts();
                 return snap;
             }
         };
@@ -376,6 +377,12 @@ public class DashboardController {
     }
 
     private void applySnapshot(DashboardSnapshot snap) {
+        log.debug("applySnapshot: p1={}, p2={}, p3={}, p4={}, recs={}",
+            snap.p1 == null ? 0 : snap.p1.size(),
+            snap.p2 == null ? 0 : snap.p2.size(),
+            snap.p3 == null ? 0 : snap.p3.size(),
+            snap.p4 == null ? 0 : snap.p4.size(),
+            snap.recs == null ? 0 : snap.recs.size());
         applyScore(snap.score);
         p1Data.setAll(snap.p1 == null ? List.of() : snap.p1);
         p2Data.setAll(snap.p2 == null ? List.of() : snap.p2);

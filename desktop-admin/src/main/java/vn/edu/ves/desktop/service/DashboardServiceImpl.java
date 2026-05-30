@@ -58,4 +58,9 @@ public class DashboardServiceImpl implements DashboardService {
     public List<Recommendation> getActiveRecommendations() {
         return viewsDao.fetchActiveRecommendations();
     }
+
+    @Override
+    public List<Recommendation> getActiveAlerts() {
+        return viewsDao.fetchActiveAlerts();
+    }
 }

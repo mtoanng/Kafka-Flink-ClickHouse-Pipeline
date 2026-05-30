@@ -30,4 +30,10 @@ public interface DashboardService {
     List<Pillar4EnergyTransition> getEnergyTransition();
 
     List<Recommendation> getActiveRecommendations();
+
+    /**
+     * Return latest alerts (mapped to {@link vn.edu.ves.desktop.model.Recommendation}
+     * so the dashboard can reuse the same UI widgets for display.
+     */
+    List<Recommendation> getActiveAlerts();
 }

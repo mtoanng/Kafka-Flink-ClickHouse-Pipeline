@@ -193,4 +193,40 @@ public class ViewsDao extends BaseDao {
         }
         return out;
     }
+
+    /**
+     * Fetch recent alerts from `alerts` table and present them using the
+     * `Recommendation` model so the desktop can display alerts in the
+     * recommendation sidebar without changing UI classes.
+     */
+    public List<Recommendation> fetchActiveAlerts() {
+        final String sql = "SELECT id, NULL::SMALLINT AS pillar, NULL AS action_type, " +
+                "severity, message AS title, message, NULL::text AS suggested_data_text, " +
+                "event_timestamp AS suggested_at, EXTRACT(EPOCH FROM (NOW() - event_timestamp))::INT AS age_seconds, " +
+                "NULL::timestamp AS expires_at, FALSE AS is_expired " +
+                "FROM alerts ORDER BY event_timestamp DESC";
+        List<Recommendation> out = new ArrayList<>();
+        try (Connection c = dbConfig.openConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Recommendation r = new Recommendation();
+                r.setId(rs.getLong("id"));
+                r.setPillar(rs.getInt("pillar"));
+                r.setActionType(getStringOrNull(rs, "action_type"));
+                r.setSeverity(getStringOrNull(rs, "severity"));
+                r.setTitle(getStringOrNull(rs, "title"));
+                r.setMessage(getStringOrNull(rs, "message"));
+                r.setSuggestedDataJson(getStringOrNull(rs, "suggested_data_text"));
+                r.setSuggestedAt(getLocalDateTimeOrNull(rs, "suggested_at"));
+                r.setAgeSeconds(rs.getInt("age_seconds"));
+                r.setExpiresAt(getLocalDateTimeOrNull(rs, "expires_at"));
+                r.setExpired(rs.getBoolean("is_expired"));
+                out.add(r);
+            }
+        } catch (SQLException e) {
+            log.error("fetchActiveAlerts() lỗi: {}", e.getMessage(), e);
+        }
+        return out;
+    }
 }
