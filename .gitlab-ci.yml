@@ -1,0 +1,63 @@
+# =============================================================================
+# VES-Monitor — GitLab CI/CD (tận dụng GitLab Ultimate)
+# Pipeline: build → test → security (SAST / Secret / Dependency Scanning)
+# Kết quả security hiển thị trong Security Dashboard + MR widget (Ultimate).
+# =============================================================================
+
+stages:
+  - build
+  - test
+  - security
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+  # Dependency Scanning cần build được Maven project
+  DS_JAVA_VERSION: "11"
+
+default:
+  image: maven:3.9-eclipse-temurin-11
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+  interruptible: true
+
+# ---- GitLab Ultimate security templates -------------------------------------
+include:
+  - template: Jobs/SAST.gitlab-ci.yml                 # Semgrep SAST (Java)
+  - template: Jobs/Secret-Detection.gitlab-ci.yml     # lộ credential/token
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml  # CVE trong dependency Maven
+                                                      # (kèm license data cho License Compliance)
+
+# ---- Build -------------------------------------------------------------------
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS -DskipTests clean package
+  artifacts:
+    paths:
+      - "**/target/*.jar"
+    expire_in: 1 week
+
+# ---- Unit tests + JUnit report (hiển thị trong MR) ---------------------------
+test:
+  stage: test
+  needs: ["build"]
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "**/target/surefire-reports/TEST-*.xml"
+    expire_in: 1 week
+
+# SAST/Secret Detection chạy ở stage riêng, không cần chờ build
+sast:
+  stage: security
+  needs: []
+
+secret_detection:
+  stage: security
+  needs: []

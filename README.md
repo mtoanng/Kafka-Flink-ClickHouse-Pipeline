@@ -17,14 +17,26 @@
 
 ---
 
+## 📂 Repo scope — 2 phần tách biệt
+
+| Phần | Nội dung | Tài liệu |
+|---|---|---|
+| **① Học phần Java/Mobile (v1.0.0)** | Pipeline Kafka → Flink → Postgres, REST API, JavaFX desktop — nội dung README này | README này + [`docs/`](./docs/) |
+| **② DE tự nâng cấp (v2, WIP)** | Replay data thật, Avro Schema Registry, Debezium CDC, Spark/ClickHouse, GitLab Ultimate CI/CD + Security | [`docs/DE_UPGRADE_ROADMAP.md`](./docs/DE_UPGRADE_ROADMAP.md) |
+
+> 🔧 CI/CD chạy trên **GitLab** (`.gitlab-ci.yml`): build + test + SAST + Secret Detection + Dependency Scanning.
+> ⚡ Quickstart mới: `make demo` (xem [`Makefile`](./Makefile)) — không cần upload JAR tay qua Flink UI nữa.
+
+---
+
 ## 🚀 Quickstart — clone & run in 5 minutes
 
 > Setup: Windows 11 + WSL 2 (Ubuntu 22.04) + Docker Desktop + JDK 17 + Maven 3.9+. Tested on a clean machine end-to-end.
 
 ```powershell
 # 1) Clone (PowerShell)
-git clone https://github.com/mtoanng/Real-time-processing-with-Kafka-Flink-Postgres.git
-cd Real-time-processing-with-Kafka-Flink-Postgres
+git clone https://gitlab.com/nguyendungmanhtoan-group/STREAMING.git
+cd STREAMING
 
 # 2) Bring up Docker stack — 5 services, ~1.6 GB RAM (WSL)
 wsl -d Ubuntu-22.04 bash -lc 'bash scripts/run.sh --wait'
