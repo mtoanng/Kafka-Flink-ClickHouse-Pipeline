@@ -12,8 +12,8 @@
     <name>VES Real-time Fuel Price Monitoring (Parent)</name>
     <description>
         Parent POM cho hệ thống giám sát giá nhiên liệu thời gian thực.
-        Tập hợp các module: data-generators, flink-jobs, backend-api, desktop-admin.
-        (android-app là Gradle project, không nằm trong Maven build).
+        Tập hợp các module: data-generators, flink-jobs.
+        (Focus Data Engineering — backend-api/desktop-admin đã gỡ, xem git history nếu cần.)
     </description>
 
     <modules>
@@ -21,8 +21,6 @@
         <module>data-generators/grid-load-generator</module>
         <module>data-generators/renewable-generator</module>
         <module>flink-jobs/fuel-flink-job</module>
-        <module>backend-api</module>
-        <module>desktop-admin</module>
     </modules>
 
     <properties>
