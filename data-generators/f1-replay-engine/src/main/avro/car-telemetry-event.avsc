@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "CarTelemetryEvent",
+  "namespace": "vn.edu.f1.avro",
+  "fields": [
+    {"name": "event_time", "type": "long", "doc": "Event timestamp in epoch millis (reconstructed from lap_start + lap-relative time)"},
+    {"name": "driver_number", "type": "int", "doc": "Driver number (e.g. 1 = Verstappen, 81 = Piastri)"},
+    {"name": "speed", "type": "double", "doc": "Speed in km/h"},
+    {"name": "throttle", "type": ["null", "double"], "default": null, "doc": "Throttle percentage 0-100"},
+    {"name": "brake", "type": ["null", "double"], "default": null, "doc": "Brake pressure 0-100"},
+    {"name": "rpm", "type": ["null", "int"], "default": null, "doc": "Engine RPM"},
+    {"name": "gear", "type": ["null", "int"], "default": null, "doc": "Current gear"},
+    {"name": "drs", "type": ["null", "int"], "default": null, "doc": "DRS indicator (0=off, 1=on)"}
+  ]
+}

@@ -1,5 +1,5 @@
 # =============================================================
-#  VES Real-time Fuel Price Monitoring — Root .gitignore
+#  F1 Live Telemetry Streaming Platform — Root .gitignore
 # =============================================================
 
 # ── Build outputs ──────────────────────────────────────────
@@ -31,19 +31,9 @@ out/
 Thumbs.db
 desktop.ini
 
-# ── Python (legacy) ────────────────────────────────────────
-venv/
-__pycache__/
-*.pyc
-
-# ── Metabase volume ────────────────────────────────────────
-metabase.db/
-metabase-data/
-
 # ── Logs ───────────────────────────────────────────────────
 *.log
 logs/
-# Maven verification logs (Phase 5 build runtime checks)
 build-logs/
 
 # ── Environment / Secrets ──────────────────────────────────
@@ -54,18 +44,15 @@ build-logs/
 # ── Docker ─────────────────────────────────────────────────
 .docker/
 
-# ── Maven Wrapper download cache ───────────────────────────
+# ── Maven Wrapper ──────────────────────────────────────────
 .mvn/wrapper/maven-wrapper.properties.copy
 .mvn/timing.properties
 
-# ── Android (sẽ dùng ở Phase 6) ────────────────────────────
-android-app/local.properties
-android-app/.gradle/
-android-app/app/build/
-android-app/build/
-android-app/captures/
-android-app/.externalNativeBuild/
-android-app/.cxx/
+# ── F1 telemetry dataset (tải riêng, KHÔNG commit — ~150MB) ─
+data-generators/f1-replay-engine/src/main/resources/datasets/
+
+# ── Avro generated sources (từ avro-maven-plugin) ──────────
+**/generated-sources/
 
 # ── Test / Coverage ────────────────────────────────────────
 coverage/

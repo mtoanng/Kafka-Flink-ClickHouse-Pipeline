@@ -5,22 +5,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>vn.edu.ves</groupId>
-    <artifactId>ves-monitor-parent</artifactId>
+    <artifactId>f1-telemetry-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>VES Real-time Fuel Price Monitoring (Parent)</name>
+    <name>F1 Live Telemetry Streaming Platform (Parent)</name>
     <description>
-        Parent POM cho hệ thống giám sát giá nhiên liệu thời gian thực.
-        Tập hợp các module: data-generators, flink-jobs.
-        (Focus Data Engineering — backend-api/desktop-admin đã gỡ, xem git history nếu cần.)
+        Parent POM cho streaming platform replay dữ liệu F1 telemetry thật.
+        Pipeline: TracingInsights JSON → Replay Engine → Kafka KRaft (Avro)
+        → Flink (1 job, aggregate) → ClickHouse → Grafana.
     </description>
 
     <modules>
-        <module>data-generators/fuel-price-producer</module>
-        <module>data-generators/grid-load-generator</module>
-        <module>data-generators/renewable-generator</module>
-        <module>flink-jobs/fuel-flink-job</module>
+        <module>data-generators/f1-replay-engine</module>
+        <module>flink-jobs/f1-telemetry-job</module>
     </modules>
 
     <properties>
@@ -29,25 +27,31 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <!-- Versions dùng chung -->
-        <flink.version>1.17.0</flink.version>
-        <kafka.version>3.5.1</kafka.version>
+        <flink.version>1.18.0</flink.version>
+        <kafka.version>3.6.1</kafka.version>
         <jackson.version>2.15.2</jackson.version>
-        <postgresql.version>42.7.3</postgresql.version>
+        <avro.version>1.11.3</avro.version>
+        <confluent.version>7.6.0</confluent.version>
+        <clickhouse.jdbc.version>0.6.0</clickhouse.jdbc.version>
         <lombok.version>1.18.30</lombok.version>
         <slf4j.version>2.0.7</slf4j.version>
         <logback.version>1.4.11</logback.version>
         <junit.version>5.10.1</junit.version>
-        <!-- Phase 4.5: Spring Boot 2.7.x (Java 11 compatible) -->
-        <spring.boot.version>2.7.18</spring.boot.version>
-        <jjwt.version>0.11.5</jjwt.version>
-        <springdoc.version>1.7.0</springdoc.version>
 
         <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <maven.shade.plugin.version>3.4.0</maven.shade.plugin.version>
-        <!-- 2.12.4 đã có trong WSL .m2 cache; 3.2.2 chưa pull được qua corporate proxy. -->
         <maven.surefire.plugin.version>2.12.4</maven.surefire.plugin.version>
+        <avro.maven.plugin.version>1.11.3</avro.maven.plugin.version>
     </properties>
+
+    <repositories>
+        <!-- Confluent Maven repo cho kafka-avro-serializer + flink-avro-confluent-registry -->
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>
@@ -66,6 +70,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven.surefire.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.avro</groupId>
+                    <artifactId>avro-maven-plugin</artifactId>
+                    <version>${avro.maven.plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
