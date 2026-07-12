@@ -115,7 +115,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>vn.edu.f1.F1ReplayEngine</mainClass>
+                                    <mainClass>com.f1telemetry.F1ReplayEngine</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -129,7 +129,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>vn.edu.f1.F1ReplayEngine</mainClass>
+                    <mainClass>com.f1telemetry.F1ReplayEngine</mainClass>
                 </configuration>
             </plugin>
         </plugins>

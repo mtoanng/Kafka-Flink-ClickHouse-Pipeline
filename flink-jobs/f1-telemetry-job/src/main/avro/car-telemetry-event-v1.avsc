@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "CarTelemetryEvent",
-  "namespace": "vn.edu.f1.avro",
+  "namespace": "com.f1telemetry.avro",
   "doc": "F1 car telemetry event with reconstructed absolute event time",
   "fields": [
     {

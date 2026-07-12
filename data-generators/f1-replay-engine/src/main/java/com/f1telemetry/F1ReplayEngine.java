@@ -1,4 +1,4 @@
-package vn.edu.f1;
+package com.f1telemetry;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,7 +9,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vn.edu.f1.avro.CarTelemetryEvent;
+import com.f1telemetry.avro.CarTelemetryEvent;
 
 import java.io.File;
 import java.io.IOException;

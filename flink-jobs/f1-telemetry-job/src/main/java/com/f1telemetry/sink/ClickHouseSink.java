@@ -1,11 +1,11 @@
-package vn.edu.f1.sink;
+package com.f1telemetry.sink;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vn.edu.f1.avro.CarTelemetryEvent;
-import vn.edu.f1.model.TelemetryRollup;
+import com.f1telemetry.avro.CarTelemetryEvent;
+import com.f1telemetry.model.TelemetryRollup;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

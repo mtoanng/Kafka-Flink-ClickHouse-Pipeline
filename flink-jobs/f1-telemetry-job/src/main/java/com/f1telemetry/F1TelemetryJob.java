@@ -1,4 +1,4 @@
-package vn.edu.f1;
+package com.f1telemetry;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -11,9 +11,9 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vn.edu.f1.avro.CarTelemetryEvent;
-import vn.edu.f1.model.TelemetryRollup;
-import vn.edu.f1.sink.ClickHouseSink;
+import com.f1telemetry.avro.CarTelemetryEvent;
+import com.f1telemetry.model.TelemetryRollup;
+import com.f1telemetry.sink.ClickHouseSink;
 
 import java.time.Duration;
 

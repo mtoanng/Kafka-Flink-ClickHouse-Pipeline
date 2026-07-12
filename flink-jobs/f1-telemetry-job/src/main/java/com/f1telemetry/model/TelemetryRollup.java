@@ -1,4 +1,4 @@
-package vn.edu.f1.model;
+package com.f1telemetry.model;
 
 import java.io.Serializable;
 

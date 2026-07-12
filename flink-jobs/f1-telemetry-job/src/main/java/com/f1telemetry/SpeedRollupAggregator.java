@@ -1,8 +1,8 @@
-package vn.edu.f1;
+package com.f1telemetry;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
-import vn.edu.f1.avro.CarTelemetryEvent;
-import vn.edu.f1.model.TelemetryRollup;
+import com.f1telemetry.avro.CarTelemetryEvent;
+import com.f1telemetry.model.TelemetryRollup;
 
 /**
  * Aggregates 10s window of telemetry events per driver.

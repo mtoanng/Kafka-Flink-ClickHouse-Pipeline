@@ -40,6 +40,6 @@ echo "Submitting Flink job..."
 echo "  JAR: $JAR_PATH"
 echo "  Flink: $FLINK_HOME"
 
-"$FLINK_BIN" run -c vn.edu.f1.F1TelemetryJob "$JAR_PATH"
+"$FLINK_BIN" run -c com.f1telemetry.F1TelemetryJob "$JAR_PATH"
 
 echo "Job submitted successfully. Check Flink UI: http://localhost:8081"
