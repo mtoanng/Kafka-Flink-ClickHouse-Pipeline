@@ -1,7 +1,6 @@
 # =============================================================================
-# VES-Monitor — GitLab CI/CD (tận dụng GitLab Ultimate)
+# F1 Live Telemetry Streaming Platform — GitLab CI/CD
 # Pipeline: build → test → security (SAST / Secret / Dependency Scanning)
-# Kết quả security hiển thị trong Security Dashboard + MR widget (Ultimate).
 # =============================================================================
 
 stages:
@@ -12,7 +11,6 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
-  # Dependency Scanning cần build được Maven project
   DS_JAVA_VERSION: "11"
 
 default:
@@ -23,24 +21,24 @@ default:
       - .m2/repository
   interruptible: true
 
-# ---- GitLab Ultimate security templates -------------------------------------
+# ---- GitLab security templates -----------------------------------------------
 include:
-  - template: Jobs/SAST.gitlab-ci.yml                 # Semgrep SAST (Java)
-  - template: Jobs/Secret-Detection.gitlab-ci.yml     # lộ credential/token
-  - template: Jobs/Dependency-Scanning.gitlab-ci.yml  # CVE trong dependency Maven
-                                                      # (kèm license data cho License Compliance)
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
 
-# ---- Build -------------------------------------------------------------------
+# ---- Build (2 modules: f1-replay-engine + f1-telemetry-job) -----------------
 build:
   stage: build
   script:
     - mvn $MAVEN_CLI_OPTS -DskipTests clean package
   artifacts:
     paths:
-      - "**/target/*.jar"
+      - "data-generators/f1-replay-engine/target/*.jar"
+      - "flink-jobs/f1-telemetry-job/target/*.jar"
     expire_in: 1 week
 
-# ---- Unit tests + JUnit report (hiển thị trong MR) ---------------------------
+# ---- Unit tests ---------------------------------------------------------------
 test:
   stage: test
   needs: ["build"]
@@ -53,7 +51,7 @@ test:
         - "**/target/surefire-reports/TEST-*.xml"
     expire_in: 1 week
 
-# SAST/Secret Detection chạy ở stage riêng, không cần chờ build
+# ---- Security scans -----------------------------------------------------------
 sast:
   stage: security
   needs: []
@@ -61,3 +59,4 @@ sast:
 secret_detection:
   stage: security
   needs: []
+
