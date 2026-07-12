@@ -98,9 +98,35 @@ services:
       timeout: 10s
       retries: 5
 
+  # ═══════════════════════════════════════════════════════
+  # GRAFANA (Optional — Local Development Only)
+  # For production, use Grafana Cloud (free tier)
+  # Uncomment below to run Grafana locally
+  # ═══════════════════════════════════════════════════════
+  # grafana:
+  #   image: grafana/grafana:11.1.0
+  #   container_name: grafana
+  #   depends_on:
+  #     clickhouse:
+  #       condition: service_healthy
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - ./grafana/provisioning:/etc/grafana/provisioning
+  #     - ./grafana/dashboards:/var/lib/grafana/dashboards
+  #     - grafana_data:/var/lib/grafana
+  #   networks:
+  #     - f1_network
+  #   mem_limit: 512m
+  #   mem_reservation: 256m
+
 volumes:
   kafka_data:
   clickhouse_data:
+  # grafana_data:  # Uncomment if using local Grafana
 
 networks:
   f1_network:
