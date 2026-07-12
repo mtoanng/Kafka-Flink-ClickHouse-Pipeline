@@ -17,7 +17,7 @@ echo "Destination: ${DEST}"
 # Download race session files (top-level JSON: drivers, rcm, corners, session_laptimes, weather)
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${SESSION_PATH}"
 
-for FILE in drivers.json rcm.json corners.json session_laptimes.json weather.json; do
+for FILE in drivers.json rcm.json corners.json weather.json; do
   echo "  - ${FILE}"
   curl -sL "${BASE_URL}/${FILE}" -o "${DEST}/${FILE}"
 done
