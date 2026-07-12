@@ -1,391 +1,430 @@
-# ⚡ VES-Monitor — Vietnam Energy Security Real-time Platform
+# 🏎️ F1 Live Telemetry Streaming Platform
 
-[![Status](https://img.shields.io/badge/status-v1.0.0%20release-brightgreen)]()
-[![Java](https://img.shields.io/badge/Java-11%2B-orange)]()
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)]()
-[![JavaFX](https://img.shields.io/badge/JavaFX-17.0.10%20LTS-purple)]()
-[![Flink](https://img.shields.io/badge/Flink-1.17.0-blue)]()
-[![Kafka](https://img.shields.io/badge/Kafka-7.5.0-black)]()
-[![Postgres](https://img.shields.io/badge/Postgres-15-336791)]()
-[![Tests](https://img.shields.io/badge/tests-77%2F77%20PASS-success)]()
+[![Status](https://img.shields.io/badge/status-v2.0.0--alpha-blue)]()
+[![Java](https://img.shields.io/badge/Java-11-orange)]()
+[![Flink](https://img.shields.io/badge/Flink-1.18.0-blue)]()
+[![Kafka](https://img.shields.io/badge/Kafka-7.6.0%20KRaft-black)]()
+[![ClickHouse](https://img.shields.io/badge/ClickHouse-24.3-yellow)]()
+[![Avro](https://img.shields.io/badge/Avro-1.11.3-purple)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Educational-blue)]()
 
-> **Real-time distributed platform for monitoring Vietnam's energy security** along the 4 IEA / APERC pillars (Supply Security · Market Resilience · Grid Reliability · Energy Transition). Ingests fuel prices, grid load, renewable output, and CO₂ emissions via **Kafka + Flink**, surfaces alerts and recommendations through a **Spring Boot REST API** and a **JavaFX admin desktop**.
+> **Real-time streaming platform replaying authentic F1 telemetry data** from the 2025 Abu Dhabi Grand Prix. Demonstrates event-time processing, windowed aggregations, and OLAP serving for live motorsport analytics.
 >
-> **Nền tảng giám sát an ninh năng lượng Việt Nam thời gian thực** theo 4 trụ cột chuẩn IEA / APERC. Pipeline phân tán Kafka → Flink → Postgres, kèm REST API cho mobile/external và JavaFX desktop admin cho vận hành.
+> **Pipeline duy nhất**: TracingInsights JSON → Replay Engine (Java) → Kafka (Avro + Schema Registry) → Flink (DataStream API) → ClickHouse → Grafana
 
 ---
 
-## 📂 Repo scope — 2 phần tách biệt
+## 🎯 Project Purpose
 
-| Phần | Nội dung | Tài liệu |
-|---|---|---|
-| **① Học phần Java/Mobile (v1.0.0)** | Pipeline Kafka → Flink → Postgres, REST API, JavaFX desktop — nội dung README này | README này + [`docs/`](./docs/) |
-| **② DE tự nâng cấp (v2, WIP)** | Replay data thật, Avro Schema Registry, Debezium CDC, Spark/ClickHouse, GitLab Ultimate CI/CD + Security | [`docs/DE_UPGRADE_ROADMAP.md`](./docs/DE_UPGRADE_ROADMAP.md) |
+This is a **Middle Data Engineer portfolio project** showcasing:
+- Event-time reconstruction from lap-relative telemetry data
+- Streaming ETL with Apache Flink (watermarks, keyed windows, checkpointing)
+- Schema evolution with Confluent Schema Registry (Avro)
+- OLAP serving layer (ClickHouse) for low-latency analytics
+- Real-world motorsport dataset (Abu Dhabi GP 2025 Race via TracingInsights)
 
-> 🔧 CI/CD chạy trên **GitLab** (`.gitlab-ci.yml`): build + test + SAST + Secret Detection + Dependency Scanning.
-> ⚡ Quickstart mới: `make demo` (xem [`Makefile`](./Makefile)) — không cần upload JAR tay qua Flink UI nữa.
+**Previous version** (v1.0.0): Energy security monitoring platform — see [`docs/legacy/`](./docs/legacy/) for historical context.
 
 ---
 
-## 🚀 Quickstart — clone & run in 5 minutes
+## 🚀 Quickstart — Local Development
 
-> Setup: Windows 11 + WSL 2 (Ubuntu 22.04) + Docker Desktop + JDK 17 + Maven 3.9+. Tested on a clean machine end-to-end.
+> **Prerequisites**: Windows 11 + Docker Desktop + JDK 11+ + Maven 3.8+
+
+### 1️⃣ Setup Infrastructure
 
 ```powershell
-# 1) Clone (PowerShell)
-git clone https://gitlab.com/nguyendungmanhtoan-group/STREAMING.git
-cd STREAMING
+# Start Kafka KRaft + Schema Registry + ClickHouse
+docker compose -f infra/docker-compose.yml up -d
 
-# 2) Bring up Docker stack — 5 services, ~1.6 GB RAM (WSL)
-wsl -d Ubuntu-22.04 bash -lc 'bash scripts/run.sh --wait'
-
-# 3) Build all Maven modules — ~60s warm cache (PowerShell)
-mvn -q clean package -DskipTests
-
-# 4) Submit Flink job via UI (browser, ~10s)
-#    → http://localhost:8081 → "Submit New Job" → upload flink-jobs/fuel-flink-job/target/fuel-flink-job-1.1.1.jar
-#    → entry class: org.cloud.KafkaConsumerApplication → "Submit"
-
-# 5) Start 3 generators in background (WSL)
-wsl -d Ubuntu-22.04 bash -lc 'bash scripts/_phase4_start_generators.sh'
-
-# 6) Launch backend REST API (PowerShell, separate window)
-Start-Process java -ArgumentList '-jar','backend-api\target\ves-backend-api.jar' -RedirectStandardOutput 'build-logs\backend-run.log'
-
-# 7) Launch JavaFX desktop (PowerShell)
-mvn -pl desktop-admin javafx:run
-#    → Login: admin / admin
+# Wait for services to be healthy (~30s)
+docker compose -f infra/docker-compose.yml ps
 ```
 
-After ~60 s all services are healthy and 4 pillars of data are flowing:
+### 2️⃣ Fetch F1 Dataset
 
-| Service | URL | Notes |
+```bash
+# Download TracingInsights data (Abu Dhabi GP 2025 Race)
+bash scripts/fetch_f1_session.sh
+```
+
+Dataset will be placed in `data-generators/f1-replay-engine/src/main/resources/datasets/` (gitignored).
+
+### 3️⃣ Register Avro Schema
+
+```bash
+# Register car-telemetry-event-v1.avsc to Schema Registry
+bash scripts/register_schemas.sh
+```
+
+### 4️⃣ Build & Run Replay Engine
+
+```powershell
+# Build all modules
+mvn clean package -DskipTests
+
+# Run replay engine (publishes to Kafka topic: car-telemetry-events)
+java -jar data-generators/f1-replay-engine/target/f1-replay-engine-1.0.0-SNAPSHOT.jar
+```
+
+### 5️⃣ Submit Flink Job
+
+```bash
+# Option A: Local Flink cluster (IDE)
+# Run vn.edu.f1.F1TelemetryJob main() in IntelliJ/Eclipse
+
+# Option B: Standalone Flink cluster
+bash scripts/submit_flink_job.sh
+```
+
+### 6️⃣ View Results
+
+| Service | URL | Purpose |
 |---|---|---|
-| Flink UI | http://localhost:8081 | 18/18 vertices RUNNING |
-| Swagger UI | http://localhost:8090/swagger-ui.html | 13 endpoints |
-| Backend health | http://localhost:8090/api/health | `{"status":"UP","db":"UP"}` |
-| Metabase (optional BI) | http://localhost:3000 | overlay dashboards |
-| PostgreSQL | `localhost:5432` | user `postgres` / pwd `123456` / db `fuel_prices` |
-| Kafka | `localhost:9092` | 4 topics, 3 partitions each |
+| Kafka UI (optional) | http://localhost:9092 | Topic inspection |
+| Schema Registry | http://localhost:8081 | Schema versions |
+| ClickHouse | `localhost:8123` | Query raw_telemetry, rollup_10s |
+| Grafana Cloud | (your instance) | Live dashboard |
 
-**Smoke verify**: `wsl -d Ubuntu-22.04 bash -lc 'bash scripts/healthcheck.sh'` → expect 4/4 OK.
+**Query example**:
+```sql
+-- Check ingestion
+SELECT count(), max(event_time) FROM raw_telemetry;
 
-**Shutdown**: `wsl -d Ubuntu-22.04 bash -lc 'bash scripts/stop_generators.sh && bash scripts/stop.sh'`.
+-- Top speeds per driver
+SELECT driver_number, max(speed) as max_speed 
+FROM raw_telemetry 
+GROUP BY driver_number 
+ORDER BY max_speed DESC;
+```
+
+**Shutdown**:
+```powershell
+docker compose -f infra/docker-compose.yml down
+```
 
 ---
 
 ## 🏗️ Architecture
 
-End-to-end data flow — **4 generators → 4 Kafka topics → 1 Flink job (18 vertices) → 13 Postgres tables + 17 views → 3 consumers**. Full diagram + measured throughput in [`docs/diagrams/01_dataflow.md`](./docs/diagrams/01_dataflow.md).
+**Single streaming pipeline** — event-time reconstruction → windowed aggregation → OLAP serving.
 
 ```mermaid
 flowchart LR
-    subgraph GEN["⚙️ Generators · WSL JVMs"]
-        G1["fuel-price-producer"]
-        G2["grid-load-generator"]
-        G3["renewable-generator"]
+    subgraph DATA["📦 Data Source"]
+        JSON["TracingInsights JSON<br/>Abu Dhabi GP 2025<br/>(lap_start + tel arrays)"]
     end
-    subgraph KAFKA["📡 Kafka · 4 topics"]
-        T1[["fuel-prices"]]
-        T2[["grid-load"]]
-        T3[["renewable-output"]]
-        T4[["emission"]]
+    
+    subgraph REPLAY["⚙️ Replay Engine"]
+        RE["F1ReplayEngine.java<br/>• Read session_laptimes<br/>• Transpose column arrays<br/>• Reconstruct event_time<br/>• Sort cross-driver"]
     end
-    subgraph FLINK["⚡ Flink · 18 vertices"]
-        F1["Raw sinks × 4"]
-        F2["Window 1m + price-change"]
-        F3["AlertDetectionFunction<br/>MapState cooldown 60s"]
+    
+    subgraph KAFKA["📡 Kafka KRaft"]
+        TOPIC["car-telemetry-events<br/>(3 partitions)<br/>Key: driver_number<br/>Value: Avro"]
+        SR["Schema Registry<br/>car-telemetry-event-v1.avsc"]
     end
-    subgraph PG["🗄️ Postgres 15"]
-        PR["13 tables raw / agg"]
-        PV["17 computed views<br/>(IEA/APERC pillars + ESI)"]
+    
+    subgraph FLINK["⚡ Flink 1.18 DataStream"]
+        SOURCE["KafkaSource<br/>ConfluentRegistryAvroDeserializer"]
+        WM["Watermark<br/>(3s out-of-order)"]
+        KEY["keyBy(driver_number)"]
+        WIN["TumblingEventTimeWindows<br/>(10s)"]
+        AGG["SpeedRollupAggregator<br/>(avg/max speed, avg throttle)"]
     end
-    subgraph CLI["💻 Consumers"]
-        C1["JavaFX Desktop<br/>(direct JDBC)"]
-        C2["Spring Boot REST<br/>(JWT, 13 endpoints)"]
-        C3["Android (sibling repo)"]
+    
+    subgraph CH["🗄️ ClickHouse"]
+        RAW["raw_telemetry<br/>(event_time, driver, speed, throttle, brake, rpm, gear, drs)"]
+        ROLL["rollup_10s<br/>(window_start, driver, avg_speed, max_speed, avg_throttle)"]
     end
-    GEN --> KAFKA --> FLINK --> PG
-    PG --> CLI
-    C2 -.->|REST| C3
+    
+    subgraph VIZ["📊 Grafana"]
+        D1["Live Speed Gauge"]
+        D2["Rollup Time Series"]
+        D3["Top Speed Ticker"]
+        D4["Throttle/Brake/RPM"]
+    end
+    
+    JSON --> RE
+    RE -->|publish Avro| TOPIC
+    TOPIC --> SR
+    SR --> SOURCE
+    SOURCE --> WM --> KEY --> WIN --> AGG
+    AGG -->|JDBC sink| RAW
+    AGG -->|JDBC sink| ROLL
+    RAW --> VIZ
+    ROLL --> VIZ
 ```
 
-> 4 detailed diagrams (data flow / ERD / class / pillar framework) in [`docs/diagrams/`](./docs/diagrams/).
+**Key Engineering Decisions**:
+- **Event-time reconstruction**: Merge `session_laptimes.json` (lap start timestamps) + `{driver}/{N}_tel.json` (lap-relative time arrays) → absolute event_time per telemetry record
+- **Cross-driver sort**: Global sort before publish ensures watermark correctness downstream (Flink bounded-out-of-order watermark = 3s)
+- **No late events handling**: Dataset is complete/offline, so no need for allowed lateness or side outputs
+- **ClickHouse over Postgres**: MergeTree engine optimized for time-series analytics (50x faster for time-range queries)
+- **Grafana Cloud over local**: Avoid 512 MB Docker container, use free tier (10k series limit sufficient for 20 drivers × 8 metrics)
 
 ---
 
-## 📦 Tech stack
+## 📦 Tech Stack
 
-| Tier | Component | Version | Module |
+| Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| Data sources | Java Kafka producers × 3 (1 multi-topic) | OpenJDK 11 | `data-generators/{fuel-price-producer,grid-load-generator,renewable-generator}` |
-| Message broker | Apache Kafka | 7.5.0 | `infra/docker-compose.yml` |
-| Stream processor | Apache Flink | 1.17.0 | `flink-jobs/fuel-flink-job` |
-| Storage | PostgreSQL | 15 | `infra/script/*.sql` |
-| Backend | Spring Boot + JdbcTemplate | 2.7.18 | `backend-api/` |
-| Auth | jjwt (JWT HS256) | 0.11.5 | `backend-api/.../config/Jwt*` |
-| Desktop UI | JavaFX (controls + fxml + web) | 17.0.10 LTS | `desktop-admin/` |
-| Test framework | JUnit 4 + Mockito + H2 (in-memory) | 4.13.2 / 5.7.0 / 2.2.224 | all modules |
-| Build | Maven multi-module | 3.9.6 | parent `pom.xml` |
-| Containerisation | Docker Compose | v2 | `infra/docker-compose.yml` |
-| BI (optional) | Metabase | 0.47 | overlay in docker-compose |
+| **Data Source** | TracingInsights F1 dataset | 2025 Abu Dhabi GP | Authentic telemetry (20 drivers × 58 laps) |
+| **Replay Engine** | Java 11 | OpenJDK 11 | Event-time reconstruction + Kafka producer |
+| **Message Broker** | Apache Kafka (KRaft) | 7.6.0 | Topic: `car-telemetry-events` (3 partitions) |
+| **Schema Registry** | Confluent Schema Registry | 7.6.0 | Avro schema evolution (`car-telemetry-event-v1.avsc`) |
+| **Stream Processor** | Apache Flink | 1.18.0 | DataStream API (watermarks + windowed aggregation) |
+| **OLAP Storage** | ClickHouse | 24.3 | MergeTree engine (raw_telemetry + rollup_10s) |
+| **Visualization** | Grafana (Cloud) | 11.x | 4-panel dashboard (time series + gauge + stat) |
+| **Build** | Maven | 3.8+ | Multi-module build (parent POM) |
+| **CI/CD** | GitLab CI | – | build + test stages |
+
+**Dependencies**:
+- Kafka Avro Serializer: `io.confluent:kafka-avro-serializer:7.6.0`
+- Flink Confluent Registry: `org.apache.flink:flink-avro-confluent-registry:1.18.0`
+- ClickHouse JDBC: `com.clickhouse:clickhouse-jdbc:0.6.0`
+- Avro: `org.apache.avro:avro:1.11.3`
 
 ---
 
-## ✨ Features highlight
+## ✨ Features & Technical Highlights
 
-### 🛡️ 4-pillar IEA / APERC energy security framework
+### 🔧 Event-Time Reconstruction (Replay Engine)
 
-- **P1 Supply Security** (weight 0.30) — IDR · SFRI · HHI · N-1 resilience
-- **P2 Market Resilience** (weight 0.20) — σ_30d · price_gap · β_crude · affordability
-- **P3 Grid Reliability** (weight 0.30) — reserve margin · peak factor · shedding prob · freq stability
-- **P4 Energy Transition** (weight 0.20) — renewable % · CO₂ intensity · curtailment · netzero progress
-- **Composite ESI** = `0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4` · status SECURE/ELEVATED/STRESSED/CRITICAL
-
-> Full taxonomy + formulas + reference standards: [`docs/diagrams/04_pillar_framework.md`](./docs/diagrams/04_pillar_framework.md).
-
-### ⚡ Real-time pipeline highlights
-
-- **Flink `KeyedProcessFunction` + `MapState` cooldown 60 s** → no alert storms when metrics oscillate around thresholds
-- **SQL `NOT EXISTS` 30 min dedup** for auto-recommendations → at most 1 action_type per pillar/region per 30 min
-- **17 computed views** → change business logic via `psql -f`, no Flink job redeploy
-- Measured throughput: **~ 1 000 events/sec aggregate** (verified live, see [`docs/DEMO_RUN_LOG.md`](./docs/DEMO_RUN_LOG.md))
-
-### 🖥️ JavaFX desktop admin (5 tabs)
-
-| Tab | Highlights |
-|---|---|
-| **Pillar 1 · Supply Security** | Table IDR/SFRI/HHI/N-1 · sparkline · pulse on CRITICAL |
-| **Pillar 2 · Market Resilience** | σ_30d / price_gap / β_crude / affordability + line chart |
-| **Pillar 3 · Grid Reliability** | reserve margin · shedding prob · BarChart colored by load_pct |
-| **Pillar 4 · Energy Transition** | renewable % / CO₂ intensity · pie chart fuel mix |
-| **Maps · Bản đồ** | VN SVG 3-zone clickable drill-down · Leaflet world map with 7 fuel hubs |
-
-Top bar: **live ticker `⚡ N events/sec`** (Flink REST + EMA) · **ESI gauge** · 4 nav buttons.
-Right sidebar: **recommendations list** with severity-colored cells + fade-in for new rows + slide-in toast for CRITICAL.
-
-> Screenshots: TODO — capture `01_dashboard.png`, `02_maps_vn.png`, `03_maps_world.png`, `04_critical_toast.png` and commit under `docs/screenshots/`.
-
-### 🌐 Backend REST API (Spring Boot 2.7)
-
-JWT-secured, JdbcTemplate, Springdoc OpenAPI — 13 endpoints listed in the **API quick reference** below.
-
----
-
-## 🌐 API quick reference
-
-| Method | Path | Pillar | Description |
-|---|---|---|---|
-| `POST` | `/api/auth/login`                 | – | Issue JWT (admin/admin, manager/manager, user/user — seed users) |
-| `GET`  | `/api/auth/me`                    | – | Current user info |
-| `GET`  | `/api/pillars/1/supply-security`  | 1 | IDR · SFRI · HHI · N-1 (Phase 7.1) |
-| `GET`  | `/api/pillars/2/market-resilience`| 2 | σ_30d · price_gap · β_crude · affordability |
-| `GET`  | `/api/pillars/3/grid-reliability` | 3 | reserve margin · peak factor · shedding prob · freq stability |
-| `GET`  | `/api/pillars/4/energy-transition`| 4 | renewable % · CO₂ intensity · curtailment · netzero progress |
-| `GET`  | `/api/security/score`             | 0 | Composite ESI 0-100 + status |
-| `GET`  | `/api/security/cascade-risks`     | 0 | Compound multi-pillar risks (FUEL_SHORTAGE / GENERATION_DEFICIT / CARBON_COST) |
-| `GET`  | `/api/recommendations`            | 0 | PENDING recommendation list with age |
-| `POST` | `/api/recommendations/{id}/acknowledge` | 0 | ACK / DISMISS with audit user + note |
-| `GET`  | `/api/alerts/active`              | all | Unacknowledged alerts (multi-pillar) |
-| `GET`  | `/api/fuel-prices/latest`         | 2 | N most recent fuel prices |
-| `GET`  | `/api/grid-load/latest`           | 3 | Latest load per region |
-| `GET`  | `/api/health`                     | – | DB ping (public, used by tunnel probe) |
-
-- **Swagger UI**: http://localhost:8090/swagger-ui.html
-- **Postman collection**: [`docs/VES-Monitor.postman_collection.json`](./docs/VES-Monitor.postman_collection.json) — 8 folders / 19 requests (auto-`{{token}}` script on `Auth/Login`)
-- **OpenAPI spec (raw)**: [`docs/openapi.json`](./docs/openapi.json) — 20 paths (13 canonical + 6 legacy aliases + 1 acknowledge sub-path)
-
-> ✅ Phase 7.6 (post-tag `v1.0.0` @ `e64d447`): the 5 endpoints flagged at tag time (`/api/pillars/*` + `/api/security/cascade-risks`) have been migrated to the new IEA-APERC view schema. 13 / 13 REST endpoints return `200 OK` on `origin/main`; legacy paths are kept as backward-compat aliases. See [`docs/RELEASE_NOTES.md`](./docs/RELEASE_NOTES.md#-post-release-fixes).
-
----
-
-## 🛡️ 4-pillar framework summary
-
-| # | Pillar (EN · VI) | Weight | IEA / APERC reference | View |
-|---|---|---:|---|---|
-| 1 | **Supply Security · An ninh nguồn cung** | 0.30 | IEA + APERC #1, #7 | `v_pillar1_supply_security` |
-| 2 | **Market Resilience · Khả năng chịu giá** | 0.20 | IEA + IMF Volatility | `v_pillar2_market_resilience` |
-| 3 | **Grid Reliability · Độ tin cậy lưới điện** | 0.30 | NERC + IEEE 1366 | `v_pillar3_grid_reliability` |
-| 4 | **Energy Transition · Chuyển dịch năng lượng** | 0.20 | IPCC AR6 + Net-Zero 2050 | `v_pillar4_energy_transition` |
-
-**Composite Energy Security Index** (`v_security_score`):
-```
-ESI = 0.30·P1 + 0.20·P2 + 0.30·P3 + 0.20·P4
-Status: SECURE ≥80 · ELEVATED 60-79 · STRESSED 40-59 · CRITICAL <40
+Real F1 telemetry data comes in **column-oriented format** (arrays per lap per driver):
+```json
+{
+  "tel": {
+    "time": [0.0, 0.05, 0.10, ...],
+    "speed": [285.3, 286.1, 287.4, ...],
+    "throttle": [100, 100, 98, ...]
+  }
+}
 ```
 
-> Full sub-indicator formulas + reference standards: [`docs/diagrams/04_pillar_framework.md`](./docs/diagrams/04_pillar_framework.md). SQL views: [`infra/script/08_pillars_v2.sql`](./infra/script/08_pillars_v2.sql).
+**Challenge**: Convert lap-relative timestamps to absolute event-time for Flink watermark processing.
 
----
+**Solution**:
+1. Parse `session_laptimes.json` → map `{driver_number: {lap_number: lap_start_timestamp}}`
+2. Transpose column arrays → row-oriented records
+3. Reconstruct: `event_time = lap_start_timestamp + tel["time"][i]`
+4. **Global sort** across all drivers/laps before publishing (ensures monotonic timestamps per partition)
 
-## 🎨 Design patterns inventory
+### ⚡ Flink Streaming Pipeline
 
-10 GoF / enterprise patterns demonstrated in `desktop-admin/`. Class diagram + relationships: [`docs/diagrams/03_class_desktop.md`](./docs/diagrams/03_class_desktop.md).
+- **Watermark Strategy**: `BoundedOutOfOrderness(3s)` + event-time extractor from `CarTelemetryEvent.event_time`
+- **Keying**: `keyBy(driver_number)` → 20 parallel keyed streams (1 per driver)
+- **Windowing**: `TumblingEventTimeWindows.of(Time.seconds(10))` → 10s tumbling windows
+- **Aggregation**: Custom `SpeedRollupAggregator` → (avg_speed, max_speed, avg_throttle)
+- **Dual Sink**: Raw events → `raw_telemetry`, Aggregates → `rollup_10s` (ClickHouse JDBC sink)
+- **Checkpointing**: EXACTLY_ONCE, 30s interval → state recovery on failure
 
-| # | Pattern | Location |
-|---|---|---|
-| 1 | **Singleton** | `DatabaseConfig`, `SessionManager`, `MainApp` |
-| 2 | **DAO** | `UserDao`, `RegionDao`, `AlertRuleDao`, `ViewsDao` (extend `BaseDao`) |
-| 3 | **MVC** | 6 FXML × 6 Controllers × 13 Model POJOs |
-| 4 | **Strategy** | `Validator` interface + `NotBlank/LengthRange/Pattern/InSet` strategies |
-| 5 | **Composite** | `Validator.compose(v1, v2, ...)` fan-out collector |
-| 6 | **Factory** | `DatabaseConfig.openConnection()` |
-| 7 | **Service Layer / Facade** | All `*ServiceImpl` classes |
-| 8 | **Observer** | `LiveMetricsService` `ScheduledExecutorService` callback |
-| 9 | **Adapter** | `FlinkClient` wraps Flink REST JSON to a single Java method |
-| 10 | **Template Method** | `BaseDao` shared null-handling helpers |
+### 📊 ClickHouse Serving Layer
 
----
+Two tables optimized for analytics:
 
-## ✅ Testing
+**`raw_telemetry`** (MergeTree, ORDER BY `(driver_number, event_time)`):
+- All telemetry events (speed, throttle, brake, rpm, gear, drs)
+- Supports point-in-time queries: "What was Hamilton's speed at lap 42, 10.5s?"
 
-```powershell
-# Run all desktop tests (77/77 PASS, ~18 s)
-mvn -pl desktop-admin test
+**`rollup_10s`** (MergeTree, ORDER BY `(driver_number, window_start)`):
+- Pre-aggregated 10s windows
+- Supports time-series viz: "Show avg speed trend for all drivers in last 5 minutes"
 
-# Run backend tests
-mvn -pl backend-api test
+### 🎨 Grafana Dashboard
 
-# Package both
-mvn clean package -DskipTests
+4-panel dashboard (engineering-first, not marketing fluff):
+
+1. **Live Speed Gauge** — current speed for 2-3 selected drivers (gauge viz)
+2. **Rollup Time Series** — avg/max speed over time (line chart, multi-driver)
+3. **Top Speed Ticker** — `SELECT max(speed) FROM raw_telemetry WHERE event_time <= now()` (stat panel)
+4. **Throttle/Brake/RPM** — multi-metric time series for 1 driver (stacked area chart)
+
+**Data source**: Grafana ClickHouse plugin (`grafana-clickhouse-datasource`)
+
+### 🔄 Schema Evolution (Avro)
+
+**v1 schema** (`car-telemetry-event-v1.avsc`):
+```json
+{
+  "type": "record",
+  "name": "CarTelemetryEvent",
+  "fields": [
+    {"name": "event_time", "type": "long", "logicalType": "timestamp-millis"},
+    {"name": "driver_number", "type": "int"},
+    {"name": "speed", "type": "double"},
+    {"name": "throttle", "type": ["null", "double"], "default": null},
+    {"name": "brake", "type": ["null", "double"], "default": null},
+    {"name": "rpm", "type": ["null", "int"], "default": null},
+    {"name": "gear", "type": ["null", "int"], "default": null},
+    {"name": "drs", "type": ["null", "int"], "default": null}
+  ]
+}
 ```
 
-| Module | Test type | Count | Runtime |
-|---|---|---:|---:|
-| `desktop-admin` | DAO integration (H2 in-memory `MODE=PostgreSQL`) | 24 | — |
-| `desktop-admin` | Service unit (Mockito mock DAO) | 22 | — |
-| `desktop-admin` | Util unit (PasswordUtil, SessionManager, Validator) | 16 | — |
-| `desktop-admin` | Widget / Flink client (embedded HttpServer) | 15 | — |
-| **`desktop-admin` total** | | **77 / 77 PASS** | **~18 s** |
-| `backend-api` | `@WebMvcTest` smoke (8 pillar + 3 security) | **11 / 11 PASS** | ~9 s |
-| **All-module total** | | **88 / 88 PASS** | |
-
-Lint: clean across all 4 modules. FXML XML parse: 6/6 valid.
+**Future v2** (example): Add optional `tyre_compound` field → backward-compatible (consumers ignore unknown fields).
 
 ---
 
-## 📁 Project structure
+## 📁 Project Structure
 
 ```
 Real-time-processing-with-Kafka-Flink-Postgres/
-├── infra/                              # Docker + SQL init scripts
-│   ├── docker-compose.yml              # 5-service Lite stack
-│   └── script/                         # 9 init SQL files (load in order)
-│       ├── 01_init_fuel_schema.sql     # Pillar 2 base (existing)
-│       ├── 02_init_users_regions.sql   # users + regions (Phase 2)
-│       ├── 03_init_alerts.sql          # alert_rules + alerts (Phase 2)
-│       ├── 04_seed_basic.sql           # seed 3 users + 6 regions + 5 rules
-│       ├── 05_init_pillars.sql         # Pillar 1/3/4 raw tables (Phase 2.5)
-│       ├── 06_seed_pillars.sql         # inventory seed
-│       ├── 07_init_security_features.sql # alert_rules multi-pillar + recs + 8 action views (Phase 2.6)
-│       ├── 08_pillars_v2.sql           # IEA/APERC redesign + composite ESI (Phase 7.1)
-│       └── 09_alter_alerts_multi_pillar.sql # alerts metric_type column (Phase 4)
-│
 ├── data-generators/
-│   ├── fuel-price-producer/            # 30 rec/10s → fuel-prices topic
-│   ├── grid-load-generator/            # 3 region × 5s → grid-load topic
-│   └── renewable-generator/            # 9 rec/10s → renewable-output + 3/30s → emission
+│   └── f1-replay-engine/               # Replay engine (Maven module)
+│       ├── pom.xml
+│       └── src/main/
+│           ├── avro/
+│           │   └── car-telemetry-event-v1.avsc
+│           ├── java/vn/edu/f1/
+│           │   └── F1ReplayEngine.java
+│           └── resources/
+│               └── datasets/           # .gitignored (fetched via script)
+│                   └── Abu Dhabi Grand Prix/
+│                       └── Race/
+│                           ├── session_laptimes.json
+│                           └── {DRIVER}/{N}_tel.json
 │
 ├── flink-jobs/
-│   └── fuel-flink-job/                 # 4 source × 18 vertex; AlertDetectionFunction with MapState cooldown
+│   └── f1-telemetry-job/               # Flink DataStream job (Maven module)
+│       ├── pom.xml
+│       └── src/main/java/vn/edu/f1/
+│           ├── F1TelemetryJob.java     # Main entry
+│           ├── SpeedRollupAggregator.java
+│           └── model/
+│               ├── CarTelemetryEvent.java  # Generated from Avro schema
+│               └── TelemetryRollup.java
 │
-├── backend-api/                        # Spring Boot 2.7 REST API (13 endpoints, JWT, Springdoc)
-│   ├── pom.xml
-│   ├── README.md                       # Build / run / proxy workaround
-│   └── src/main/java/vn/edu/ves/api/
-│       ├── controller/                 # 7 controllers
-│       ├── dao/                        # 5 JdbcTemplate DAOs
-│       ├── dto/                        # 13 DTOs
-│       ├── config/                     # SecurityConfig, JwtTokenProvider, JwtAuthFilter, OpenApiConfig
-│       └── exception/                  # GlobalExceptionHandler + ApiException
+├── infra/
+│   ├── docker-compose.yml              # Kafka KRaft + Schema Registry + ClickHouse
+│   ├── clickhouse/
+│   │   └── init/
+│   │       └── 01_tables.sql           # DDL for raw_telemetry + rollup_10s
+│   └── grafana/
+│       ├── provisioning/
+│       │   └── datasources/
+│       │       └── clickhouse.yml
+│       └── dashboards/
+│           └── f1-live-telemetry.json  # 4-panel dashboard
 │
-├── desktop-admin/                      # JavaFX 17 admin desktop (5 screens, 77 tests)
-│   ├── pom.xml
-│   ├── README.md
-│   └── src/main/java/vn/edu/ves/desktop/
-│       ├── MainApp.java                # JavaFX entry
-│       ├── controller/                 # 6 controllers (Login, Dashboard, Region, AlertRule, User, Maps)
-│       ├── service/                    # 6 services (Auth, Dashboard, Region, AlertRule, User, LiveMetrics)
-│       ├── dao/                        # 4 DAOs + BaseDao
-│       ├── model/                      # 13 POJO models
-│       ├── util/                       # DatabaseConfig, SessionManager, PasswordUtil, Validator, FlinkClient, AlertHelper
-│       ├── widget/                     # Sparkline, PulseEffect, Toast, VietnamMap, WorldMapView
-│       └── exception/                  # AuthenticationException
+├── scripts/
+│   ├── fetch_f1_session.sh             # Download TracingInsights dataset
+│   ├── register_schemas.sh             # Register Avro schema to Schema Registry
+│   ├── run.sh / run.ps1                # Start Docker services
+│   ├── stop.sh / stop.ps1              # Stop Docker services
+│   └── submit_flink_job.sh             # Submit Flink job to standalone cluster
 │
-├── scripts/                            # One-click bootstrap + helpers
-│   ├── run.sh / run.ps1                # Bring up Docker stack + pre-create topics
-│   ├── stop.sh / stop.ps1
-│   ├── healthcheck.sh                  # 4-check verify
-│   ├── _phase4_start_generators.sh     # Launch 3 generators in background
-│   └── phase45_smoke_api.sh            # 14-endpoint REST smoke
+├── docs/
+│   ├── PROJECT1_BLUEPRINT.md           # Architecture blueprint (this refactor)
+│   └── legacy/                         # Historical docs from v1.0.0 (Energy Security Platform)
+│       ├── PROGRESS.md
+│       ├── DEMO_RUN_LOG.md
+│       └── ...
 │
-├── docs/                               # 📚 Documentation (this folder)
-│   ├── PROGRESS.md                     # Phase tracking + verification log
-│   ├── DEMO_RUN_LOG.md                 # E2E runtime verification (live snapshot)
-│   ├── DEMO_SCRIPT.md                  # 18-min copy-paste demo runbook
-│   ├── SLIDES_OUTLINE.md               # 15-slide presenter outline
-│   ├── RELEASE_NOTES.md                # v1.0.0 release notes
-│   ├── SUBMISSION_PACKAGE.md           # Artifact manifest for graders
-│   ├── TEAM_TASKS.md                   # 5-person team work breakdown
-│   ├── ANDROID_ONBOARDING.md           # Android sibling project onboarding
-│   ├── PROXY_SETUP.md                  # Bosch NTLM proxy workaround
-│   ├── MAVEN_SETUP.md                  # Portable Maven install guide
-│   ├── openapi.json                    # OpenAPI 3 spec
-│   ├── VES-Monitor.postman_collection.json
-│   └── diagrams/                       # 4 Mermaid diagrams + index README
-│
-├── pom.xml                             # Parent Maven (multi-module)
-├── UPGRADE_PLAN.md                     # Detailed upgrade plan (§24 = execution roadmap)
-├── JAVA_FINAL_PROJECT_REQUIREMENT.md   # Course requirement (Java)
-├── .env.example
-├── .gitignore
-├── .gitattributes
-└── README.md                           # ← you are here
+├── pom.xml                             # Parent Maven POM
+├── .gitlab-ci.yml                      # CI/CD: build + test
+├── .env.example                        # Confluent Cloud credentials template
+└── README.md                           # ← You are here
 ```
 
 ---
 
-## 🗓️ Phase history
+## 🛠️ Development
 
-Full milestone-by-milestone log + verification snapshots: [`docs/PROGRESS.md`](./docs/PROGRESS.md).
+### Build
 
-| Phase | Highlight | Tag |
-|---|---|---|
-| 0 → 2.6 | Foundation · Docker Lite · 4-pillar schema · 8 action views | `v0.0` → `v0.2.6` |
-| 3 → 4 | Flink alert engine · 4-pillar Flink job (18 vertex) · auto-recommendation | `v0.3` · `v0.4` |
-| 4.5 | Spring Boot REST API · 13 endpoints · JWT · Swagger | code-complete |
-| 5.0 → 5.5 | JavaFX desktop 5 screens · 77 tests · 10 design patterns | code-complete |
-| 6 | Android split into sibling repo [`mtoanng/DataStream`](https://github.com/mtoanng/DataStream) | (separate) |
-| 7.0 → 7.5 | DB sync · IEA/APERC redesign · live ticker / sparklines / pulse / toast · interactive maps · QA pass | live-verified |
-| **7.7** | **Submission documentation pack** (this README · diagrams · slides · demo script · release notes) | **`v1.0.0`** |
+```powershell
+# Build all modules (parent + 2 children)
+mvn clean package -DskipTests
 
----
+# Build specific module
+mvn -pl data-generators/f1-replay-engine package -DskipTests
+mvn -pl flink-jobs/f1-telemetry-job package -DskipTests
+```
 
-## 👥 Team
+### Test
 
-This is a 5-person final project for **IS402.P21 — Java + Mobile App Development** (UIT-VNUHCM).
+```powershell
+# Run all tests
+mvn test
 
-- Work breakdown structure (5 PR-step format): [`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md)
-- Member B/C/D/E roles: see TEAM_TASKS for owners, deliverables, and review checklists
-- Communication: GitHub issues + Slack
-- Code review: 2-approvals on `main` enforced via branch protection (when GitHub Pro enabled)
+# Run specific module tests
+mvn -pl flink-jobs/f1-telemetry-job test
+```
 
----
+### Local Flink Development
 
-## 📱 Android sibling repo
+**Option A: IDE (IntelliJ/Eclipse)**
+- Run `vn.edu.f1.F1TelemetryJob` main class directly
+- Flink mini-cluster starts embedded
+- Set env vars in Run Configuration:
+  ```
+  KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+  SCHEMA_REGISTRY_URL=http://localhost:8081
+  CLICKHOUSE_URL=jdbc:clickhouse://localhost:8123
+  ```
 
-The Android mobile client is a **separate course project** with its own independent repository:
+**Option B: Standalone Flink cluster**
+```bash
+# Download Flink 1.18.0
+wget https://archive.apache.org/dist/flink/flink-1.18.0/flink-1.18.0-bin-scala_2.12.tgz
+tar xzf flink-1.18.0-bin-scala_2.12.tgz
+cd flink-1.18.0
 
-🔗 **[`mtoanng/DataStream`](https://github.com/mtoanng/DataStream)**
+# Start cluster
+./bin/start-cluster.sh
 
-- 4-screen bottom-nav (1 per pillar)
-- Retrofit2 + MPAndroidChart
-- Consumes only the 13 REST endpoints from this repo's `backend-api/`
-- Onboarding doc for Android dev: [`docs/ANDROID_ONBOARDING.md`](./docs/ANDROID_ONBOARDING.md)
+# Submit job
+./bin/flink run -c vn.edu.f1.F1TelemetryJob \
+  /path/to/flink-jobs/f1-telemetry-job/target/f1-telemetry-job-1.0.0-SNAPSHOT.jar
+```
 
-> Why split? Different course, different language (Kotlin vs Java), different CI / release cadence. Keeping it as a sibling repo respects both projects' boundaries.
+### Replay Engine Configuration
+
+Edit `data-generators/f1-replay-engine/src/main/java/vn/edu/f1/F1ReplayEngine.java`:
+```java
+// Replay speed factor (1x = real-time, 5x = 5× faster, 20x = 20× faster)
+private static final int REPLAY_SPEED_FACTOR = 5;
+
+// Kafka connection
+private static final String KAFKA_BOOTSTRAP = System.getenv().getOrDefault(
+    "KAFKA_BOOTSTRAP_SERVERS", "localhost:9092");
+private static final String SCHEMA_REGISTRY_URL = System.getenv().getOrDefault(
+    "SCHEMA_REGISTRY_URL", "http://localhost:8081");
+```
+
+### ClickHouse Query Examples
+
+```sql
+-- Check raw ingestion
+SELECT 
+    count() as total_events,
+    min(event_time) as first_event,
+    max(event_time) as last_event,
+    count(DISTINCT driver_number) as unique_drivers
+FROM raw_telemetry;
+
+-- Top 10 speed moments
+SELECT 
+    driver_number,
+    event_time,
+    speed,
+    gear,
+    throttle
+FROM raw_telemetry
+ORDER BY speed DESC
+LIMIT 10;
+
+-- Average speed per driver (last 5 minutes)
+SELECT 
+    driver_number,
+    avg(avg_speed) as avg_5min,
+    max(max_speed) as top_speed
+FROM rollup_10s
+WHERE window_start >= now() - INTERVAL 5 MINUTE
+GROUP BY driver_number
+ORDER BY top_speed DESC;
+```
 
 ---
 
@@ -393,42 +432,101 @@ The Android mobile client is a **separate course project** with its own independ
 
 | Symptom | Fix |
 |---|---|
-| Kafka `connection refused` | `docker logs kafka` → wait 30 s, or `bash scripts/stop.sh --volumes && bash scripts/run.sh` |
-| Flink job FAILED | Check `docker logs flink-jobmanager`; verify JAR shade classpath; re-submit |
-| Postgres table not found | `docker logs postgres-database | grep init_fuel_schema` — verify init scripts ran |
-| Port 5432 / 9092 / 8081 / 8090 in use | Edit `.env` (Docker) or `SERVER_PORT` (backend-api) |
-| `mvn package` 407 Proxy NTLM (Bosch network) | See [`docs/PROXY_SETUP.md`](./docs/PROXY_SETUP.md) — use cntlm bridge or hotspot |
-| JavaFX won't start | Verify JDK 17+ and `mvn javafx:run` cmd vs cli `java -jar` (need module path); see [`desktop-admin/README.md`](./desktop-admin/README.md) |
-| Leaflet world map offline overlay | Expected behavior when Bosch firewall blocks unpkg + OSM tile CDN; falls back to text hub list |
+| Kafka `connection refused` | Wait 30s for KRaft controller election: `docker logs kafka` |
+| Schema Registry `404 Not Found` | Verify Kafka is healthy first: `docker compose ps` |
+| ClickHouse connection refused | Check healthcheck: `docker exec clickhouse clickhouse-client --query "SELECT 1"` |
+| Replay engine: `No dataset found` | Run `bash scripts/fetch_f1_session.sh` first |
+| Flink job: `ClassNotFoundException` | Verify shade plugin in `pom.xml` (Avro classes must be shaded) |
+| Flink job: Late events | Check watermark: Flink UI → Job → Watermarks → should be near event_time |
+| Grafana: No data | Verify ClickHouse datasource: Grafana → Configuration → Data Sources → ClickHouse → Test |
+| Port 9092/8081/8123 in use | Stop conflicting services or edit `docker-compose.yml` ports |
 
-More: [`docs/PROXY_SETUP.md`](./docs/PROXY_SETUP.md) · [`docs/MAVEN_SETUP.md`](./docs/MAVEN_SETUP.md) · [`backend-api/README.md`](./backend-api/README.md) · [`desktop-admin/README.md`](./desktop-admin/README.md).
+### Docker Memory Issues
+
+If containers OOM (Out of Memory):
+```powershell
+# Increase Docker Desktop memory limit (Settings → Resources → Memory → 6 GB)
+
+# Or reduce Kafka heap:
+# Edit docker-compose.yml → KAFKA_HEAP_OPTS: "-Xms256M -Xmx384M"
+```
+
+### Maven Proxy (Corporate Network)
+
+If behind a corporate proxy, edit `~/.m2/settings.xml`:
+```xml
+<proxies>
+  <proxy>
+    <active>true</active>
+    <protocol>http</protocol>
+    <host>proxy.company.com</host>
+    <port>8080</port>
+  </proxy>
+</proxies>
+```
 
 ---
 
-## 📚 Further documentation
+## 📚 Further Documentation
 
 | File | Content |
 |---|---|
-| [`UPGRADE_PLAN.md`](./UPGRADE_PLAN.md) | Original upgrade plan, §24 = minimal-execution roadmap |
-| [`JAVA_FINAL_PROJECT_REQUIREMENT.md`](./JAVA_FINAL_PROJECT_REQUIREMENT.md) | Course requirements (Java module) |
-| [`docs/PROGRESS.md`](./docs/PROGRESS.md) | Phase-by-phase log + verification snapshots |
-| [`docs/DEMO_RUN_LOG.md`](./docs/DEMO_RUN_LOG.md) | E2E live runtime verification |
-| [`docs/DEMO_SCRIPT.md`](./docs/DEMO_SCRIPT.md) | 18-minute copy-paste demo runbook |
-| [`docs/SLIDES_OUTLINE.md`](./docs/SLIDES_OUTLINE.md) | 15-slide presenter outline (~18 min) |
-| [`docs/RELEASE_NOTES.md`](./docs/RELEASE_NOTES.md) | v1.0.0 release notes |
-| [`docs/SUBMISSION_PACKAGE.md`](./docs/SUBMISSION_PACKAGE.md) | Grader artifact manifest |
-| [`docs/diagrams/`](./docs/diagrams/) | 4 Mermaid diagrams + export instructions |
+| [`docs/PROJECT1_BLUEPRINT.md`](./docs/PROJECT1_BLUEPRINT.md) | Architecture blueprint (refactor plan) |
+| [`docs/legacy/PROGRESS.md`](./docs/legacy/PROGRESS.md) | v1.0.0 phase history (Energy Security Platform) |
+| [`.gitlab-ci.yml`](./.gitlab-ci.yml) | CI/CD pipeline definition |
+| [`.env.example`](./.env.example) | Environment variables template |
 
 ---
 
-## 📜 License & contributors
+## 🎓 Learning Outcomes (Middle Data Engineer Resume)
 
-**License**: Educational / academic use only — IS402.P21 final project, UIT-VNUHCM 2026.
+This project demonstrates:
 
-**Course**: IS402.P21 · Java Programming · Mobile App Development.
+**✅ Streaming ETL**
+- Event-time processing with watermarks (3s bounded out-of-order)
+- Stateful windowed aggregations (TumblingEventTimeWindows)
+- EXACTLY_ONCE checkpointing (state recovery on failure)
 
-**Contributors**: see [`docs/TEAM_TASKS.md`](./docs/TEAM_TASKS.md). Pull requests welcome on a fork; this repo is read-only after `v1.0.0` tag.
+**✅ Schema Management**
+- Avro schema design (logical types, optional fields)
+- Schema Registry integration (Confluent)
+- Forward/backward compatibility patterns
+
+**✅ Data Wrangling**
+- Column-oriented to row-oriented transformation
+- Event-time reconstruction from lap-relative timestamps
+- Global cross-entity sorting for watermark correctness
+
+**✅ OLAP Design**
+- Time-series optimized schema (ORDER BY timestamp)
+- Pre-aggregation strategy (raw + rollup tables)
+- MergeTree engine performance tuning
+
+**✅ DevOps**
+- Docker Compose orchestration (3 services)
+- Maven multi-module build
+- GitLab CI/CD (build + test stages)
 
 ---
 
-> 💡 **Want to reproduce results?** Check [`docs/DEMO_RUN_LOG.md`](./docs/DEMO_RUN_LOG.md) for the verified live snapshot on `HEAD = 30265f1` — 18 Flink vertices RUNNING, 4 topics flowing, ESI 72.82 ELEVATED. Tag `v1.0.0` freezes that state.
+## 📜 License
+
+Educational use only — Middle Data Engineer portfolio project.
+
+**Course**: Personal project for resume improvement (not affiliated with any institution).
+
+**Contributors**: Single author. Pull requests welcome for improvements.
+
+---
+
+## 🔗 Related Resources
+
+- **TracingInsights** (F1 telemetry dataset): https://github.com/theOehrly/Fast-F1
+- **Apache Flink 1.18 docs**: https://nightlies.apache.org/flink/flink-docs-release-1.18/
+- **Confluent Schema Registry**: https://docs.confluent.io/platform/current/schema-registry/
+- **ClickHouse MergeTree**: https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree
+- **Grafana ClickHouse plugin**: https://grafana.com/grafana/plugins/grafana-clickhouse-datasource/
+
+---
+
+> 💡 **Migration Note**: This project was refactored from a v1.0.0 Energy Security Monitoring Platform (4-pillar IEA/APERC framework, Postgres, JavaFX). Historical docs preserved in [`docs/legacy/`](./docs/legacy/) for context.
