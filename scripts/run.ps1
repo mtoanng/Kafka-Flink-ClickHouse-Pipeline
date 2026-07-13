@@ -1,85 +1,40 @@
-# =============================================================
-#  VES Run Script (Windows PowerShell)
-#
-#  Usage:
-#    .\scripts\run.ps1            # Lite profile
-#    .\scripts\run.ps1 -Bi        # Lite + Metabase
-#    .\scripts\run.ps1 -Wait      # Đợi tất cả service healthy
-#    .\scripts\run.ps1 -Bi -Wait  # cả 2
-#
-#  Memory budget Lite:  ~2.7 GB total
-#  Memory budget +BI:   ~3.5 GB total
-# =============================================================
-param(
-    [switch]$Bi,
-    [switch]$Wait
-)
+# run.ps1 — Start local infrastructure (PowerShell)
+# Usage: powershell -File scripts\run.ps1
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-Set-Location $RepoRoot
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Set-Location $repoRoot
 
-Write-Host "============================================="
-Write-Host "  VES Fuel Price Monitor — start (Lite Profile)"
-Write-Host "============================================="
+Write-Host "=== F1 Telemetry: Starting Kafka KRaft + Schema Registry ===" -ForegroundColor Cyan
 
-# 1. Copy .env nếu chưa tồn tại
 if (-not (Test-Path ".env")) {
-    Write-Host "[INFO] .env chưa tồn tại, copy từ .env.example..."
+    Write-Host "Copying .env.example -> .env" -ForegroundColor Yellow
     Copy-Item ".env.example" ".env"
 }
 
-# 2. Build compose command
-$ComposeFiles = @("-f", "infra/docker-compose.yml")
-if ($Bi) {
-    $ComposeFiles += @("-f", "infra/docker-compose.bi.yml")
-    Write-Host "[INFO] Bật BI overlay (Metabase)..."
-}
-
-# 3. Khởi động Docker stack
-Write-Host "[INFO] Đang khởi động Docker Compose..."
-& docker compose @ComposeFiles --env-file .env up -d
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[FAIL] docker compose up gặp lỗi." -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
-# 4. Đợi healthy nếu -Wait
-if ($Wait) {
-    Write-Host "[INFO] Đợi tất cả service healthy (tối đa 180s)..."
-    $healthy = $false
-    for ($i = 1; $i -le 36; $i++) {
-        $running = & docker ps --filter "label=com.docker.compose.project=infra" --filter "health=healthy" --format "{{.Names}}" 2>$null
-        $expected = if ($Bi) { 6 } else { 5 }
-        if (($running | Measure-Object -Line).Lines -ge $expected) {
-            Write-Host "[OK] Tất cả service healthy sau $($i * 5)s"
-            $healthy = $true
-            break
-        }
-        Start-Sleep -Seconds 5
-    }
-    if (-not $healthy) {
-        Write-Host "[WARN] Timeout 180s. Một số service có thể chưa ready." -ForegroundColor Yellow
-    }
-}
-
-# 5. Pre-create Kafka topics (idempotent)
-Write-Host "[INFO] Đảm bảo Kafka topics cho 4 pillar..."
-& powershell -ExecutionPolicy Bypass -File "scripts/create_kafka_topics.ps1"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[WARN] Không tạo được topic tự động. Chạy 'scripts/create_kafka_topics.ps1' sau khi Kafka ready." -ForegroundColor Yellow
-}
+& docker compose -f infra/docker-compose.yml --env-file .env up -d
+if ($LASTEXITCODE -ne 0) { Write-Host "docker compose up failed" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "[OK] Stack đã khởi động."
+Write-Host "Waiting for services (max 60s)..." -ForegroundColor Cyan
+$ready = $false
+for ($i = 1; $i -le 12; $i++) {
+    $kafkaOk = $true; $srOk = $true
+    try { docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>$null | Out-Null } catch { $kafkaOk = $false }
+    try { $r = Invoke-WebRequest -Uri "http://localhost:8081/subjects" -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -ne 200) { $srOk = $false } } catch { $srOk = $false }
+    if ($kafkaOk -and $srOk) { Write-Host "  Ready after $($i * 5)s" -ForegroundColor Green; $ready = $true; break }
+    Start-Sleep -Seconds 5
+}
+if (-not $ready) { Write-Host "  [WARN] Timeout — check: docker compose -f infra/docker-compose.yml ps" -ForegroundColor Yellow }
+
 Write-Host ""
-Write-Host "URLs:"
-Write-Host "  - Flink UI    : http://localhost:8081"
-if ($Bi) { Write-Host "  - Metabase    : http://localhost:3000" }
-Write-Host "  - PostgreSQL  : localhost:5432  (user=postgres, db=fuel_prices)"
-Write-Host "  - Kafka       : localhost:9092"
+Write-Host "Creating topic + registering schema..." -ForegroundColor Cyan
+& bash scripts/create_topic.sh
+& bash scripts/register_schemas.sh
+
 Write-Host ""
-Write-Host "Tiếp theo:"
-Write-Host "  .\scripts\healthcheck.ps1    # verify stack health"
-Write-Host "  .\scripts\stop.ps1           # dừng stack (giữ data)"
-Write-Host "  .\scripts\stop.ps1 -Volumes  # dừng + xóa data"
+Write-Host "=== Ready ===" -ForegroundColor Green
+Write-Host "  Kafka:           localhost:9092"
+Write-Host "  Schema Registry: localhost:8081"
+Write-Host ""
+Write-Host "Next: bash scripts/fetch_f1_session.sh  |  bash scripts/replay.sh  |  bash scripts/run_flink.sh"

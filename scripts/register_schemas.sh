@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
-# register_schemas.sh — Register Avro schemas to local Schema Registry
+# register_schemas.sh — Register Avro schema to local Schema Registry
 # Usage: bash scripts/register_schemas.sh
 set -euo pipefail
 
 SR_URL="${SCHEMA_REGISTRY_URL:-http://localhost:8081}"
-SCHEMA_DIR="data-generators/f1-replay-engine/src/main/avro"
+SCHEMA_FILE="data-generators/f1-replay-engine/src/main/avro/car-telemetry-event.avsc"
 
 echo "Schema Registry: ${SR_URL}"
 
-# Check Schema Registry is up
 if ! curl -sf "${SR_URL}/subjects" > /dev/null 2>&1; then
   echo "ERROR: Schema Registry not reachable at ${SR_URL}"
-  echo "Start it first: docker compose -f infra/docker-compose.yml up -d"
+  echo "Start it: docker compose -f infra/docker-compose.yml up -d"
   exit 1
 fi
 
-# Register car-telemetry-event (subject: car-telemetry-events-value)
 echo "Registering car-telemetry-events-value..."
-SCHEMA=$(cat "${SCHEMA_DIR}/car-telemetry-event.avsc")
+SCHEMA=$(cat "${SCHEMA_FILE}")
+PAYLOAD=$(printf '{"schemaType":"AVRO","schema":%s}' \
+  "$(echo "$SCHEMA" | /c/Users/ADMIN/AppData/Local/Programs/Python/Python313/python.exe -c 'import sys,json;print(json.dumps(sys.stdin.read()))')")
+
 RESPONSE=$(curl -s -X POST "${SR_URL}/subjects/car-telemetry-events-value/versions" \
   -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  -d "{\"schemaType\":\"AVRO\",\"schema\":$(echo "$SCHEMA" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')}")
+  -d "$PAYLOAD")
 echo "  Response: ${RESPONSE}"
 
 echo ""
 echo "Registered subjects:"
-curl -s "${SR_URL}/subjects" | python3 -m json.tool 2>/dev/null || curl -s "${SR_URL}/subjects"
+curl -s "${SR_URL}/subjects"

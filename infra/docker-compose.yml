@@ -1,22 +1,11 @@
 # =============================================================
-#  F1 Live Telemetry Streaming Platform — Docker Compose
-#  Memory budget: ~1.8 GB containers + ~2 GB Docker overhead = ~3.8 GB
-#    Kafka KRaft         768 MB
-#    Schema Registry      512 MB
-#    ClickHouse            512 MB
-#  Flink runs in-process (IDE/Maven), not in Docker.
-#  Grafana uses Grafana Cloud (free tier), not local container.
-#
-#  Run:
-#    docker compose -f infra/docker-compose.yml up -d
-#  Stop:
-#    docker compose -f infra/docker-compose.yml down
+#  F1 Live Telemetry — Docker Compose (local engines only)
+#  Kafka KRaft + Schema Registry. ClickHouse & Grafana are Cloud.
+#  Memory: Kafka 768MB + Schema Registry 512MB = ~1.3GB + Docker overhead ~2GB
+#  Run: docker compose -f infra/docker-compose.yml up -d
 # =============================================================
 
 services:
-  # ═══════════════════════════════════════════════════════
-  # KAFKA KRAFT — Broker + Controller, no Zookeeper (768 MB)
-  # ═══════════════════════════════════════════════════════
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: kafka
@@ -50,9 +39,6 @@ services:
       timeout: 10s
       retries: 10
 
-  # ═══════════════════════════════════════════════════════
-  # SCHEMA REGISTRY — Avro schema management (512 MB)
-  # ═══════════════════════════════════════════════════════
   schema-registry:
     image: confluentinc/cp-schema-registry:7.6.0
     container_name: schema-registry
@@ -76,57 +62,8 @@ services:
       timeout: 10s
       retries: 10
 
-  # ═══════════════════════════════════════════════════════
-  # CLICKHOUSE — OLAP serving layer (512 MB)
-  # ═══════════════════════════════════════════════════════
-  clickhouse:
-    image: clickhouse/clickhouse-server:24.3
-    container_name: clickhouse
-    ports:
-      - "8123:8123"
-      - "9000:9000"
-    volumes:
-      - ./clickhouse/init:/docker-entrypoint-initdb.d
-      - clickhouse_data:/var/lib/clickhouse
-    networks:
-      - f1_network
-    mem_limit: 512m
-    mem_reservation: 256m
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-
-  # ═══════════════════════════════════════════════════════
-  # GRAFANA (Optional — Local Development Only)
-  # For production, use Grafana Cloud (free tier)
-  # Uncomment below to run Grafana locally
-  # ═══════════════════════════════════════════════════════
-  # grafana:
-  #   image: grafana/grafana:11.1.0
-  #   container_name: grafana
-  #   depends_on:
-  #     clickhouse:
-  #       condition: service_healthy
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin
-  #   volumes:
-  #     - ./grafana/provisioning:/etc/grafana/provisioning
-  #     - ./grafana/dashboards:/var/lib/grafana/dashboards
-  #     - grafana_data:/var/lib/grafana
-  #   networks:
-  #     - f1_network
-  #   mem_limit: 512m
-  #   mem_reservation: 256m
-
 volumes:
   kafka_data:
-  clickhouse_data:
-  # grafana_data:  # Uncomment if using local Grafana
 
 networks:
   f1_network:

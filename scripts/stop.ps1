@@ -1,28 +1,16 @@
-# =============================================================
-#  VES Stop Script (Windows PowerShell)
-#
-#  Usage:
-#    .\scripts\stop.ps1             # Dừng stack, giữ volume
-#    .\scripts\stop.ps1 -Volumes    # Dừng + xóa volume (data sẽ mất)
-# =============================================================
+# stop.ps1 — Stop local infrastructure (PowerShell)
+# Usage: powershell -File scripts\stop.ps1 [-Volumes]
 param([switch]$Volumes)
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-Set-Location $RepoRoot
-
-# Auto-detect: nếu Metabase đang chạy → cũng dừng BI overlay
-$ComposeFiles = @("-f", "infra/docker-compose.yml")
-$metabaseRunning = & docker ps --filter "name=metabase" --format "{{.Names}}" 2>$null
-if ($metabaseRunning -match "metabase") {
-    $ComposeFiles += @("-f", "infra/docker-compose.bi.yml")
-}
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Set-Location $repoRoot
 
 if ($Volumes) {
-    Write-Host "[WARN] Đang dừng stack VÀ xóa volume (data sẽ mất)..."
-    & docker compose @ComposeFiles down -v
+    Write-Host "Stopping + wiping volumes..." -ForegroundColor Yellow
+    & docker compose -f infra/docker-compose.yml down -v
 } else {
-    Write-Host "[INFO] Đang dừng stack (data được giữ trong volume)..."
-    & docker compose @ComposeFiles down
+    Write-Host "Stopping (volumes preserved)..." -ForegroundColor Cyan
+    & docker compose -f infra/docker-compose.yml down
 }
-Write-Host "[OK] Stack đã dừng."
+Write-Host "Stopped." -ForegroundColor Green
