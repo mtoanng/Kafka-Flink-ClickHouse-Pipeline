@@ -65,6 +65,13 @@
             <classifier>http</classifier>
         </dependency>
 
+        <!-- Redis connector for Flink (leaderboard cache) -->
+        <dependency>
+            <groupId>org.apache.bahir</groupId>
+            <artifactId>flink-connector-redis_2.12</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>

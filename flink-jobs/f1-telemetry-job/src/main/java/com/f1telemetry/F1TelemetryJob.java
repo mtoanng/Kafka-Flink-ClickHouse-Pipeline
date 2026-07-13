@@ -2,7 +2,10 @@ package com.f1telemetry;
 
 import com.f1telemetry.avro.CarTelemetryEvent;
 import com.f1telemetry.sink.ClickHouseSink;
+import com.f1telemetry.sink.RedisLeaderboardMapper;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
@@ -10,6 +13,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.connectors.redis.RedisSink;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,14 +51,28 @@ public class F1TelemetryJob {
         String chDb = env("CLICKHOUSE_DATABASE", "f1_telemetry");
         String chJdbcUrl = String.format("jdbc:ch://%s:%s/%s?ssl=true", chHost, chPort, chDb);
 
+        // Redis (leaderboard cache)
+        String redisHost = env("REDIS_HOST", "localhost");
+        int redisPort = Integer.parseInt(env("REDIS_PORT", "6379"));
+
         LOG.info("=== F1 Telemetry Flink Job ===");
         LOG.info("Kafka={} | SR={} | topic={}", bootstrap, srUrl, topic);
         LOG.info("ClickHouse: {}:{} (user={})", chHost, chPort, chUser);
+        LOG.info("Redis: {}:{}", redisHost, redisPort);
 
-        // ── Execution environment ────────────────────────────
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // ── Execution environment (with Web UI) ──────────────
+        String flinkWebPort = env("FLINK_WEB_UI_PORT", "8082");
+        Configuration conf = new Configuration();
+        conf.set(RestOptions.BIND_PORT, flinkWebPort);
+        conf.setString(RestOptions.ADDRESS, "localhost");
+        
+        StreamExecutionEnvironment env = 
+            StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
+        
         env.enableCheckpointing(30000); // 30s
         env.setParallelism(1);          // dev/demo
+        
+        LOG.info("Flink Web UI: http://localhost:{}", flinkWebPort);
 
         // ── Kafka source (Avro via Schema Registry) ──────────
         KafkaSource<CarTelemetryEvent> source = KafkaSource.<CarTelemetryEvent>builder()
@@ -86,6 +105,23 @@ public class F1TelemetryJob {
                 .name("rollup-10s")
                 .addSink(new ClickHouseSink.RollupSink(chJdbcUrl, chUser, chPass))
                 .name("clickhouse-rollup-sink");
+
+        // ── Sink 3: Max speed tracker → Redis leaderboard ────
+        FlinkJedisPoolConfig redisConfig = new FlinkJedisPoolConfig.Builder()
+                .setHost(redisHost)
+                .setPort(redisPort)
+                .setTimeout(2000)
+                .setMaxTotal(8)
+                .setMaxIdle(8)
+                .setMinIdle(1)
+                .build();
+
+        telemetry
+                .keyBy(CarTelemetryEvent::getDriverNumber)
+                .process(new MaxSpeedTracker())
+                .name("max-speed-tracker")
+                .addSink(new RedisSink<>(redisConfig, new RedisLeaderboardMapper()))
+                .name("redis-leaderboard-sink");
 
         env.execute("F1 Live Telemetry Pipeline");
     }
