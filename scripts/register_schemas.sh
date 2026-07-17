@@ -17,7 +17,7 @@ fi
 echo "Registering car-telemetry-events-value..."
 SCHEMA=$(cat "${SCHEMA_FILE}")
 PAYLOAD=$(printf '{"schemaType":"AVRO","schema":%s}' \
-  "$(echo "$SCHEMA" | /c/Users/ADMIN/AppData/Local/Programs/Python/Python313/python.exe -c 'import sys,json;print(json.dumps(sys.stdin.read()))')")
+  "$(echo "$SCHEMA" | python -c 'import sys,json;print(json.dumps(sys.stdin.read()))')")
 
 RESPONSE=$(curl -s -X POST "${SR_URL}/subjects/car-telemetry-events-value/versions" \
   -H "Content-Type: application/vnd.schemaregistry.v1+json" \
