@@ -623,36 +623,7 @@ Should show 3 partitions, replication factor 1.
 
 ## 🔧 PHASE 6: PROJECT BUILD & CONFIGURATION
 
-### Step 6.1: Fix Python Path in Script ⏱️ 2 mins
-
-**Open file**: `scripts/register_schemas.sh`
-
-**Find line** (~line 18):
-```bash
-/c/Users/ADMIN/AppData/Local/Programs/Python/Python313/python.exe
-```
-
-**Replace with**:
-```bash
-python3
-```
-
-**OR use this PowerShell command to auto-fix**:
-```powershell
-$file = "scripts\register_schemas.sh"
-$content = Get-Content $file -Raw
-$content = $content -replace '/c/Users/ADMIN/AppData/Local/Programs/Python/Python313/python.exe', 'python3'
-Set-Content $file $content -NoNewline
-```
-
-**Verify fix**:
-```bash
-cat scripts/register_schemas.sh | grep python
-```
-
----
-
-### Step 6.2: Build Maven Project ⏱️ 10 mins
+### Step 6.1: Build Maven Project ⏱️ 10 mins
 
 **Clean build**:
 ```bash
@@ -685,7 +656,7 @@ flink-jobs/f1-telemetry-job/target/f1-telemetry-job-1.0.0-SNAPSHOT.jar
 
 ---
 
-### Step 6.3: Register Avro Schema ⏱️ 2 mins
+### Step 6.2: Register Avro Schema ⏱️ 2 mins
 
 **Using Git Bash**:
 ```bash
@@ -716,7 +687,7 @@ curl http://localhost:8081/subjects/car-telemetry-events-value/versions/1
 
 ---
 
-### Step 6.4: Create .env File ⏱️ 3 mins
+### Step 6.3: Create .env File ⏱️ 3 mins
 
 **Copy template**:
 ```bash

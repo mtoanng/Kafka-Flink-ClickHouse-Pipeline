@@ -59,7 +59,7 @@ public class ClickHouseSinkFactory {
         @Override
         public List<ColumnBinding> bindings() {
             return List.of(
-                    ColumnBinding.of("event_time", "event_time", ClickHouseColumn.of("event_time", "DateTime64(3)")),
+                    ColumnBinding.dateTime64("event_time", "event_time", 3),
                     ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
                     ColumnBinding.of("speed", "speed", ClickHouseColumn.of("speed", "Float32")),
                     ColumnBinding.of("throttle", "throttle", ClickHouseColumn.of("throttle", "Nullable(Float32)")),
@@ -85,7 +85,7 @@ public class ClickHouseSinkFactory {
         @Override
         public List<ColumnBinding> bindings() {
             return List.of(
-                    ColumnBinding.of("window_start", "window_start", ClickHouseColumn.of("window_start", "DateTime64(3)")),
+                    ColumnBinding.dateTime64("window_start", "window_start", 3),
                     ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
                     ColumnBinding.of("avg_speed", "avg_speed", ClickHouseColumn.of("avg_speed", "Float32")),
                     ColumnBinding.of("max_speed", "max_speed", ClickHouseColumn.of("max_speed", "Float32")),
