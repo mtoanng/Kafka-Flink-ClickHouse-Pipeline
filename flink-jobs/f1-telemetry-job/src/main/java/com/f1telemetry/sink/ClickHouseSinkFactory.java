@@ -1,14 +1,18 @@
 package com.f1telemetry.sink;
 
 import com.clickhouse.data.ClickHouseFormat;
+import com.clickhouse.data.ClickHouseColumn;
 import org.apache.flink.connector.clickhouse.sink.ClickHouseAsyncSink;
 import org.apache.flink.connector.clickhouse.sink.ClickHouseAsyncSinkBuilder;
 import org.apache.flink.connector.clickhouse.sink.ClickHouseClientConfig;
 import org.apache.flink.connector.clickhouse.convertor.ClickHouseConvertor;
+import org.apache.flink.connector.clickhouse.convertor.ColumnBinding;
+import org.apache.flink.connector.clickhouse.convertor.DataMapper;
 import com.f1telemetry.avro.CarTelemetryEvent;
 import com.f1telemetry.model.TelemetryRollup;
 import org.apache.flink.api.connector.sink2.Sink;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +42,58 @@ public class ClickHouseSinkFactory {
     private static final long   ROLLUP_MAX_BATCH_BYTES       = 5_242_880L; // 5 MB
     private static final long   ROLLUP_MAX_TIME_IN_BUFFER_MS = 10_000L;
     private static final long   ROLLUP_MAX_RECORD_SIZE_BYTES = 524_288L;   // 512 KB
+
+    private static final DataMapper<CarTelemetryEvent> RAW_EVENT_MAPPER = new DataMapper<>() {
+        @Override
+        public void toMap(CarTelemetryEvent event, Map<String, Object> values) {
+            values.put("event_time", event.getEventTime());
+            values.put("driver_number", event.getDriverNumber());
+            values.put("speed", event.getSpeed());
+            values.put("throttle", event.getThrottle());
+            values.put("brake", event.getBrake());
+            values.put("rpm", event.getRpm());
+            values.put("gear", event.getGear());
+            values.put("drs", event.getDrs());
+        }
+
+        @Override
+        public List<ColumnBinding> bindings() {
+            return List.of(
+                    ColumnBinding.of("event_time", "event_time", ClickHouseColumn.of("event_time", "DateTime64(3)")),
+                    ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
+                    ColumnBinding.of("speed", "speed", ClickHouseColumn.of("speed", "Float32")),
+                    ColumnBinding.of("throttle", "throttle", ClickHouseColumn.of("throttle", "Nullable(Float32)")),
+                    ColumnBinding.of("brake", "brake", ClickHouseColumn.of("brake", "Nullable(Float32)")),
+                    ColumnBinding.of("rpm", "rpm", ClickHouseColumn.of("rpm", "Nullable(UInt16)")),
+                    ColumnBinding.of("gear", "gear", ClickHouseColumn.of("gear", "Nullable(UInt8)")),
+                    ColumnBinding.of("drs", "drs", ClickHouseColumn.of("drs", "Nullable(UInt8)")));
+        }
+    };
+
+    private static final DataMapper<TelemetryRollup> ROLLUP_MAPPER = new DataMapper<>() {
+        @Override
+        public void toMap(TelemetryRollup rollup, Map<String, Object> values) {
+            values.put("window_start", rollup.window_start);
+            values.put("driver_number", rollup.driver_number);
+            values.put("avg_speed", rollup.avg_speed);
+            values.put("max_speed", rollup.max_speed);
+            values.put("avg_throttle", rollup.avg_throttle);
+            values.put("hard_brake_count", rollup.hard_brake_count);
+            values.put("sample_count", rollup.sample_count);
+        }
+
+        @Override
+        public List<ColumnBinding> bindings() {
+            return List.of(
+                    ColumnBinding.of("window_start", "window_start", ClickHouseColumn.of("window_start", "DateTime64(3)")),
+                    ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
+                    ColumnBinding.of("avg_speed", "avg_speed", ClickHouseColumn.of("avg_speed", "Float32")),
+                    ColumnBinding.of("max_speed", "max_speed", ClickHouseColumn.of("max_speed", "Float32")),
+                    ColumnBinding.of("avg_throttle", "avg_throttle", ClickHouseColumn.of("avg_throttle", "Float32")),
+                    ColumnBinding.of("hard_brake_count", "hard_brake_count", ClickHouseColumn.of("hard_brake_count", "UInt16")),
+                    ColumnBinding.of("sample_count", "sample_count", ClickHouseColumn.of("sample_count", "UInt32")));
+        }
+    };
 
     // -------------------------------------------------------------------------
     // Raw telemetry sink
@@ -73,7 +129,7 @@ public class ClickHouseSinkFactory {
         
         return ClickHouseAsyncSink.<CarTelemetryEvent>builder()
             .setClickHouseClientConfig(config)
-            .setElementConverter(new ClickHouseConvertor<>(CarTelemetryEvent.class))
+            .setElementConverter(new ClickHouseConvertor<>(CarTelemetryEvent.class, RAW_EVENT_MAPPER))
             .setMaxBatchSize(RAW_MAX_BATCH_SIZE)
             .setMaxInFlightRequests(RAW_MAX_IN_FLIGHT)
             .setMaxBufferedRequests(RAW_MAX_BUFFERED)
@@ -111,7 +167,7 @@ public class ClickHouseSinkFactory {
         
         return ClickHouseAsyncSink.<TelemetryRollup>builder()
             .setClickHouseClientConfig(config)
-            .setElementConverter(new ClickHouseConvertor<>(TelemetryRollup.class))
+            .setElementConverter(new ClickHouseConvertor<>(TelemetryRollup.class, ROLLUP_MAPPER))
             .setMaxBatchSize(ROLLUP_MAX_BATCH_SIZE)
             .setMaxInFlightRequests(ROLLUP_MAX_IN_FLIGHT)
             .setMaxBufferedRequests(ROLLUP_MAX_BUFFERED)

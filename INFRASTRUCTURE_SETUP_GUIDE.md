@@ -25,33 +25,33 @@
 
 ### Architecture Diagram
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        YOUR WINDOWS PC                          │
-│                                                                 │
-│  ┌──────────────┐    ┌─────────────┐    ┌─────────────────┐  │
-│  │   Dataset    │ →  │   Replay    │ →  │  Kafka KRaft    │  │
-│  │ TracingInsights│    │   Engine    │    │ + Schema Reg   │  │
-│  │   (150MB)    │    │   (Java)    │    │   (Docker)      │  │
-│  └──────────────┘    └─────────────┘    └────────┬────────┘  │
-│                                                    │            │
-│                                          ┌─────────▼────────┐  │
+┌────────────────────────────────────────────────────────────────┐
+│                        YOUR WINDOWS PC                         │
+│                                                                │
+│  ┌───────────────┐    ┌─────────────┐    ┌─────────────────┐   │
+│  │   Dataset     │ →  │   Replay    │ →  │  Kafka KRaft    │   │
+│  │TracingInsights│    │   Engine    │    │ + Schema Reg    │   │
+│  │   (150MB)     │    │   (Java)    │    │   (Docker)      │   │
+│  └───────────────┘    └─────────────┘    └────────┬────────┘   │
+│                                                   │            │
+│                                          ┌────────▼─────────┐  │
 │                                          │   Flink Job      │  │
 │                                          │  (DataStream)    │  │
 │                                          └────────┬─────────┘  │
-└──────────────────────────────────────────────────┼─────────────┘
+└───────────────────────────────────────────────────┼────────────┘
                                                     │
-                    ┌───────────────────────────────┼───────────────┐
-                    │                               │               │
-                    │            INTERNET           │               │
-                    │                               │               │
-         ┌──────────▼──────────┐       ┌───────────▼──────────┐   │
+                    ┌───────────────────────────────┼─────────────┐
+                    │                               │             │
+                    │            INTERNET           │             │
+                    │                               │             │
+         ┌──────────▼──────────┐       ┌────────────▼─────────┐   │
          │  ClickHouse Cloud   │       │   Grafana Cloud      │   │
          │  (OLAP Database)    │ ◄─────┤  (Visualization)     │   │
          │  - raw_telemetry    │       │  - Live Dashboard    │   │
          │  - rollup_10s       │       │  - Real-time charts  │   │
          └─────────────────────┘       └──────────────────────┘   │
-                                                                    │
-└────────────────────────────────────────────────────────────────┘
+                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### What We'll Setup
@@ -525,39 +525,36 @@ docker ps
 
 ### Step 5.2: Navigate to Project Directory ⏱️ 1 min
 
-```powershell
-cd c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres
+```bash
+cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
 ```
 
 ---
 
 ### Step 5.3: Start Kafka + Schema Registry ⏱️ 5 mins
 
-**Start services**:
-```powershell
-docker compose -f infra/docker-compose.yml up -d
+**Start services from Git Bash**:
+```bash
+bash scripts/run.sh
 ```
 
 **Expected output**:
 ```
-[+] Running 3/3
- ✔ Network f1_network            Created
- ✔ Container kafka               Started
- ✔ Container schema-registry     Started
+Starting Kafka KRaft + Schema Registry...
+   Services ready after 15s
+   Creating Kafka topic...
+   Topic created. Verify:
+   Registering Avro schema...
+   Registered subjects:
+   === Infrastructure ready ===
 ```
 
-**Wait for services to be healthy** (~30 seconds):
-```powershell
-# Check status every 10 seconds
+**Verify in another terminal**:
+```bash
 docker compose -f infra/docker-compose.yml ps
-
-# Wait until both show "healthy"
 ```
 
-**Alternative: Use PowerShell script**:
-```powershell
-.\scripts\run.ps1
-```
+**Note**: `bash scripts/run.sh` already starts Kafka, waits for health, creates the topic, and registers the Avro schema. Do not run `create_topic.sh` or `register_schemas.sh` separately unless you need to repair one of those steps.
 
 ---
 
@@ -582,14 +579,14 @@ Look for: `[KafkaServer id=1] started` (SUCCESS)
 ### Step 5.5: Verify Schema Registry ⏱️ 2 mins
 
 **Test HTTP endpoint**:
-```powershell
+```bash
 curl http://localhost:8081/subjects
 ```
 
 **Expected output**: `[]` (empty array - no schemas registered yet)
 
 **Check logs**:
-```powershell
+```bash
 docker logs schema-registry --tail 50
 ```
 
@@ -599,33 +596,25 @@ Look for: `Server started, listening for requests` (SUCCESS)
 
 ### Step 5.6: Create Kafka Topic ⏱️ 2 mins
 
-**Using Git Bash**:
+**Only if you need to recreate the topic manually**:
 ```bash
 bash scripts/create_topic.sh
 ```
 
-**OR using PowerShell directly**:
-```powershell
-docker exec kafka kafka-topics --create `
-  --bootstrap-server localhost:9092 `
-  --topic car-telemetry-events `
-  --partitions 3 `
-  --replication-factor 1 `
-  --if-not-exists
-```
+If you already ran `bash scripts/run.sh`, this step is optional because the topic has already been created.
 
 **Verify topic created**:
-```powershell
+```bash
 docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
 
 **Expected output**: `car-telemetry-events`
 
 **Describe topic**:
-```powershell
-docker exec kafka kafka-topics --describe `
-  --bootstrap-server localhost:9092 `
-  --topic car-telemetry-events
+```bash
+docker exec kafka kafka-topics --describe \
+   --bootstrap-server localhost:9092 \
+   --topic car-telemetry-events
 ```
 
 Should show 3 partitions, replication factor 1.
@@ -666,7 +655,7 @@ cat scripts/register_schemas.sh | grep python
 ### Step 6.2: Build Maven Project ⏱️ 10 mins
 
 **Clean build**:
-```powershell
+```bash
 mvn clean package -DskipTests
 ```
 
@@ -714,7 +703,7 @@ Registered subjects:
 ```
 
 **Verify**:
-```powershell
+```bash
 curl http://localhost:8081/subjects
 # Output: ["car-telemetry-events-value"]
 
@@ -730,8 +719,8 @@ curl http://localhost:8081/subjects/car-telemetry-events-value/versions/1
 ### Step 6.4: Create .env File ⏱️ 3 mins
 
 **Copy template**:
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 ```
 
 **Edit .env file**:
@@ -871,25 +860,7 @@ source .env
 echo $CLICKHOUSE_HOST  # Should print your host
 ```
 
-**For PowerShell** (when running mvn exec:java):
-```powershell
-# Load .env manually (PowerShell doesn't auto-load)
-Get-Content .env | ForEach-Object {
-    if ($_ -match '^([^=]+)=(.+)$') {
-        [Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
-    }
-}
-
-# Verify
-$env:CLICKHOUSE_HOST
-```
-
-**OR install dotenv module**:
-```powershell
-Install-Module -Name PSdotenv -Scope CurrentUser
-Import-Module PSdotenv
-Set-PsEnv
-```
+**Tip**: Keep all run commands in Git Bash so the same environment is used for replay, schema registration, and Flink.
 
 ---
 
@@ -910,12 +881,6 @@ Set-PsEnv
 ```bash
 cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
 bash scripts/replay.sh
-```
-
-**OR using Maven directly** (PowerShell):
-```powershell
-cd data-generators\f1-replay-engine
-mvn exec:java
 ```
 
 **Expected output** (first 30 seconds):
@@ -942,12 +907,6 @@ INFO  Published 2000 events | driver=44 speed=312km/h
 ```bash
 cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
 bash scripts/run_flink.sh
-```
-
-**OR using Maven** (PowerShell):
-```powershell
-cd flink-jobs\f1-telemetry-job
-mvn exec:java
 ```
 
 **Expected output**:
@@ -1225,7 +1184,7 @@ curl "https://YOUR_HOST.aws.clickhouse.cloud:8443/?query=SELECT+1" `
 **Symptom**: `Unknown magic byte` or `Could not find schema`
 
 **Solution**:
-```powershell
+```bash
 # 1. Verify Schema Registry is accessible
 curl http://localhost:8081/subjects
 
@@ -1236,9 +1195,9 @@ curl http://localhost:8081/subjects/car-telemetry-events-value/versions
 bash scripts/register_schemas.sh
 
 # 4. Restart Flink job
-# Ctrl+C in Terminal 2, then restart
-cd flink-jobs\f1-telemetry-job
-mvn exec:java
+# Ctrl+C in Terminal 2, then restart with Git Bash
+cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+bash scripts/run_flink.sh
 ```
 
 ---
@@ -1297,11 +1256,11 @@ FROM f1_telemetry.raw_telemetry;
 **Symptom**: Flink job crashes with `java.lang.OutOfMemoryError`
 
 **Solution**:
-```powershell
+```bash
 # Increase JVM heap when running Flink
-$env:MAVEN_OPTS="-Xms1G -Xmx2G"
-cd flink-jobs\f1-telemetry-job
-mvn exec:java
+export MAVEN_OPTS="-Xms1G -Xmx2G"
+cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+bash scripts/run_flink.sh
 ```
 
 ---
@@ -1311,9 +1270,9 @@ mvn exec:java
 **Symptom**: Data ingestion rate not matching expected throughput
 
 **Solution**:
-```powershell
+```bash
 # Adjust replay speed in .env
-notepad .env
+code .env || notepad .env
 
 # Change this line:
 REPLAY_SPEED_FACTOR=5   # Try 1 (realtime), 10, or 20

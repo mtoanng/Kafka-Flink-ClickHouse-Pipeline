@@ -15,6 +15,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.*;
 
@@ -56,11 +57,11 @@ public class F1ReplayEngine {
     private static final String SCHEMA_REGISTRY_URL = env("SCHEMA_REGISTRY_URL", "http://localhost:8081");
     private static final String TOPIC = env("KAFKA_TOPIC", "car-telemetry-events");
     private static final int REPLAY_SPEED = Integer.parseInt(env("REPLAY_SPEED_FACTOR", "5"));
-    private static final String DATASET_PATH = env("F1_DATASET_PATH",
-            "data-generators/f1-replay-engine/src/main/resources/datasets");
+    private static final String DATASET_PATH = env("F1_DATASET_PATH", "src/main/resources/datasets");
 
     private final KafkaProducer<Integer, CarTelemetryEvent> producer;
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Path datasetRoot = resolveDatasetRoot();
 
     public F1ReplayEngine() {
         Properties props = new Properties();
@@ -110,7 +111,7 @@ public class F1ReplayEngine {
     // ── Load drivers.json → Map(driverCode, driverNumber) ───
 
     private Map<String, Integer> loadDriverNumbers() throws Exception {
-        Path file = Paths.get(DATASET_PATH, "drivers.json");
+        Path file = datasetRoot.resolve("drivers.json");
         if (!Files.exists(file)) {
             throw new IllegalStateException("drivers.json not found: " + file);
         }
@@ -129,7 +130,7 @@ public class F1ReplayEngine {
     //    Parses COLUMN-ORIENTED dict: drv[], lap[], lSD[]
 
     private Map<String, Map<Integer, Long>> loadLapStartTimes() throws Exception {
-        Path file = Paths.get(DATASET_PATH, "session_laptimes.json");
+        Path file = datasetRoot.resolve("session_laptimes.json");
         if (!Files.exists(file)) {
             throw new IllegalStateException("session_laptimes.json not found: " + file);
         }
@@ -169,7 +170,7 @@ public class F1ReplayEngine {
             Map<String, Map<Integer, Long>> lapStarts) throws Exception {
 
         List<CarTelemetryEvent> events = new ArrayList<>();
-        Path racePath = Paths.get(DATASET_PATH);
+        Path racePath = datasetRoot;
 
         if (!Files.exists(racePath)) {
             throw new IllegalStateException("Dataset path not found: " + racePath);
@@ -299,6 +300,33 @@ public class F1ReplayEngine {
     private static String env(String key, String def) {
         String v = System.getenv(key);
         return v != null ? v : def;
+    }
+
+    private Path resolveDatasetRoot() {
+        List<Path> candidates = List.of(
+                Paths.get(DATASET_PATH),
+                Paths.get("src/main/resources/datasets"),
+                Paths.get("../src/main/resources/datasets"),
+                Paths.get("data-generators/f1-replay-engine/src/main/resources/datasets"),
+                Paths.get("../data-generators/f1-replay-engine/src/main/resources/datasets")
+        );
+
+        for (Path candidate : candidates) {
+            if (Files.exists(candidate)) {
+                return candidate.toAbsolutePath().normalize();
+            }
+        }
+
+        try {
+            var resourceUrl = F1ReplayEngine.class.getClassLoader().getResource("datasets");
+            if (resourceUrl != null && "file".equals(resourceUrl.getProtocol())) {
+                return Paths.get(resourceUrl.toURI()).toAbsolutePath().normalize();
+            }
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("Invalid datasets resource URI", e);
+        }
+
+        throw new IllegalStateException("Dataset path not found. Tried: " + candidates);
     }
 
     public static void main(String[] args) {
