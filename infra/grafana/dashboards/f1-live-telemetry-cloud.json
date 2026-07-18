@@ -1,0 +1,183 @@
+{
+  "title": "F1 Live Telemetry",
+  "uid": "f1-live-telemetry",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "driver",
+        "type": "query",
+        "label": "Driver",
+        "description": "Select driver(s) to display",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "cfse2r8sikj5se"
+        },
+        "query": "SELECT DISTINCT driver_number FROM f1_telemetry.raw_telemetry ORDER BY driver_number",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Live Speed (Selected Drivers)",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "cfse2r8sikj5se"},
+          "rawSql": "SELECT driver_number, argMax(speed, event_time) as current_speed FROM f1_telemetry.raw_telemetry WHERE driver_number IN ($driver) AND event_time >= now() - INTERVAL 30 SECOND GROUP BY driver_number",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitykmh",
+          "min": 0,
+          "max": 350,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 200, "color": "yellow"},
+              {"value": 300, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "10s Rollup: Avg/Max Speed by Driver",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "cfse2r8sikj5se"},
+          "rawSql": "SELECT window_start as time, driver_number, avg_speed, max_speed FROM f1_telemetry.rollup_10s WHERE driver_number IN ($driver) AND $__timeFilter(window_start) ORDER BY window_start",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitykmh"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Driver ${__field.labels.driver_number}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Top Speed (Selected Drivers)",
+      "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "cfse2r8sikj5se"},
+          "rawSql": "SELECT max(speed) as top_speed FROM f1_telemetry.raw_telemetry WHERE driver_number IN ($driver)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitykmh",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "blue"},
+              {"value": 300, "color": "green"},
+              {"value": 330, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Throttle/Brake/RPM (Selected Drivers)",
+      "gridPos": {"x": 6, "y": 8, "w": 18, "h": 8},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "cfse2r8sikj5se"},
+          "rawSql": "SELECT event_time as time, driver_number, throttle, brake, rpm FROM f1_telemetry.raw_telemetry WHERE driver_number IN ($driver) AND $__timeFilter(event_time) ORDER BY event_time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "rpm"},
+            "properties": [{"id": "unit", "value": "rotrpm"}]
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Driver Statistics",
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 6},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "cfse2r8sikj5se"},
+          "rawSql": "SELECT driver_number, round(avg(speed), 2) as avg_speed, round(max(speed), 2) as max_speed, count(*) as sample_count FROM f1_telemetry.raw_telemetry WHERE driver_number IN ($driver) AND $__timeFilter(event_time) GROUP BY driver_number ORDER BY max_speed DESC",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "avg_speed"},
+            "properties": [
+              {"id": "displayName", "value": "Avg Speed (km/h)"},
+              {"id": "unit", "value": "velocitykmh"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "max_speed"},
+            "properties": [
+              {"id": "displayName", "value": "Max Speed (km/h)"},
+              {"id": "unit", "value": "velocitykmh"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "sample_count"},
+            "properties": [
+              {"id": "displayName", "value": "Total Samples"}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

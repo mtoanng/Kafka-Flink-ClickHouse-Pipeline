@@ -20,5 +20,12 @@ echo "  Kafka: ${KAFKA_BOOTSTRAP_SERVERS}"
 echo "  ClickHouse: ${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}"
 echo ""
 
-mvn -pl flink-jobs/f1-telemetry-job exec:java \
-  -Dexec.mainClass=com.f1telemetry.F1TelemetryJob
+JAR_PATH="flink-jobs/f1-telemetry-job/target/f1-telemetry-job-1.0.0-SNAPSHOT.jar"
+
+if [ ! -f "$JAR_PATH" ]; then
+  echo "ERROR: JAR not found at $JAR_PATH"
+  echo "       Run: mvn clean package -DskipTests -pl flink-jobs/f1-telemetry-job"
+  exit 1
+fi
+
+java -jar "$JAR_PATH"

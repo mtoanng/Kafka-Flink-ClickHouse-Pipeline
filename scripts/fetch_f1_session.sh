@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# fetch_f1_session.sh — Download Abu Dhabi GP 2025 Race data from TracingInsights
+# fetch_f1_session.sh — Download Abu Dhabi GP 2021 Race data from TracingInsights
 # Usage: bash scripts/fetch_f1_session.sh [DEST_DIR]
 # Default DEST_DIR: data-generators/f1-replay-engine/src/main/resources/datasets
 set -euo pipefail
 
-REPO="TracingInsights/2025"
+REPO="TracingInsights/2021"
 BRANCH="main"
 SESSION_PATH="Abu Dhabi Grand Prix/Race"
 DEST="${1:-data-generators/f1-replay-engine/src/main/resources/datasets}"

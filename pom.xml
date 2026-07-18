@@ -27,14 +27,15 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <!-- Versions dùng chung -->
-        <flink.version>1.18.0</flink.version>
+        <flink.version>1.20.2</flink.version>
+        <clickhouse.flink.version>0.9.5</clickhouse.flink.version>
+        <kafka.connector.version>3.3.0-1.20</kafka.connector.version>
         <kafka.version>3.6.1</kafka.version>
         <jackson.version>2.15.2</jackson.version>
         <avro.version>1.11.3</avro.version>
         <confluent.version>7.6.0</confluent.version>
-        <clickhouse.jdbc.version>0.6.0</clickhouse.jdbc.version>
         <lombok.version>1.18.30</lombok.version>
-        <slf4j.version>2.0.7</slf4j.version>
+        <slf4j.version>2.0.9</slf4j.version>
         <logback.version>1.4.11</logback.version>
         <junit.version>5.10.1</junit.version>
 
@@ -46,12 +47,45 @@
     </properties>
 
     <repositories>
-        <!-- Confluent Maven repo cho kafka-avro-serializer + flink-avro-confluent-registry -->
+        <!-- Maven Central — must be explicit once any <repositories> block is declared -->
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo1.maven.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+
+        <!-- Confluent — for kafka-avro-serializer + flink-avro-confluent-registry -->
         <repository>
             <id>confluent</id>
+            <name>Confluent</name>
             <url>https://packages.confluent.io/maven/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Force Jackson version để tránh conflict -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <pluginManagement>

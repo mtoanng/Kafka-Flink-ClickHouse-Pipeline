@@ -5,8 +5,9 @@ import java.io.Serializable;
 /**
  * 10-second windowed rollup per driver.
  *
- * Output of SpeedRollupAggregator. Beyond simple avg/max speed, includes:
- * - hardBrakeCount: count of samples where brake > 0 (conditional counting)
+ * Output of aggregation. Includes:
+ * - avgSpeed, maxSpeed, avgThrottle: statistical aggregates
+ * - hardBrakeCount: count of samples where brake >= 0.8 (conditional counting)
  * - sampleCount: total telemetry samples in window
  */
 public class TelemetryRollup implements Serializable {
@@ -17,14 +18,14 @@ public class TelemetryRollup implements Serializable {
     public double avgSpeed;
     public double maxSpeed;
     public double avgThrottle;
-    public long hardBrakeCount;
-    public long sampleCount;
+    public int hardBrakeCount;
+    public int sampleCount;
 
     public TelemetryRollup() {}
 
     public TelemetryRollup(long windowStart, int driverNumber,
                            double avgSpeed, double maxSpeed, double avgThrottle,
-                           long hardBrakeCount, long sampleCount) {
+                           int hardBrakeCount, int sampleCount) {
         this.windowStart = windowStart;
         this.driverNumber = driverNumber;
         this.avgSpeed = avgSpeed;
