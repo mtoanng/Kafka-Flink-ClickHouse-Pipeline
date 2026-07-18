@@ -13,31 +13,31 @@ import java.io.Serializable;
 public class TelemetryRollup implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public long windowStart;
-    public int driverNumber;
-    public double avgSpeed;
-    public double maxSpeed;
-    public double avgThrottle;
-    public int hardBrakeCount;
-    public int sampleCount;
+    public long window_start;
+    public int driver_number;
+    public double avg_speed;
+    public double max_speed;
+    public double avg_throttle;
+    public int hard_brake_count;
+    public int sample_count;
 
     public TelemetryRollup() {}
 
-    public TelemetryRollup(long windowStart, int driverNumber,
-                           double avgSpeed, double maxSpeed, double avgThrottle,
-                           int hardBrakeCount, int sampleCount) {
-        this.windowStart = windowStart;
-        this.driverNumber = driverNumber;
-        this.avgSpeed = avgSpeed;
-        this.maxSpeed = maxSpeed;
-        this.avgThrottle = avgThrottle;
-        this.hardBrakeCount = hardBrakeCount;
-        this.sampleCount = sampleCount;
+    public TelemetryRollup(long window_start, int driver_number,
+                           double avg_speed, double max_speed, double avg_throttle,
+                           int hard_brake_count, int sample_count) {
+        this.window_start = window_start;
+        this.driver_number = driver_number;
+        this.avg_speed = avg_speed;
+        this.max_speed = max_speed;
+        this.avg_throttle = avg_throttle;
+        this.hard_brake_count = hard_brake_count;
+        this.sample_count = sample_count;
     }
 
     @Override
     public String toString() {
         return String.format("Rollup{t=%d, driver=%d, avg=%.1f, max=%.1f, brake=%d, n=%d}",
-                windowStart, driverNumber, avgSpeed, maxSpeed, hardBrakeCount, sampleCount);
+                window_start, driver_number, avg_speed, max_speed, hard_brake_count, sample_count);
     }
 }
