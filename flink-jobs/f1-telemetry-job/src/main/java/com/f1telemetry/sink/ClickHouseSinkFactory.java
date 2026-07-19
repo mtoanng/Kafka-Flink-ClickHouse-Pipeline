@@ -1,179 +1,212 @@
 package com.f1telemetry.sink;
 
+import com.clickhouse.data.ClickHouseDataType;
 import com.clickhouse.data.ClickHouseFormat;
-import com.clickhouse.data.ClickHouseColumn;
-import org.apache.flink.connector.clickhouse.sink.ClickHouseAsyncSink;
-import org.apache.flink.connector.clickhouse.sink.ClickHouseAsyncSinkBuilder;
-import org.apache.flink.connector.clickhouse.sink.ClickHouseClientConfig;
 import org.apache.flink.connector.clickhouse.convertor.ClickHouseConvertor;
 import org.apache.flink.connector.clickhouse.convertor.ColumnBinding;
 import org.apache.flink.connector.clickhouse.convertor.DataMapper;
+import org.apache.flink.connector.clickhouse.sink.ClickHouseAsyncSink;
+import org.apache.flink.connector.clickhouse.sink.ClickHouseClientConfig;
 import com.f1telemetry.avro.CarTelemetryEvent;
 import com.f1telemetry.model.TelemetryRollup;
 import org.apache.flink.api.connector.sink2.Sink;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Factory for ClickHouse sinks using the official flink-connector-clickhouse.
- * 
- * Architecture:
- *   Flink DataStream → ClickHouseAsyncSink (official) → RowBinaryWithDefaults → ClickHouse Cloud
+ * Factory cho ClickHouse sinks — dùng ĐÚNG API thật của flink-connector-clickhouse-1.17:0.2.0
+ * (đã xác minh bằng javap, xem lịch sử trao đổi). API thật KHÔNG có POJOConvertor/DataWriter
+ * (đó là API tưởng tượng ở bản trước) — mà dùng:
+ *
+ *   DataMapper<T>            — class trừu tượng người dùng viết: toMap() đổ field -> Map,
+ *                               bindings() khai báo Map key -> tên cột ClickHouse -> kiểu.
+ *   ColumnBinding             — factory tĩnh (scalar/dateTime64/...) để khai báo 1 cột.
+ *   ClickHouseConvertor<T>    — bọc DataMapper, implement ElementConverter cho AsyncSinkBase.
+ *   ClickHouseAsyncSink.builder() — builder pattern (KHÔNG phải constructor trực tiếp).
+ *
+ * Type mapping theo DDL thực tế (schema.sql — NOT NULL / DEFAULT, không Nullable):
+ *   raw_telemetry : event_time DateTime64(3), driver_number UInt8, speed Float32,
+ *                   throttle/brake Float32 DEFAULT 0, rpm UInt16 DEFAULT 0,
+ *                   gear/drs UInt8 DEFAULT 0
+ *   rollup_10s    : window_start DateTime64(3), driver_number UInt8,
+ *                   avg/max_speed/avg_throttle Float32,
+ *                   hard_brake_count UInt16, sample_count UInt32
+ *
+ * Vì cột không phải Nullable, giá trị null từ Avro (throttle/brake/rpm/gear/drs) được
+ * default về 0 ngay trong toMap() — không dựa vào server-side default.
  */
 public class ClickHouseSinkFactory {
 
-    // -------------------------------------------------------------------------
-    // Shared sink parameters
-    // -------------------------------------------------------------------------
+    // ── Raw telemetry — high volume ──────────────────────────────────────────
+    private static final int  RAW_MAX_BATCH_SIZE        = 100;
+    private static final int  RAW_MAX_IN_FLIGHT         = 3;
+    private static final int  RAW_MAX_BUFFERED          = 100_000;
+    private static final long RAW_MAX_BATCH_BYTES       = 20_971_520L; // 20 MB
+    private static final long RAW_MAX_TIME_IN_BUFFER_MS = 1000L;    // 10s
+    private static final long RAW_MAX_RECORD_SIZE_BYTES = 1_048_576L; // 1 MB
 
-    // Raw telemetry: high volume — large batches, few in-flight to limit parts/sec
-    private static final int    RAW_MAX_BATCH_SIZE          = 20_000;   // rows per INSERT
-    private static final int    RAW_MAX_IN_FLIGHT           = 3;        // concurrent INSERTs
-    private static final int    RAW_MAX_BUFFERED            = 100_000;  // backpressure limit
-    private static final long   RAW_MAX_BATCH_BYTES         = 20_971_520L; // 20 MB
-    private static final long   RAW_MAX_TIME_IN_BUFFER_MS   = 10_000L;  // flush every 10s max
-    private static final long   RAW_MAX_RECORD_SIZE_BYTES   = 1_048_576L; // 1 MB per record (guard)
+    // ── Rollup aggregates — low volume ───────────────────────────────────────
+    private static final int  ROLLUP_MAX_BATCH_SIZE        = 1_000;
+    private static final int  ROLLUP_MAX_IN_FLIGHT         = 2;
+    private static final int  ROLLUP_MAX_BUFFERED          = 10_000;
+    private static final long ROLLUP_MAX_BATCH_BYTES       = 5_242_880L; // 5 MB
+    private static final long ROLLUP_MAX_TIME_IN_BUFFER_MS = 10_000L;
+    private static final long ROLLUP_MAX_RECORD_SIZE_BYTES = 524_288L;   // 512 KB
 
-    // Rollup aggregates: low volume — smaller batches are fine
-    private static final int    ROLLUP_MAX_BATCH_SIZE        = 1_000;
-    private static final int    ROLLUP_MAX_IN_FLIGHT         = 2;
-    private static final int    ROLLUP_MAX_BUFFERED          = 10_000;
-    private static final long   ROLLUP_MAX_BATCH_BYTES       = 5_242_880L; // 5 MB
-    private static final long   ROLLUP_MAX_TIME_IN_BUFFER_MS = 10_000L;
-    private static final long   ROLLUP_MAX_RECORD_SIZE_BYTES = 524_288L;   // 512 KB
+    // ────────────────────────────────────────────────────────────────────────
+    // Raw telemetry sink
+    // ────────────────────────────────────────────────────────────────────────
 
-    private static final DataMapper<CarTelemetryEvent> RAW_EVENT_MAPPER = new DataMapper<>() {
+    /**
+     * DataMapper cho CarTelemetryEvent -> f1_telemetry.raw_telemetry
+     */
+    private static class CarTelemetryEventMapper extends DataMapper<CarTelemetryEvent> {
+
         @Override
-        public void toMap(CarTelemetryEvent event, Map<String, Object> values) {
-            values.put("event_time", event.getEventTime());
-            values.put("driver_number", event.getDriverNumber());
-            values.put("speed", event.getSpeed());
-            values.put("throttle", event.getThrottle());
-            values.put("brake", event.getBrake());
-            values.put("rpm", event.getRpm());
-            values.put("gear", event.getGear());
-            values.put("drs", event.getDrs());
+        public void toMap(CarTelemetryEvent event, Map<String, Object> out) {
+            out.put("event_time",
+                    ZonedDateTime.ofInstant(Instant.ofEpochMilli(event.getEventTime()), ZoneOffset.UTC));
+            out.put("driver_number", event.getDriverNumber());
+            out.put("speed", (float) event.getSpeed());
+
+            // Float32 DEFAULT 0 (NOT NULL) <- Double nullable tu Avro: tu default null -> 0f
+            out.put("throttle", event.getThrottle() != null ? event.getThrottle().floatValue() : 0f);
+            out.put("brake", event.getBrake() != null ? event.getBrake().floatValue() : 0f);
+
+            // UInt16/UInt8 DEFAULT 0 (NOT NULL) <- Integer nullable tu Avro
+            out.put("rpm", event.getRpm() != null ? event.getRpm() : 0);
+            out.put("gear", event.getGear() != null ? event.getGear() : 0);
+            out.put("drs", event.getDrs() != null ? event.getDrs() : 0);
         }
 
         @Override
         public List<ColumnBinding> bindings() {
             return List.of(
                     ColumnBinding.dateTime64("event_time", "event_time", 3),
-                    ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
-                    ColumnBinding.of("speed", "speed", ClickHouseColumn.of("speed", "Float32")),
-                    ColumnBinding.of("throttle", "throttle", ClickHouseColumn.of("throttle", "Nullable(Float32)")),
-                    ColumnBinding.of("brake", "brake", ClickHouseColumn.of("brake", "Nullable(Float32)")),
-                    ColumnBinding.of("rpm", "rpm", ClickHouseColumn.of("rpm", "Nullable(UInt16)")),
-                    ColumnBinding.of("gear", "gear", ClickHouseColumn.of("gear", "Nullable(UInt8)")),
-                    ColumnBinding.of("drs", "drs", ClickHouseColumn.of("drs", "Nullable(UInt8)")));
+                    ColumnBinding.scalar("driver_number", "driver_number", ClickHouseDataType.UInt8),
+                    ColumnBinding.scalar("speed", "speed", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("throttle", "throttle", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("brake", "brake", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("rpm", "rpm", ClickHouseDataType.UInt16),
+                    ColumnBinding.scalar("gear", "gear", ClickHouseDataType.UInt8),
+                    ColumnBinding.scalar("drs", "drs", ClickHouseDataType.UInt8)
+            );
         }
-    };
+    }
 
-    private static final DataMapper<TelemetryRollup> ROLLUP_MAPPER = new DataMapper<>() {
+    /**
+     * Sink cho raw CarTelemetryEvent -> f1_telemetry.raw_telemetry
+     */
+    public static Sink<CarTelemetryEvent> createRawSink(
+            String host, int port, String user, String password,
+            String database, String table) {
+
+        ClickHouseClientConfig config = new ClickHouseClientConfig(
+                String.format("https://%s:%d", host, port),
+                user,
+                password,
+                database,
+                table,
+                Map.of(
+                    "connection_timeout", "5000",
+                    "socket_timeout", "10000"
+                ),                     // options
+                Map.of("insert_deduplicate", "0",   // raw table: KHONG dedup, giu moi sample
+                       "async_insert",       "0"),
+                false                          // enableJsonSupportAsString
+        );
+
+        ClickHouseConvertor<CarTelemetryEvent> convertor =
+                new ClickHouseConvertor<>(CarTelemetryEvent.class, new CarTelemetryEventMapper());
+
+        // Da tu default null->0 trong toMap(), khong con phu thuoc RowBinaryWithDefaults
+        // nua -> dung RowBinary thuong, nhe hon (khong co presence bitmask overhead).
+        return ClickHouseAsyncSink.<CarTelemetryEvent>builder()
+                .setElementConverter(convertor)
+                .setClickHouseClientConfig(config)
+                .setClickHouseFormat(ClickHouseFormat.JSONEachRow)
+                .setMaxBatchSize(RAW_MAX_BATCH_SIZE)
+                .setMaxInFlightRequests(RAW_MAX_IN_FLIGHT)
+                .setMaxBufferedRequests(RAW_MAX_BUFFERED)
+                .setMaxBatchSizeInBytes(RAW_MAX_BATCH_BYTES)
+                .setMaxTimeInBufferMS(RAW_MAX_TIME_IN_BUFFER_MS)
+                .setMaxRecordSizeInBytes(RAW_MAX_RECORD_SIZE_BYTES)
+                .build();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Rollup sink
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * DataMapper cho TelemetryRollup -> f1_telemetry.rollup_10s
+     */
+    private static class TelemetryRollupMapper extends DataMapper<TelemetryRollup> {
+
         @Override
-        public void toMap(TelemetryRollup rollup, Map<String, Object> values) {
-            values.put("window_start", rollup.window_start);
-            values.put("driver_number", rollup.driver_number);
-            values.put("avg_speed", rollup.avg_speed);
-            values.put("max_speed", rollup.max_speed);
-            values.put("avg_throttle", rollup.avg_throttle);
-            values.put("hard_brake_count", rollup.hard_brake_count);
-            values.put("sample_count", rollup.sample_count);
+        public void toMap(TelemetryRollup r, Map<String, Object> out) {
+            out.put("window_start",
+                    ZonedDateTime.ofInstant(Instant.ofEpochMilli(r.window_start), ZoneOffset.UTC));
+            out.put("driver_number", r.driver_number);
+            out.put("avg_speed", (float) r.avg_speed);
+            out.put("max_speed", (float) r.max_speed);
+            out.put("avg_throttle", (float) r.avg_throttle);
+            // hard_brake_count la UInt16, sample_count la UInt32 trong schema.sql;
+            // TelemetryRollup luu duoi dang long -> ep ve int truoc khi dua vao map
+            // (khong tran vi so luong sample trong 1 cua so 10s khong the vuot UInt16/UInt32).
+            out.put("hard_brake_count", (int) r.hard_brake_count);
+            out.put("sample_count", (int) r.sample_count);
         }
 
         @Override
         public List<ColumnBinding> bindings() {
             return List.of(
                     ColumnBinding.dateTime64("window_start", "window_start", 3),
-                    ColumnBinding.of("driver_number", "driver_number", ClickHouseColumn.of("driver_number", "UInt8")),
-                    ColumnBinding.of("avg_speed", "avg_speed", ClickHouseColumn.of("avg_speed", "Float32")),
-                    ColumnBinding.of("max_speed", "max_speed", ClickHouseColumn.of("max_speed", "Float32")),
-                    ColumnBinding.of("avg_throttle", "avg_throttle", ClickHouseColumn.of("avg_throttle", "Float32")),
-                    ColumnBinding.of("hard_brake_count", "hard_brake_count", ClickHouseColumn.of("hard_brake_count", "UInt16")),
-                    ColumnBinding.of("sample_count", "sample_count", ClickHouseColumn.of("sample_count", "UInt32")));
+                    ColumnBinding.scalar("driver_number", "driver_number", ClickHouseDataType.UInt8),
+                    ColumnBinding.scalar("avg_speed", "avg_speed", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("max_speed", "max_speed", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("avg_throttle", "avg_throttle", ClickHouseDataType.Float32),
+                    ColumnBinding.scalar("hard_brake_count", "hard_brake_count", ClickHouseDataType.UInt16),
+                    ColumnBinding.scalar("sample_count", "sample_count", ClickHouseDataType.UInt32)
+            );
         }
-    };
-
-    // -------------------------------------------------------------------------
-    // Raw telemetry sink
-    // -------------------------------------------------------------------------
-
-    /**
-     * Creates a sink for raw CarTelemetryEvent records.
-     * 
-     * Default format: RowBinaryWithDefaults (fastest; binary, typed, null-safe).
-     * Deduplication: insert_deduplicate=1 ensures retried batches don't create duplicate rows.
-     */
-    public static Sink<CarTelemetryEvent> createRawSink(
-            String host, int port, String user, String password, 
-            String database, String table) {
-        
-        String url = String.format("https://%s:%d", host, port);
-        
-        Map<String, String> serverSettings = Map.of(
-            "insert_deduplicate",    "1",   // safe retries — no duplicate rows on failure
-            "async_insert",          "0"    // we batch client-side; don't double-buffer server-side
-        );
-        
-        ClickHouseClientConfig config = new ClickHouseClientConfig(
-            url,
-            user,
-            password,
-            database,
-            table,
-            Map.of(),          // client options
-            serverSettings,
-            false              // ignoreDelete
-        );
-        
-        return ClickHouseAsyncSink.<CarTelemetryEvent>builder()
-            .setClickHouseClientConfig(config)
-            .setElementConverter(new ClickHouseConvertor<>(CarTelemetryEvent.class, RAW_EVENT_MAPPER))
-            .setMaxBatchSize(RAW_MAX_BATCH_SIZE)
-            .setMaxInFlightRequests(RAW_MAX_IN_FLIGHT)
-            .setMaxBufferedRequests(RAW_MAX_BUFFERED)
-            .setMaxBatchSizeInBytes(RAW_MAX_BATCH_BYTES)
-            .setMaxTimeInBufferMS(RAW_MAX_TIME_IN_BUFFER_MS)
-            .setMaxRecordSizeInBytes(RAW_MAX_RECORD_SIZE_BYTES)
-            .build();
     }
 
-    // -------------------------------------------------------------------------
-    // Rollup sink
-    // -------------------------------------------------------------------------
-
     /**
-     * Creates a sink for TelemetryRollup aggregates.
+     * Sink cho TelemetryRollup -> f1_telemetry.rollup_10s
      */
     public static Sink<TelemetryRollup> createRollupSink(
-            String host, int port, String user, String password, 
+            String host, int port, String user, String password,
             String database, String table) {
-        
-        String url = String.format("https://%s:%d", host, port);
-        
-        Map<String, String> serverSettings = Map.of("insert_deduplicate", "1");
-        
+
         ClickHouseClientConfig config = new ClickHouseClientConfig(
-            url,
-            user,
-            password,
-            database,
-            table,
-            Map.of(),
-            serverSettings,
-            false
+                String.format("https://%s:%d", host, port),
+                user,
+                password,
+                database,
+                table,
+                Map.of(),
+                Map.of("insert_deduplicate", "1"), // rollup: dedup dung, guard checkpoint replay
+                false
         );
-        
+
+        ClickHouseConvertor<TelemetryRollup> convertor =
+                new ClickHouseConvertor<>(TelemetryRollup.class, new TelemetryRollupMapper());
+
         return ClickHouseAsyncSink.<TelemetryRollup>builder()
-            .setClickHouseClientConfig(config)
-            .setElementConverter(new ClickHouseConvertor<>(TelemetryRollup.class, ROLLUP_MAPPER))
-            .setMaxBatchSize(ROLLUP_MAX_BATCH_SIZE)
-            .setMaxInFlightRequests(ROLLUP_MAX_IN_FLIGHT)
-            .setMaxBufferedRequests(ROLLUP_MAX_BUFFERED)
-            .setMaxBatchSizeInBytes(ROLLUP_MAX_BATCH_BYTES)
-            .setMaxTimeInBufferMS(ROLLUP_MAX_TIME_IN_BUFFER_MS)
-            .setMaxRecordSizeInBytes(ROLLUP_MAX_RECORD_SIZE_BYTES)
-            .build();
+                .setElementConverter(convertor)
+                .setClickHouseClientConfig(config)
+                .setClickHouseFormat(ClickHouseFormat.RowBinaryWithNamesAndTypes)
+                .setMaxBatchSize(ROLLUP_MAX_BATCH_SIZE)
+                .setMaxInFlightRequests(ROLLUP_MAX_IN_FLIGHT)
+                .setMaxBufferedRequests(ROLLUP_MAX_BUFFERED)
+                .setMaxBatchSizeInBytes(ROLLUP_MAX_BATCH_BYTES)
+                .setMaxTimeInBufferMS(ROLLUP_MAX_TIME_IN_BUFFER_MS)
+                .setMaxRecordSizeInBytes(ROLLUP_MAX_RECORD_SIZE_BYTES)
+                .build();
     }
 }

@@ -583,7 +583,9 @@ Look for: `[KafkaServer id=1] started` (SUCCESS)
 curl http://localhost:8081/subjects
 ```
 
-**Expected output**: `[]` (empty array - no schemas registered yet)
+**Expected output**: A non-empty list that includes `car-telemetry-events-value` after `bash scripts/run.sh` has completed.
+
+**Note**: If you are checking Schema Registry before running `bash scripts/run.sh`, then `[]` is expected. After `run.sh`, the Avro schema should already be registered.
 
 **Check logs**:
 ```bash
@@ -618,6 +620,22 @@ docker exec kafka kafka-topics --describe \
 ```
 
 Should show 3 partitions, replication factor 1.
+
+---
+
+### Step 5.7: Stop Local Infrastructure ⏱️ 1 min
+
+**Stop containers but keep data volumes**:
+```bash
+bash scripts/stop.sh
+```
+
+**Stop containers and wipe volumes**:
+```bash
+bash scripts/stop.sh --volumes
+```
+
+Use `--volumes` only when you want a full reset of Kafka and Schema Registry data.
 
 ---
 

@@ -79,16 +79,18 @@ public class F1TelemetryPipeline {
                 kafkaSource,
                 // Watermark: allow up to 5s of late events
                 WatermarkStrategy.<CarTelemetryEvent>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-                        .withTimestampAssigner((event, ts) -> event.getEventTime()),
+                        .withTimestampAssigner((event, ts) -> event.getEventTime())
+                        .withIdleness(Duration.ofSeconds(30)),
                 "KafkaCarTelemetrySource"
-        );
+        ).uid("kafka-car-telemetry-source");
 
         // ── Sink 1: Raw telemetry → ClickHouse ────────────────────────────────
 
         telemetryStream
                 .sinkTo(ClickHouseSinkFactory.createRawSink(
                         CH_HOST, CH_PORT, CH_USER, CH_PASSWORD, CH_DATABASE, CH_TABLE_RAW))
-                .name("ClickHouseRawSink");
+                .name("ClickHouseRawSink")
+                .uid("clickhouse-raw-sink");
 
         // ── Windowed rollup aggregation ────────────────────────────────────────
 
@@ -96,14 +98,16 @@ public class F1TelemetryPipeline {
                 .keyBy(CarTelemetryEvent::getDriverNumber)
                 .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
                 .aggregate(new TelemetryAggregator(), new TelemetryWindowFunction())
-                .name("10sRollupAggregation");
+                .name("10sRollupAggregation")
+                .uid("rollup-10s-aggregation");
 
         // ── Sink 2: Rollups → ClickHouse ──────────────────────────────────────
 
         rollupStream
                 .sinkTo(ClickHouseSinkFactory.createRollupSink(
                         CH_HOST, CH_PORT, CH_USER, CH_PASSWORD, CH_DATABASE, CH_TABLE_ROLLUP))
-                .name("ClickHouseRollupSink");
+                .name("ClickHouseRollupSink")
+                .uid("clickhouse-rollup-sink");
 
         env.execute("F1 Telemetry Pipeline");
     }
@@ -112,12 +116,13 @@ public class F1TelemetryPipeline {
     // Aggregation accumulator
     // -------------------------------------------------------------------------
 
-    private static class TelemetryAccumulator {
-        double sumSpeed    = 0;
-        double maxSpeed    = 0;
-        double sumThrottle = 0;
-        int    hardBrakes  = 0;
-        int    count       = 0;
+    public static class TelemetryAccumulator {
+        public double sumSpeed      = 0;
+        public double maxSpeed      = 0;
+        public double sumThrottle   = 0;
+        public int    throttleCount = 0;
+        public int    hardBrakes    = 0;
+        public int    count         = 0;
     }
 
     // -------------------------------------------------------------------------
@@ -139,7 +144,10 @@ public class F1TelemetryPipeline {
             double speed = event.getSpeed();
             acc.sumSpeed    += speed;
             acc.maxSpeed     = Math.max(acc.maxSpeed, speed);
-            acc.sumThrottle += event.getThrottle() != null ? event.getThrottle() : 0.0;
+            if (event.getThrottle() != null) {
+                acc.sumThrottle += event.getThrottle();
+                acc.throttleCount++;
+            }
 
             if (event.getBrake() != null && event.getBrake() >= HARD_BRAKE_THRESHOLD) {
                 acc.hardBrakes++;
@@ -158,8 +166,9 @@ public class F1TelemetryPipeline {
         public TelemetryAccumulator merge(TelemetryAccumulator a, TelemetryAccumulator b) {
             a.sumSpeed    += b.sumSpeed;
             a.maxSpeed     = Math.max(a.maxSpeed, b.maxSpeed);
-            a.sumThrottle += b.sumThrottle;
-            a.hardBrakes  += b.hardBrakes;
+            a.sumThrottle   += b.sumThrottle;
+            a.throttleCount += b.throttleCount;
+            a.hardBrakes    += b.hardBrakes;
             a.count       += b.count;
             return a;
         }
@@ -185,9 +194,9 @@ public class F1TelemetryPipeline {
                     driverNumber,
                     acc.sumSpeed    / acc.count,
                     acc.maxSpeed,
-                    acc.sumThrottle / acc.count,
-                    acc.hardBrakes,
-                    acc.count
+                    acc.throttleCount > 0 ? acc.sumThrottle / acc.throttleCount : 0.0,
+                    (long) acc.hardBrakes,
+                    (long) acc.count  
             ));
         }
     }

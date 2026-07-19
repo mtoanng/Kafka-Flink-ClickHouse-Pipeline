@@ -18,14 +18,14 @@ public class TelemetryRollup implements Serializable {
     public double avg_speed;
     public double max_speed;
     public double avg_throttle;
-    public int hard_brake_count;
-    public int sample_count;
+    public long hard_brake_count;
+    public long sample_count;
 
     public TelemetryRollup() {}
 
     public TelemetryRollup(long window_start, int driver_number,
                            double avg_speed, double max_speed, double avg_throttle,
-                           int hard_brake_count, int sample_count) {
+                           long hard_brake_count, long sample_count) {
         this.window_start = window_start;
         this.driver_number = driver_number;
         this.avg_speed = avg_speed;
