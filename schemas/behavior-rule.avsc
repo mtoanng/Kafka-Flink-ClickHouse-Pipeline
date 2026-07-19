@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "BehaviorRule",
+  "namespace": "com.taobao.behavior.avro",
+  "fields": [
+    {"name": "rule_id", "type": "string"},
+    {"name": "rule_type", "type": "string"},
+    {"name": "threshold_seconds", "type": "int"},
+    {"name": "enabled", "type": "boolean"},
+    {"name": "version", "type": "long"},
+    {"name": "updated_at", "type": "long"}
+  ]
+}

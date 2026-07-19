@@ -2,13 +2,16 @@ package com.taobao.behavior;
 
 import com.taobao.behavior.aggregation.ItemMetricsAggregator;
 import com.taobao.behavior.aggregation.ItemMetricsWindowFunction;
+import com.taobao.behavior.avro.BehaviorRule;
 import com.taobao.behavior.avro.UserBehaviorEvent;
+import com.taobao.behavior.model.BehaviorAlert;
 import com.taobao.behavior.model.InvalidBehaviorEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import com.taobao.behavior.model.ItemRunKey;
 import com.taobao.behavior.model.UserCurrentActivity;
 import com.taobao.behavior.processing.CurrentActivityProjector;
 import com.taobao.behavior.processing.CheckpointPolicy;
+import com.taobao.behavior.processing.CartAbandonmentRuleProcessor;
 import com.taobao.behavior.processing.EventValidator;
 import com.taobao.behavior.processing.ImmediateBoundedOutOfOrdernessGenerator;
 import com.taobao.behavior.processing.LateEventRouter;
@@ -35,6 +38,8 @@ public final class TaobaoStreamJob {
         String topic = environment("KAFKA_TOPIC", "user-behavior-events");
         String consumerGroup = environment("KAFKA_CONSUMER_GROUP", "taobao-stream-job");
         String schemaRegistryUrl = environment("SCHEMA_REGISTRY_URL", "http://localhost:8081");
+        String rulesTopic = environment("RULES_KAFKA_TOPIC", "behavior-rules");
+        String rulesConsumerGroup = environment("RULES_CONSUMER_GROUP", "taobao-rule-broadcast");
         String clickHouseEndpoint = environment("CLICKHOUSE_ENDPOINT", "https://localhost:8443");
         String clickHouseUser = environment("CLICKHOUSE_USER", "default");
         String clickHousePassword = environment("CLICKHOUSE_PASSWORD", "");
@@ -115,6 +120,25 @@ public final class TaobaoStreamJob {
                 .name("ProjectCurrentUserActivity")
                 .uid("project-current-user-activity");
 
+        KafkaSource<BehaviorRule> rulesSource = KafkaSource.<BehaviorRule>builder()
+                .setBootstrapServers(bootstrapServers)
+                .setTopics(rulesTopic)
+                .setGroupId(rulesConsumerGroup)
+                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setValueOnlyDeserializer(
+                        ConfluentRegistryAvroDeserializationSchema.forSpecific(
+                                BehaviorRule.class, schemaRegistryUrl))
+                .build();
+        DataStream<BehaviorRule> ruleChanges = execution.fromSource(
+                        rulesSource, WatermarkStrategy.noWatermarks(), "KafkaBehaviorRulesSource")
+                .uid("kafka-behavior-rules-source");
+        DataStream<BehaviorAlert> alerts = onTime
+                .keyBy(UserBehaviorEvent::getUserId)
+                .connect(ruleChanges.broadcast(CartAbandonmentRuleProcessor.RULES_STATE))
+                .process(new CartAbandonmentRuleProcessor())
+                .name("ApplyBroadcastBehaviorRules")
+                .uid("apply-broadcast-behavior-rules");
+
         valid.sinkTo(
                         ClickHouseSinkFactory.createRawSink(
                                 clickHouseEndpoint,
@@ -147,8 +171,9 @@ public final class TaobaoStreamJob {
                                 "user_current_activity"))
                 .name("WriteCurrentUserActivity")
                 .uid("write-current-user-activity");
+        alerts.print("behavior-alert");
 
-        execution.execute("Taobao User Behavior Phase 4");
+        execution.execute("Taobao User Behavior Phase 6");
     }
 
     private static String environment(String key, String defaultValue) {

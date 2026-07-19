@@ -1,6 +1,9 @@
 # Taobao Real-Time Customer Behavior Platform
 
-This repository has completed **Phase 5: archive, checkpoint, CI, and Terraform code**. Validated Taobao events flow through the Phase 4 path, accepted JSONL can be archived to S3 with a manifest, checkpointing is opt-in through durable storage configuration, and CI validates Python, Maven, and Terraform contracts. Remote integration remains unverified until run on a disposable host with credentials.
+This repository now includes **Phase 6: the PostgreSQL/Debezium control plane**. The
+existing single Flink job consumes versioned rule updates through broadcast state;
+remote Kafka, PostgreSQL, Debezium, and Flink integration remains unverified until
+run on a disposable host with credentials.
 
 ## Authoritative Documents
 
@@ -13,6 +16,7 @@ This repository has completed **Phase 5: archive, checkpoint, CI, and Terraform 
 - [Phase 3 report](docs/evidence/phase-3/PHASE_REPORT.md)
 - [Phase 4 report](docs/evidence/phase-4/PHASE_REPORT.md)
 - [Phase 5 report](docs/evidence/phase-5/PHASE_REPORT.md)
+- [Phase 6 report](docs/evidence/phase-6/PHASE_REPORT.md)
 - [Archived F1 documentation](docs/archive/f1-baseline/)
 
 ## Laptop Checks
@@ -71,6 +75,16 @@ PYTHONPATH=producer/src python scripts/archive_raw_events.py \
 Checkpointing is disabled by default on the laptop. On the disposable Flink host, set `FLINK_CHECKPOINTING_ENABLED=true`, `FLINK_CHECKPOINT_DIR` to durable remote storage, and optionally `FLINK_CHECKPOINT_INTERVAL_MS`; then use `bash scripts/run_checkpoint_experiment.sh` for the controlled restart procedure. The job uses at-least-once checkpoint mode and makes no exactly-once claim.
 
 Terraform under [infra/terraform](infra/terraform) creates only the bounded S3 archive bucket, versioning, server-side encryption, and prefix lifecycle. Run `terraform fmt -check`, `init -backend=false`, and `validate` locally. Apply and destroy require explicit cloud authorization; `scripts/teardown_demo.sh` requires `CONFIRM_TEARDOWN=YES`.
+
+## Phase 6 Control Plane
+
+PostgreSQL contains only `behavior_rules`. The Debezium configuration unwraps
+changes, routes them to the compacted `behavior-rules` topic, and the same Flink
+job applies newer versions through broadcast state. A `cart_abandonment` rule uses
+event-time `MapState` timers and prints `BehaviorAlert` records. Run the remote
+exercise with `bash scripts/run_phase6_demo.sh` after setting PostgreSQL, Kafka,
+Schema Registry, Kafka Connect, and Flink variables. No Phase 6 connector or
+cloud result is verified locally.
 
 ## Remote Phase 5 Integration
 
