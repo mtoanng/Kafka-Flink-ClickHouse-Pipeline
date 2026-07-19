@@ -35,6 +35,7 @@
         <jackson.version>2.15.2</jackson.version>
         <avro.version>1.11.3</avro.version>
         <confluent.version>7.6.0</confluent.version>
+        <scylla.driver.version>4.19.0.9</scylla.driver.version>
         <lombok.version>1.18.30</lombok.version>
         <slf4j.version>2.0.9</slf4j.version>
         <logback.version>1.4.11</logback.version>

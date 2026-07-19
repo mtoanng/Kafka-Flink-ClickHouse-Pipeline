@@ -72,6 +72,11 @@ dist/
 /data/
 /artifacts/
 
+# Terraform state and local provider cache
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+
 # ── Large temporary files ──────────────────────────────────
 *.tmp
 *.bak

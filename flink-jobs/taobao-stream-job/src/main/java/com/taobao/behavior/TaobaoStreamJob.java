@@ -6,12 +6,17 @@ import com.taobao.behavior.avro.UserBehaviorEvent;
 import com.taobao.behavior.model.InvalidBehaviorEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import com.taobao.behavior.model.ItemRunKey;
+import com.taobao.behavior.model.UserCurrentActivity;
+import com.taobao.behavior.processing.CurrentActivityProjector;
+import com.taobao.behavior.processing.CheckpointPolicy;
 import com.taobao.behavior.processing.EventValidator;
 import com.taobao.behavior.processing.ImmediateBoundedOutOfOrdernessGenerator;
 import com.taobao.behavior.processing.LateEventRouter;
 import com.taobao.behavior.sink.ClickHouseSinkFactory;
+import com.taobao.behavior.sink.ScyllaCurrentActivitySink;
 import java.time.Duration;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
@@ -34,10 +39,26 @@ public final class TaobaoStreamJob {
         String clickHouseUser = environment("CLICKHOUSE_USER", "default");
         String clickHousePassword = environment("CLICKHOUSE_PASSWORD", "");
         String clickHouseDatabase = environment("CLICKHOUSE_DATABASE", "taobao_behavior");
+        String scyllaHost = environment("SCYLLA_HOST", "localhost");
+        int scyllaPort = Integer.parseInt(environment("SCYLLA_PORT", "9042"));
+        String scyllaLocalDatacenter = environment("SCYLLA_LOCAL_DATACENTER", "datacenter1");
+        String scyllaUser = environment("SCYLLA_USER", "");
+        String scyllaPassword = environment("SCYLLA_PASSWORD", "");
+        String scyllaKeyspace = environment("SCYLLA_KEYSPACE", "taobao_behavior");
+        CheckpointPolicy checkpointPolicy =
+                CheckpointPolicy.fromValues(
+                        environment("FLINK_CHECKPOINTING_ENABLED", "false"),
+                        environment("FLINK_CHECKPOINT_INTERVAL_MS", "60000"),
+                        environment("FLINK_CHECKPOINT_DIR", ""));
 
         StreamExecutionEnvironment execution =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         execution.setParallelism(Integer.parseInt(environment("FLINK_PARALLELISM", "1")));
+        if (checkpointPolicy.isEnabled()) {
+            execution.enableCheckpointing(
+                    checkpointPolicy.getIntervalMs(), CheckpointingMode.AT_LEAST_ONCE);
+            execution.getCheckpointConfig().setCheckpointStorage(checkpointPolicy.getStoragePath());
+        }
 
         KafkaSource<UserBehaviorEvent> source = KafkaSource.<UserBehaviorEvent>builder()
                 .setBootstrapServers(bootstrapServers)
@@ -88,6 +109,12 @@ public final class TaobaoStreamJob {
         DataStream<UserBehaviorEvent> windowLate =
                 metrics.getSideOutput(LateEventRouter.LATE_EVENTS);
 
+        SingleOutputStreamOperator<UserCurrentActivity> currentActivity = onTime
+                .keyBy(UserBehaviorEvent::getUserId)
+                .process(new CurrentActivityProjector())
+                .name("ProjectCurrentUserActivity")
+                .uid("project-current-user-activity");
+
         valid.sinkTo(
                         ClickHouseSinkFactory.createRawSink(
                                 clickHouseEndpoint,
@@ -108,8 +135,20 @@ public final class TaobaoStreamJob {
                                 "item_metrics_1m"))
                 .name("WriteItemMetrics1m")
                 .uid("write-item-metrics-1m");
+        currentActivity
+                .addSink(
+                        new ScyllaCurrentActivitySink(
+                                scyllaHost,
+                                scyllaPort,
+                                scyllaLocalDatacenter,
+                                scyllaUser,
+                                scyllaPassword,
+                                scyllaKeyspace,
+                                "user_current_activity"))
+                .name("WriteCurrentUserActivity")
+                .uid("write-current-user-activity");
 
-        execution.execute("Taobao User Behavior Phase 3");
+        execution.execute("Taobao User Behavior Phase 4");
     }
 
     private static String environment(String key, String defaultValue) {

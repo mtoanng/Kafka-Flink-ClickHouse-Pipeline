@@ -1,11 +1,9 @@
-# =============================================================================
-# F1 Live Telemetry Streaming Platform — GitLab CI/CD
-# Pipeline: build → test → security (SAST / Secret / Dependency Scanning)
-# =============================================================================
+# Taobao platform CI: build, test, Terraform validation, and security scans.
 
 stages:
   - build
   - test
+  - validate
   - security
 
 variables:
@@ -21,25 +19,23 @@ default:
       - .m2/repository
   interruptible: true
 
-# ---- GitLab security templates -----------------------------------------------
 include:
   - template: Jobs/SAST.gitlab-ci.yml
   - template: Jobs/Secret-Detection.gitlab-ci.yml
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
 
-# ---- Build (2 modules: f1-replay-engine + f1-telemetry-job) -----------------
 build:
   stage: build
   script:
-    - mvn $MAVEN_CLI_OPTS -DskipTests clean package
+    - mvn $MAVEN_CLI_OPTS -DskipTests package
   artifacts:
     paths:
       - "data-generators/f1-replay-engine/target/*.jar"
       - "flink-jobs/f1-telemetry-job/target/*.jar"
+      - "flink-jobs/taobao-stream-job/target/*.jar"
     expire_in: 1 week
 
-# ---- Unit tests ---------------------------------------------------------------
-test:
+maven_tests:
   stage: test
   needs: ["build"]
   script:
@@ -51,12 +47,19 @@ test:
         - "**/target/surefire-reports/TEST-*.xml"
     expire_in: 1 week
 
-# ---- Security scans -----------------------------------------------------------
-sast:
-  stage: security
-  needs: []
+python_tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install --disable-pip-version-check ruff
+    - PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
+    - ruff check producer scripts
+    - ruff format --check producer scripts
 
-secret_detection:
-  stage: security
-  needs: []
-
+terraform_validate:
+  stage: validate
+  image: hashicorp/terraform:1.9
+  script:
+    - terraform -chdir=infra/terraform fmt -check
+    - terraform -chdir=infra/terraform init -backend=false -input=false
+    - terraform -chdir=infra/terraform validate
