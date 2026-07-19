@@ -1,6 +1,6 @@
 # =============================================================
-#  F1 Live Telemetry — Docker Compose (local engines only)
-#  Kafka KRaft + Schema Registry. ClickHouse & Grafana are Cloud.
+#  Taobao Phase 2 integration services: Kafka KRaft + Schema Registry.
+#  Run this on a disposable integration host, not on the laptop.
 #  Memory: Kafka 768MB + Schema Registry 512MB = ~1.3GB + Docker overhead ~2GB
 #  Run: docker compose -f infra/docker-compose.yml up -d
 # =============================================================
@@ -31,7 +31,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
-      - f1_network
+      - taobao_network
     mem_limit: 768m
     mem_reservation: 512m
     healthcheck:
@@ -54,7 +54,7 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       KAFKA_HEAP_OPTS: "-Xms256M -Xmx384M"
     networks:
-      - f1_network
+      - taobao_network
     mem_limit: 512m
     mem_reservation: 256m
     healthcheck:
@@ -67,5 +67,5 @@ volumes:
   kafka_data:
 
 networks:
-  f1_network:
+  taobao_network:
     driver: bridge

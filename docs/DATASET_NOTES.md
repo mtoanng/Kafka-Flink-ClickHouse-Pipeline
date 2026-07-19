@@ -14,7 +14,20 @@ The required download page is Tianchi's [User Behavior Data from Taobao for Reco
 
 ### Current source status
 
-`NOT SATISFIED`: no `UserBehavior.csv` or corresponding archive exists in the workspace. The exact acquired file size, SHA-256, row count, timestamp range, and behavior counts remain `NOT VERIFIED`. The raw file must remain outside Git.
+`SATISFIED`: the ignored local `data/UserBehavior.csv` passed `source-audit` against a private Tianchi `dataId=649` manifest. The raw file and manifest remain outside Git.
+
+| Property | Audited value |
+| --- | --- |
+| Byte size | `3,672,347,465` |
+| SHA-256 | `46fdd7d389c1ddc7922eb7d9014af5573a4a3045da28c6c46197636873d8f1a9` |
+| Source rows | `100,150,807` |
+| Accepted rows | `100,150,489` |
+| Rejected raw rows | `318` (`timestamp must be non-negative`) |
+| Event-time range of accepted rows | `259000` to `2122867355000` epoch ms |
+| Behavior counts of accepted rows | `pv=89,715,946`, `cart=5,530,446`, `fav=2,888,258`, `buy=2,015,839` |
+| Backward event-time jumps | `988,155` |
+
+The raw release has 318 five-column rows with negative timestamps. The audit preserves them as source evidence and the replay engine routes them to `ParseIssue`; it does not silently repair or emit them. The extreme accepted timestamp values are also retained because Phase 1 validates the raw source, not a cleaned time range.
 
 The Phase 1 source audit requires all of the following:
 
@@ -22,9 +35,9 @@ The Phase 1 source audit requires all of the following:
 - an acquisition manifest naming Tianchi `dataId=649` over HTTPS;
 - `dataset_kind` set to `raw_event_rows`;
 - a recorded acquisition timestamp, SHA-256, and row count that match the file;
-- headerless rows with exactly the canonical five columns and valid raw values.
+- headerless rows with exactly the canonical five columns; malformed semantic values are counted and routed for downstream rejection.
 
-The checker rejects Kaggle URLs, renamed/cleaned files, headers, extra derived columns, invalid values, and manifest hash/count mismatches. File shape cannot independently prove provenance, so the acquisition manifest and manual download record remain required.
+The checker rejects Kaggle URLs, renamed/cleaned files, headers, extra derived columns, and manifest hash/count mismatches. File shape cannot independently prove provenance, so the acquisition manifest and manual download record remain required.
 
 After manually downloading the authorized Tianchi file, keep it in ignored local storage and fill a private manifest from `config/dataset-source.example.json`:
 

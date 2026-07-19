@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from contextlib import ExitStack
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import IO
 
 from taobao_replay.contracts import UserBehaviorEvent
+from taobao_replay.kafka import DEFAULT_TOPIC, KafkaEventPublisher, build_confluent_producer
 from taobao_replay.profile import profile_file
 from taobao_replay.reader import ParseIssue
 from taobao_replay.replay import replay_file
@@ -39,6 +41,28 @@ def build_parser() -> argparse.ArgumentParser:
     replay_parser.add_argument("--output", default="-", help="JSONL output path or - for stdout")
     replay_parser.add_argument("--invalid-output", help="optional JSONL path for rejected rows")
     replay_parser.add_argument("--force", action="store_true", help="overwrite output files")
+
+    publish_parser = subparsers.add_parser(
+        "publish", help="replay accepted rows to Kafka using Confluent Avro"
+    )
+    publish_parser.add_argument("input", type=Path)
+    publish_parser.add_argument("--run-id", default="kafka-run")
+    publish_parser.add_argument("--batch-size", type=int, default=1_000)
+    publish_parser.add_argument("--speed", type=float, default=0)
+    publish_parser.add_argument(
+        "--bootstrap-servers",
+        default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+    )
+    publish_parser.add_argument(
+        "--schema-registry-url",
+        default=os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081"),
+    )
+    publish_parser.add_argument("--topic", default=os.getenv("KAFKA_TOPIC", DEFAULT_TOPIC))
+    publish_parser.add_argument(
+        "--schema", type=Path, default=Path("schemas/user-behavior-event.avsc")
+    )
+    publish_parser.add_argument("--invalid-output")
+    publish_parser.add_argument("--force", action="store_true")
     return parser
 
 
@@ -95,6 +119,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(audit.to_dict(), indent=2))
             return 0
 
+        if args.command == "publish":
+            _validate_outputs(
+                parser,
+                args.input,
+                "-",
+                args.invalid_output,
+                force=args.force,
+            )
+            producer = build_confluent_producer(
+                bootstrap_servers=args.bootstrap_servers,
+                schema_registry_url=args.schema_registry_url,
+                schema_path=args.schema,
+            )
+            publisher = KafkaEventPublisher(producer, topic=args.topic)
+            with ExitStack() as stack:
+                invalid_output = (
+                    _open_output(stack, args.invalid_output, force=args.force)
+                    if args.invalid_output
+                    else None
+                )
+
+                def reject_for_kafka(issue: ParseIssue) -> None:
+                    if invalid_output is not None:
+                        invalid_output.write(json.dumps(issue.to_dict(), sort_keys=True) + "\n")
+
+                stats = replay_file(
+                    args.input,
+                    replay_run_id=args.run_id,
+                    emit=publisher.publish,
+                    on_invalid=reject_for_kafka,
+                    batch_size=args.batch_size,
+                    speed=args.speed,
+                )
+                publisher.close()
+            print(json.dumps(asdict(stats), sort_keys=True), file=sys.stderr)
+            return 0
+
         _validate_outputs(
             parser,
             args.input,
@@ -127,6 +188,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(json.dumps(asdict(stats), sort_keys=True), file=sys.stderr)
         return 0
-    except (DatasetContractError, OSError, ValueError) as exc:
+    except (DatasetContractError, OSError, RuntimeError, ValueError) as exc:
         parser.error(str(exc))
     return 2

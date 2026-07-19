@@ -1,6 +1,6 @@
 # Taobao Real-Time Customer Behavior Platform
 
-This repository has completed **Phase 1: dataset fixture and local Python replay**. The checked-in Java code still implements the frozen F1 baseline until the Java migration begins in Phase 2.
+This repository has completed **Phase 3: ClickHouse end-to-end MVP code**. Validated Taobao events are published as Confluent Avro, consumed by one Java Flink job, and mapped to ClickHouse raw history plus one-minute item metrics. Remote Kafka, Flink, Schema Registry, and ClickHouse integration remains unverified until run on a disposable host with credentials.
 
 ## Authoritative Documents
 
@@ -9,11 +9,19 @@ This repository has completed **Phase 1: dataset fixture and local Python replay
 - [Phase 0 baseline report](docs/evidence/phase-0/BASELINE_REPORT.md)
 - [Dataset notes](docs/DATASET_NOTES.md)
 - [Phase 1 report](docs/evidence/phase-1/PHASE_REPORT.md)
+- [Phase 2 report](docs/evidence/phase-2/PHASE_REPORT.md)
+- [Phase 3 report](docs/evidence/phase-3/PHASE_REPORT.md)
 - [Archived F1 documentation](docs/archive/f1-baseline/)
 
-## Phase 1 Local Workflow
+## Laptop Checks
 
-The required raw Tianchi dataset is not present, so the source contract is currently `NOT SATISFIED`. See [Dataset notes](docs/DATASET_NOTES.md) before supplying any data; cleaned Kaggle or derived tables are not accepted.
+The ignored local Tianchi raw source and its private manifest have passed the Phase 1 source audit. See [Dataset notes](docs/DATASET_NOTES.md) for its recorded checksum, row count, and raw-row rejection behavior; cleaned Kaggle or derived tables are not accepted.
+
+Install the project with its Kafka/Avro test dependencies:
+
+```bash
+pip install -e '.[kafka]'
+```
 
 Audit a manually acquired, ignored raw source and its private manifest:
 
@@ -21,7 +29,7 @@ Audit a manually acquired, ignored raw source and its private manifest:
 PYTHONPATH=producer/src python -m taobao_replay source-audit data/UserBehavior.csv --manifest data/UserBehavior.source.json
 ```
 
-Generate and inspect the deterministic fixture:
+Generate and inspect the deterministic fixture without infrastructure:
 
 ```bash
 python scripts/generate_fixture.py --force
@@ -36,7 +44,25 @@ Run focused checks:
 PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
 ruff check producer scripts
 ruff format --check producer scripts
-mvn -B clean test
+mvn -B test
 ```
 
-Kafka output, Schema Registry registration, and Java Flink consumption are Phase 2 and are not implemented yet. The full stack is not required on the development laptop, and cloud services must not be provisioned without explicit approval.
+The ClickHouse DDL contract is in [infra/clickhouse/schema.sql](infra/clickhouse/schema.sql) and its query pack is in [infra/clickhouse/verify.sql](infra/clickhouse/verify.sql). Raw history has one row per valid replay event; late events are excluded only from the item rollup. The metric table includes `replay_run_id` so fixture verification remains isolated across runs.
+
+The raw table is ordered by `(toDate(event_time), item_id, event_time, user_id)`. The verification pack filters a date range, then an item, then event time; this order minimizes the data range for that primary query. `user_id` is last for deterministic drill-down within equal item/time values, not because Kafka partitioning makes ClickHouse user lookups primary.
+
+## Remote Phase 3 Integration
+
+Use a disposable remote machine for Kafka, Schema Registry, and Flink plus an explicitly approved ClickHouse service. Do not start the complete stack on the laptop. The scripts use `CLICKHOUSE_ENDPOINT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, and optionally `CLICKHOUSE_DATABASE=taobao_behavior`; do not commit these values.
+
+```bash
+pip install -e '.[kafka]'
+bash scripts/run.sh
+mvn -B -pl flink-jobs/taobao-stream-job -am package
+export CLICKHOUSE_ENDPOINT='https://your-host:8443'
+export CLICKHOUSE_USER='default'
+export CLICKHOUSE_PASSWORD='replace-me'
+bash scripts/run_fixture_demo.sh
+```
+
+`run_fixture_demo.sh` applies the idempotent DDL, submits Flink detached, replays the committed fixture with a unique run ID, and checks for 999 valid raw events plus the item 500 first-minute rollup (`cart=1`, `buy=1`, `unique_users=1`). It is a remote, credential-dependent smoke test and is not evidence until it completes against real services. The Kafka topic is `user-behavior-events`, keyed by the UTF-8 representation of `user_id`; the value subject is `user-behavior-events-value` with `BACKWARD` compatibility.

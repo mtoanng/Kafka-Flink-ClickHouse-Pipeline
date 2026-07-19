@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# run.sh — Start local infrastructure (Kafka KRaft + Schema Registry)
+# Start bounded Kafka and Schema Registry services on the integration host.
 # Usage: bash scripts/run.sh
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "Starting Kafka KRaft + Schema Registry..."
+echo "Starting bounded Kafka KRaft + Schema Registry services..."
 docker compose -f infra/docker-compose.yml up -d
 
 echo ""
@@ -35,7 +35,7 @@ echo "=== Infrastructure ready ==="
 echo "  Kafka:           localhost:9092"
 echo "  Schema Registry: localhost:8081"
 echo ""
-echo "Next:"
-echo "  bash scripts/fetch_f1_session.sh   # download data"
-echo "  bash scripts/replay.sh             # publish to Kafka"
-echo "  bash scripts/run_flink.sh          # start Flink job"
+echo "Next on this disposable integration host:"
+echo "  pip install -e '.[kafka]'"
+echo "  bash scripts/replay.sh"
+echo "  bash scripts/run_flink.sh"

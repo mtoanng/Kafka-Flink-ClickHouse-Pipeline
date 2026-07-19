@@ -20,7 +20,7 @@ check() {
   fi
 }
 
-echo "=== F1 Telemetry Healthcheck ==="
+echo "=== Taobao Phase 3 Kafka Healthcheck ==="
 check "Kafka"           "docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092"
 check "Schema Registry" "curl --noproxy '*' -sf http://localhost:8081/subjects"
 echo ""

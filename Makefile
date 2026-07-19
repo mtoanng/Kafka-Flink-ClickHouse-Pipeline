@@ -1,44 +1,33 @@
-# =============================================================================
-# VES-Monitor — one-command orchestration
-# Thay thế Quickstart 7 bước thủ công (bao gồm upload JAR tay qua Flink UI).
-#
-#   make up        - dựng Docker stack (Kafka, Flink, Postgres, ...)
-#   make build     - build toàn bộ Maven modules (skip tests)
-#   make submit    - submit Flink job qua REST API (không cần Flink UI)
-#   make generate  - chạy 3 data generators nền
-#   make demo      - up + build + submit + generate (full demo end-to-end)
-#   make down      - dừng generators + toàn bộ stack
-#   make health    - smoke check 4/4 services
-#
-# Windows: chạy qua WSL (wsl -d Ubuntu-22.04 make demo) hoặc Git Bash.
-# =============================================================================
-
 SHELL := bash
-FLINK_URL ?= http://localhost:8081
 
-.PHONY: up build submit generate demo down health test
-
-up:
-	bash scripts/run.sh --wait
-
-build:
-	mvn -q clean package -DskipTests
-
-submit:
-	FLINK_URL=$(FLINK_URL) bash scripts/submit_flink_job.sh
-
-generate:
-	bash scripts/start_generators.sh
-
-demo: up build submit generate
-	@echo "✅ Demo stack is up — Flink UI: $(FLINK_URL) | Swagger: http://localhost:8090/swagger-ui.html"
-
-down:
-	-bash scripts/stop_generators.sh
-	bash scripts/stop.sh
-
-health:
-	bash scripts/healthcheck.sh
+.PHONY: test package infra-config remote-up remote-down topic schema publish-fixture run-job
 
 test:
-	mvn -q test
+	PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
+	ruff check producer scripts
+	ruff format --check producer scripts
+	mvn -B test
+
+package:
+	mvn -B -pl flink-jobs/taobao-stream-job -am package
+
+infra-config:
+	docker compose -f infra/docker-compose.yml config --quiet
+
+remote-up:
+	bash scripts/run.sh
+
+remote-down:
+	bash scripts/stop.sh
+
+topic:
+	bash scripts/create_topic.sh
+
+schema:
+	bash scripts/register_schemas.sh
+
+publish-fixture:
+	bash scripts/replay.sh
+
+run-job:
+	bash scripts/run_flink.sh

@@ -5,9 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "taobao-replay"
 version = "0.1.0"
-description = "Bounded-memory preparation and local replay for Taobao user behavior data"
+description = "Bounded-memory replay and Kafka publishing for Taobao user behavior data"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+kafka = ["confluent-kafka[avro,schemaregistry]>=2.6,<3"]
 
 [project.scripts]
 taobao-replay = "taobao_replay.cli:main"

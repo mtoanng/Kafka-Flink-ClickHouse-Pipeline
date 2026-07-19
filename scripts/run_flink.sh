@@ -1,31 +1,32 @@
 #!/usr/bin/env bash
-# run_flink.sh — Run the Flink job in-process (MiniCluster)
-# Usage: bash scripts/run_flink.sh
-# Prerequisites: Kafka running locally, ClickHouse Cloud credentials in .env
+# Submit the Phase 3 Taobao job to an existing remote Flink installation.
 set -euo pipefail
 
-if [ ! -f .env ]; then
-  echo "WARNING: .env not found. Copy .env.example and fill in ClickHouse Cloud credentials."
-  echo "         cp .env.example .env"
+cd "$(dirname "$0")/.."
+
+FLINK_BIN="${FLINK_BIN:-flink}"
+JAR_PATH="flink-jobs/taobao-stream-job/target/taobao-stream-job-1.0.0-SNAPSHOT.jar"
+
+if ! command -v "$FLINK_BIN" >/dev/null 2>&1; then
+  echo "ERROR: Flink CLI not found: ${FLINK_BIN}"
   exit 1
 fi
-
-echo "Loading .env..."
-set -a
-source .env
-set +a
-
-echo "Starting Flink job (in-process)..."
-echo "  Kafka: ${KAFKA_BOOTSTRAP_SERVERS}"
-echo "  ClickHouse: ${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}"
-echo ""
-
-JAR_PATH="flink-jobs/f1-telemetry-job/target/f1-telemetry-job-1.0.0-SNAPSHOT.jar"
 
 if [ ! -f "$JAR_PATH" ]; then
-  echo "ERROR: JAR not found at $JAR_PATH"
-  echo "       Run: mvn clean package -DskipTests -pl flink-jobs/f1-telemetry-job"
+  echo "ERROR: JAR not found at ${JAR_PATH}"
+  echo "Build it with: mvn -B -pl flink-jobs/taobao-stream-job -am package"
   exit 1
 fi
 
-java -jar "$JAR_PATH"
+echo "Submitting Taobao Phase 3 job"
+echo "  Kafka: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+echo "  Topic: ${KAFKA_TOPIC:-user-behavior-events}"
+echo "  Schema Registry: ${SCHEMA_REGISTRY_URL:-http://localhost:8081}"
+echo "  ClickHouse: ${CLICKHOUSE_ENDPOINT:-https://localhost:8443}"
+
+FLINK_ARGS=()
+if [ "${FLINK_DETACHED:-false}" = "true" ]; then
+  FLINK_ARGS+=("-d")
+fi
+
+"$FLINK_BIN" run "${FLINK_ARGS[@]}" -c com.taobao.behavior.TaobaoStreamJob "$JAR_PATH"
