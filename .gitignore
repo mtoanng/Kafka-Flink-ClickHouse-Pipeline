@@ -58,6 +58,20 @@ data-generators/f1-replay-engine/src/main/resources/datasets/
 coverage/
 *.exec
 
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+
+# Taobao source and generated demo data (fixtures remain tracked)
+/data/
+/artifacts/
+
 # ── Large temporary files ──────────────────────────────────
 *.tmp
 *.bak
