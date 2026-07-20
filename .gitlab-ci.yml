@@ -30,8 +30,6 @@ build:
     - mvn $MAVEN_CLI_OPTS -DskipTests package
   artifacts:
     paths:
-      - "data-generators/f1-replay-engine/target/*.jar"
-      - "flink-jobs/f1-telemetry-job/target/*.jar"
       - "flink-jobs/taobao-stream-job/target/*.jar"
     expire_in: 1 week
 

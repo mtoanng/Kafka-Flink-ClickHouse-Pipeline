@@ -6,15 +6,15 @@ Taobao real-time customer behavior platform:
 
 `UserBehavior.csv -> Python replay -> Kafka/Avro -> one Java Flink job -> ClickHouse`
 
-The completed extensions add ScyllaDB current state, S3 archiving/checkpointing,
-and a PostgreSQL/Debezium rule control plane.
+The completed extensions add ScyllaDB current state and a PostgreSQL/Debezium
+rule control plane.
 
 ## Main Entry Points
 
 | Area | Location | Responsibility |
 | --- | --- | --- |
-| Python package | `producer/src/taobao_replay/` | Raw dataset validation, deterministic IDs, replay, Kafka publishing, archive metadata |
-| Python tests | `producer/tests/` | Reader, replay, source audit, Kafka contract, archive tests |
+| Python package | `producer/src/taobao_replay/` | Raw dataset validation, deterministic IDs, replay, and Kafka publishing |
+| Python tests | `producer/tests/` | Reader, replay, source audit, and Kafka contract tests |
 | Flink job | `flink-jobs/taobao-stream-job/` | Java DataStream topology, validation, watermarks, metrics, sinks, broadcast rules |
 | Flink tests | `flink-jobs/taobao-stream-job/src/test/` | Avro, aggregation, watermark, state, sink and contract tests |
 | Avro schemas | `schemas/` | `UserBehaviorEvent` and `BehaviorRule` contracts |
@@ -23,7 +23,7 @@ and a PostgreSQL/Debezium rule control plane.
 | PostgreSQL | `infra/postgres/` | Single `behavior_rules` control-plane table |
 | Debezium | `infra/debezium/` | PostgreSQL connector template and CDC notes |
 | Kafka contracts | `infra/kafka/` | Compacted behavior-rules topic contract |
-| Terraform | `infra/terraform/` | Bounded S3 archive infrastructure |
+| Terraform | `infra/terraform/` | Temporary EC2/networking and optional Confluent Cloud resources |
 | Scripts | `scripts/` | Fixture generation, replay, schema application, demos, checks, teardown |
 | Fixtures | `tests/fixtures/` | Deterministic bounded input for local tests |
 

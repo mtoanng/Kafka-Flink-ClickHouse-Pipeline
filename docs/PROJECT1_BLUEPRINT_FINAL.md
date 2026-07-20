@@ -28,7 +28,6 @@ After that path is stable, extend it with:
 
 ```text
 ScyllaDB current-state serving
-S3 raw archive
 PostgreSQL + Debezium control-plane CDC
 basic observability and Terraform
 ```
@@ -107,7 +106,6 @@ ONE Java Flink DataStream job
         +------------------> ScyllaDB
         |                    - user_current_activity
         |
-        +------------------> S3 raw archive
 ```
 
 ### 3.2 Control plane — advanced, not an MVP blocker
@@ -147,7 +145,6 @@ Rules:
 ### Required for the full junior project
 
 - ScyllaDB: latest user state lookup.
-- S3: raw archive.
 - Terraform: minimal cloud resources used by the demo.
 - Basic operational evidence: logs, counts, checkpoint status, and query screenshots.
 
@@ -312,9 +309,8 @@ Deliver:
 
 1. ScyllaDB `user_current_activity` sink;
 2. fixed read endpoint or CLI lookup for current state;
-3. S3 raw archive;
-4. checkpoint/restart experiment;
-5. minimal Terraform for S3 and any managed resources used;
+3. checkpoint/restart experiment;
+4. minimal Terraform for the temporary cloud host and approved managed resources;
 6. CI for Python, Maven, schemas, and Terraform;
 7. bounded cloud demo and teardown guide.
 
@@ -322,7 +318,6 @@ Acceptance criteria:
 
 - one user lookup returns the expected latest event;
 - replaying the fixture does not corrupt current state;
-- archive objects are created for the bounded demo;
 - Flink restart behavior is documented with real logs;
 - teardown is verified.
 
@@ -391,11 +386,10 @@ Student learning task: justify the ClickHouse ordering key from required queries
 - write to ScyllaDB;
 - add fixed lookup interface and tests.
 
-Student learning task: explain the partition key and why history stays in ClickHouse/S3.
+Student learning task: explain the partition key and why history stays in ClickHouse.
 
-### Phase 5 — Archive, checkpoint, CI, and Terraform
+### Phase 5 — Checkpoint, CI, and Terraform
 
-- add S3 archive;
 - verify checkpoint restart;
 - add CI;
 - add minimal Terraform and teardown.
@@ -438,7 +432,6 @@ Activate only after the client code and smoke scripts are ready:
 - ClickHouse Cloud;
 - ScyllaDB Cloud;
 - Confluent Cloud when payment activation works;
-- AWS S3;
 - optional Grafana Cloud.
 
 Use bounded-demo data, capture evidence, and destroy resources.
@@ -469,7 +462,7 @@ The project is complete for the junior stage when:
 
 1. Milestone A and B pass.
 2. A fresh user can follow the README and run the fixture/bounded demo.
-3. Kafka, Flink, ClickHouse, ScyllaDB, and S3 each have one clear responsibility.
+3. Kafka, Flink, ClickHouse, and ScyllaDB each have one clear responsibility.
 4. Raw counts, rollups, and current state are verified using deterministic data.
 5. At least one checkpoint/restart experiment has captured evidence.
 6. Cloud resources can be destroyed safely.

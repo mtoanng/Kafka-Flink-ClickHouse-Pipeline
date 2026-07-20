@@ -1,115 +1,82 @@
 # Taobao Real-Time Customer Behavior Platform
 
-This repository now includes **Phase 6: the PostgreSQL/Debezium control plane**. The
-existing single Flink job consumes versioned rule updates through broadcast state;
-remote Kafka, PostgreSQL, Debezium, and Flink integration remains unverified until
-run on a disposable host with credentials.
+Final cloud topology:
+
+```text
+Python Replay -> Confluent Cloud Kafka + Schema Registry -> one Java Flink job
+                                                        -> ClickHouse Cloud
+                                                        -> ScyllaDB Cloud
+```
+
+The temporary AWS EC2 host runs the replay engine and Flink CLI. The optional
+`cdc` Compose profile adds PostgreSQL and Debezium Kafka Connect on that host.
+There is no S3 data sink, Amazon MSK, AWS Managed Service for Apache Flink, or
+Kubernetes deployment.
 
 ## Authoritative Documents
 
-- [Final implementation blueprint](docs/PROJECT1_BLUEPRINT_FINAL.md)
-- [Phase 0 migration inventory](docs/PHASE_0_MIGRATION_INVENTORY.md)
-- [Phase 0 baseline report](docs/evidence/phase-0/BASELINE_REPORT.md)
+- [Final blueprint](docs/PROJECT1_BLUEPRINT_FINAL.md)
+- [Cloud architecture inventory](docs/CLOUD_E2E_ARCHITECTURE.md)
+- [Cloud E2E runbook](docs/CLOUD_E2E_RUNBOOK.md)
+- [Cloud cleanup audit](docs/CLEANUP_AUDIT.md)
 - [Dataset notes](docs/DATASET_NOTES.md)
-- [Phase 1 report](docs/evidence/phase-1/PHASE_REPORT.md)
-- [Phase 2 report](docs/evidence/phase-2/PHASE_REPORT.md)
-- [Phase 3 report](docs/evidence/phase-3/PHASE_REPORT.md)
-- [Phase 4 report](docs/evidence/phase-4/PHASE_REPORT.md)
-- [Phase 5 report](docs/evidence/phase-5/PHASE_REPORT.md)
-- [Phase 6 report](docs/evidence/phase-6/PHASE_REPORT.md)
-- [Archived F1 documentation](docs/archive/f1-baseline/)
+- [Phase reports](docs/evidence/)
 
-## Laptop Checks
-
-The ignored local Tianchi raw source and its private manifest have passed the Phase 1 source audit. See [Dataset notes](docs/DATASET_NOTES.md) for its recorded checksum, row count, and raw-row rejection behavior; cleaned Kaggle or derived tables are not accepted.
-
-Install the project with its Kafka/Avro test dependencies:
+## Local Checks
 
 ```bash
 pip install -e '.[kafka]'
-```
-
-Audit a manually acquired, ignored raw source and its private manifest:
-
-```bash
-PYTHONPATH=producer/src python -m taobao_replay source-audit data/UserBehavior.csv --manifest data/UserBehavior.source.json
-```
-
-Generate and inspect the deterministic fixture without infrastructure:
-
-```bash
-python scripts/generate_fixture.py --force
-PYTHONPATH=producer/src python -m taobao_replay profile tests/fixtures/user_behavior_fixture.csv
-mkdir -p artifacts
-PYTHONPATH=producer/src python -m taobao_replay replay tests/fixtures/user_behavior_fixture.csv --output artifacts/events.jsonl --invalid-output artifacts/invalid.jsonl
-```
-
-Run focused checks:
-
-```bash
 PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
 ruff check producer scripts
 ruff format --check producer scripts
 mvn -B test
-```
-
-The ClickHouse DDL contract is in [infra/clickhouse/schema.sql](infra/clickhouse/schema.sql) and its query pack is in [infra/clickhouse/verify.sql](infra/clickhouse/verify.sql). Raw history has one row per valid replay event; late events are excluded only from the item rollup. The metric table includes `replay_run_id` so fixture verification remains isolated across runs.
-
-The raw table is ordered by `(toDate(event_time), item_id, event_time, user_id)`. The verification pack filters a date range, then an item, then event time; this order minimizes the data range for that primary query. `user_id` is last for deterministic drill-down within equal item/time values, not because Kafka partitioning makes ClickHouse user lookups primary.
-
-The ScyllaDB contract is in [infra/scylladb/schema.cql](infra/scylladb/schema.cql). `user_current_activity` has exactly one partition key, `user_id`; it stores only the newest accepted on-time event for that user. The CQL sink is intentionally not a history store. ClickHouse retains raw and aggregate history.
-
-`session_event_count` currently counts state transitions that advance a user's newest event-time record within the running keyed state. It is not a sessionization feature: session-gap/timer logic is intentionally deferred beyond Phase 4.
-
-## Phase 5 Operations
-
-The archive tool validates each JSONL row, computes row count/bytes/SHA-256, and uploads only when `--s3-uri s3://bucket/key` is provided. Install its optional dependency with `pip install -e '.[archive]'`. Without an S3 URI it performs a local dry-run and can write a manifest under ignored `artifacts/`.
-
-```bash
-PYTHONPATH=producer/src python scripts/archive_raw_events.py \
-  artifacts/events.jsonl \
-  --s3-uri "s3://your-bucket/taobao/raw/run-1.events.jsonl" \
-  --manifest artifacts/run-1.archive.json
-```
-
-Checkpointing is disabled by default on the laptop. On the disposable Flink host, set `FLINK_CHECKPOINTING_ENABLED=true`, `FLINK_CHECKPOINT_DIR` to durable remote storage, and optionally `FLINK_CHECKPOINT_INTERVAL_MS`; then use `bash scripts/run_checkpoint_experiment.sh` for the controlled restart procedure. The job uses at-least-once checkpoint mode and makes no exactly-once claim.
-
-Terraform under [infra/terraform](infra/terraform) creates only the bounded S3 archive bucket, versioning, server-side encryption, and prefix lifecycle. Run `terraform fmt -check`, `init -backend=false`, and `validate` locally. Apply and destroy require explicit cloud authorization; `scripts/teardown_demo.sh` requires `CONFIRM_TEARDOWN=YES`.
-
-## Phase 6 Control Plane
-
-PostgreSQL contains only `behavior_rules`. The Debezium configuration unwraps
-changes, routes them to the compacted `behavior-rules` topic, and the same Flink
-job applies newer versions through broadcast state. A `cart_abandonment` rule uses
-event-time `MapState` timers and prints `BehaviorAlert` records. Run the remote
-exercise with `bash scripts/run_phase6_demo.sh` after setting PostgreSQL, Kafka,
-Schema Registry, Kafka Connect, and Flink variables. No Phase 6 connector or
-cloud result is verified locally.
-
-## Remote Phase 5 Integration
-
-Use a disposable remote machine for Kafka, Schema Registry, Flink, ClickHouse, and ScyllaDB. Do not start the complete stack on the laptop. The Scylla integration uses the native CQL driver, not the DynamoDB API. Keep `SCYLLA_*` and `CLICKHOUSE_*` credentials out of Git.
-
-```bash
-pip install -e '.[kafka]'
-bash scripts/run.sh
 mvn -B -pl flink-jobs/taobao-stream-job -am package
-export CLICKHOUSE_ENDPOINT='https://your-host:8443'
-export CLICKHOUSE_USER='default'
-export CLICKHOUSE_PASSWORD='replace-me'
-export SCYLLA_HOST='your-scylla-host'
-export SCYLLA_LOCAL_DATACENTER='your-datacenter'
-export SCYLLA_USER='replace-me'
-export SCYLLA_PASSWORD='replace-me'
-bash scripts/run_fixture_demo.sh
+terraform -chdir=infra/terraform fmt -check
+terraform -chdir=infra/terraform validate
 ```
 
-`run_fixture_demo.sh` applies idempotent ClickHouse and Scylla CQL schemas, submits Flink detached, replays the committed fixture with a unique run ID, verifies 999 valid ClickHouse raw events plus the item 500 first-minute rollup (`cart=1`, `buy=1`, `unique_users=1`), performs a fixed CQL lookup for user `100`, and produces an archive manifest. Set `S3_ARCHIVE_URI` to upload the accepted JSONL; omit it for a local archive dry-run.
+The ignored `data/UserBehavior.csv` is the audited Alibaba Tianchi raw source.
+The committed fixture under `tests/fixtures/` is the only dataset used for local
+bounded tests.
 
-Run the lookup independently after building the job:
+## Core And CDC Profiles
+
+The Compose file is a disposable remote-host profile. `core` runs Kafka and
+Schema Registry; ClickHouse Cloud and ScyllaDB Cloud are external services from
+environment variables. `cdc` adds PostgreSQL and Debezium Connect locally on the
+same EC2 host.
 
 ```bash
-bash scripts/lookup_current_activity.sh 100
+docker compose --profile core -f infra/docker-compose.yml up -d
+docker compose --profile cdc -f infra/docker-compose.yml up -d
 ```
 
-The remote smoke and lookup are credential-dependent and are not evidence until they complete against real services. The Kafka topic is `user-behavior-events`, keyed by the UTF-8 representation of `user_id`; the value subject is `user-behavior-events-value` with `BACKWARD` compatibility.
+Copy `.env.cloud.example` to a private ignored `.env.cloud` and inject secrets at
+runtime. Never commit credentials or provider state.
+
+## Cloud Preparation And E2E
+
+Terraform describes only the temporary EC2/VPC/network/security-group/Elastic IP
+and optional Confluent Cloud resources. Existing ClickHouse, ScyllaDB, and Grafana
+Cloud services are environment variables only.
+
+```bash
+terraform -chdir=infra/terraform init -backend=false -input=false
+terraform -chdir=infra/terraform validate
+terraform -chdir=infra/terraform plan -refresh=false -var-file=terraform.tfvars
+```
+
+Do not run `terraform apply` from this preparation workflow. On the disposable
+host, use:
+
+```bash
+bash scripts/cloud_preflight.sh
+bash scripts/run_cloud_smoke.sh
+RELEASE_E2E_CONFIRM=YES bash scripts/run_release_e2e.sh
+bash scripts/collect_cloud_evidence.sh
+bash scripts/verify_cloud_teardown.sh
+```
+
+Evidence remains `NOT VERIFIED` until a real bounded run reconciles input rows,
+ClickHouse raw/rollup results, Scylla current state, Flink recovery, and optional
+CDC rule updates.

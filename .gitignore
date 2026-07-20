@@ -38,6 +38,8 @@ build-logs/
 .env
 .env.local
 .env.*.local
+.env.cloud
+.env.cloud.local
 
 # Docker local state
 .docker/

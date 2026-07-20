@@ -1,6 +1,30 @@
 # This file is maintained automatically by "terraform init".
 # Manual edits may be lost in future updates.
 
+provider "registry.terraform.io/confluentinc/confluent" {
+  version     = "2.78.0"
+  constraints = "~> 2.0"
+  hashes = [
+    "h1:ZQIMyerE03Zf8wmnF14nThU0h/4qYKNt1QNGlTl0Pr4=",
+    "zh:0f6b4f3b1b69fe26b4a8356bb74d3bdd00e056c32548352975e587c6a160874a",
+    "zh:2685f3172b3fe5507a45fa1f377f83b86575672f74bb16ce81667fbe3b2d3633",
+    "zh:2b15f0e9139208bdd4d2de8f3229b750398029a51c10fcb675b2c1d29639083e",
+    "zh:30af92d4a4f1e4728fa3ef50ce9830316b078e250edd391fb5aafea75381f57c",
+    "zh:630467716351445fd74cf361ea6ceac5f685d4ed0fdbb299a6628f868e3e3c43",
+    "zh:699783a7d73d4be3b052d18960637c124fbb0a34974858dc1c2253fffd59d74f",
+    "zh:7bc2cc5edd7a1d0637f5a794cecd28b7fac16ec88048c5750df7172efb0f7657",
+    "zh:7e39f8a6e9304d2f98a350fab826f7724f11de6d1d92d357b919f65f03bab892",
+    "zh:81ce7155deef54114be4596b9ad93eba6510fc8dbb836348492e4fa260d062c8",
+    "zh:8a703905a3a9e0704c1bffc92b841c3038011683b43aaa740988ef54f863efa7",
+    "zh:ab50ebcc1e74716c9c9c172dc8b7863607427cc28af187bf69e0ad809d93f829",
+    "zh:b06f471066b7a258e5f38a8be97cf41bd8435cd29af937e08680888262f9ec3e",
+    "zh:b0df34ea4cb6d14ed63f2e0ad34d6d2e63d629a3d0314094799d163dcdbce4ec",
+    "zh:c931a4947dee3a6f974b24cdb6a3f0dbaa3606efc8046cce34c441093805ae02",
+    "zh:f0599cc421661d7a1c565ae43bd275290d35104e57f3e681f3f1b087934f87d2",
+    "zh:f4ee67679790f549844714a6e5b05a407d8665ae8f7cfae8f4b88c1654386274",
+  ]
+}
+
 provider "registry.terraform.io/hashicorp/aws" {
   version     = "5.100.0"
   constraints = "~> 5.0"

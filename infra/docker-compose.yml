@@ -1,71 +1,58 @@
-# =============================================================
-#  Taobao integration services: Kafka KRaft + Schema Registry.
-#  Run this on a disposable integration host, not on the laptop.
-#  Memory: Kafka 768MB + Schema Registry 512MB = ~1.3GB + Docker overhead ~2GB
-#  Run: docker compose -f infra/docker-compose.yml up -d
-# =============================================================
+name: ${COMPOSE_PROJECT_NAME:-taobao-cloud-e2e}
+
+# Final cloud profiles:
+#   core: no broker container; host processes use Confluent Cloud.
+#   cdc: core plus local PostgreSQL and Debezium Connect on the EC2 host.
+# ClickHouse, ScyllaDB, and Grafana remain external environment-driven services.
 
 services:
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: kafka
+  postgres:
+    profiles: ["cdc"]
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     ports:
-      - "9092:9092"
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_LOG_RETENTION_HOURS: 24
-      KAFKA_LOG_SEGMENT_BYTES: 67108864
-      KAFKA_LOG_RETENTION_BYTES: 134217728
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-      KAFKA_HEAP_OPTS: "-Xms384M -Xmx512M"
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks:
-      - taobao_network
-    mem_limit: 768m
-    mem_reservation: 512m
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.6.0
-    container_name: schema-registry
-    depends_on:
-      kafka:
-        condition: service_healthy
+  debezium-connect:
+    profiles: ["cdc"]
+    image: ${DEBEZIUM_CONNECT_IMAGE:-debezium/connect:2.7}
     ports:
-      - "8081:8081"
+      - "${CONNECT_EXTERNAL_PORT:-8083}:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      KAFKA_HEAP_OPTS: "-Xms256M -Xmx384M"
-    networks:
-      - taobao_network
-    mem_limit: 512m
-    mem_reservation: 256m
+      BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS is required}
+      GROUP_ID: ${CONNECT_GROUP_ID:-taobao-debezium}
+      CONFIG_STORAGE_TOPIC: ${CONNECT_CONFIG_TOPIC:-taobao-connect-configs}
+      OFFSET_STORAGE_TOPIC: ${CONNECT_OFFSET_TOPIC:-taobao-connect-offsets}
+      STATUS_STORAGE_TOPIC: ${CONNECT_STATUS_TOPIC:-taobao-connect-status}
+      KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      KEY_CONVERTER_SCHEMA_REGISTRY_URL: ${SCHEMA_REGISTRY_URL:?SCHEMA_REGISTRY_URL is required}
+      VALUE_CONVERTER_SCHEMA_REGISTRY_URL: ${SCHEMA_REGISTRY_URL:?SCHEMA_REGISTRY_URL is required}
+      KEY_CONVERTER_BASIC_AUTH_USER_INFO: ${SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO:?SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO is required}
+      VALUE_CONVERTER_BASIC_AUTH_USER_INFO: ${SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO:?SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO is required}
+      REST_ADVERTISED_HOST_NAME: ${CONNECT_ADVERTISED_HOSTNAME:-localhost}
+      CONNECT_PLUGIN_PATH: /kafka/connect,/kafka/connect/debezium-connector-postgresql
+      CONNECT_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      CONNECT_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      CONNECT_SASL_JAAS_CONFIG: ${KAFKA_SASL_JAAS_CONFIG:?KAFKA_SASL_JAAS_CONFIG is required}
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8081/subjects"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
-  kafka_data:
-
-networks:
-  taobao_network:
-    driver: bridge
+  postgres_data:

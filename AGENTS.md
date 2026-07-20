@@ -105,7 +105,7 @@ Reason:
 ```text
 Taobao -> Python replay -> Kafka/Schema Registry -> one Java Flink job
         -> ClickHouse
-        -> ScyllaDB and S3 in Milestone B
+        -> ScyllaDB current state in Milestone B
         -> PostgreSQL/Debezium control plane in optional Milestone C
 ```
 
@@ -116,6 +116,8 @@ Rules:
 - ClickHouse stores analytical history and rollups.
 - ScyllaDB stores bounded latest state only.
 - PostgreSQL/Debezium is optional advanced control-plane work, not serving.
+- Confluent Cloud provides Kafka and Schema Registry for final cloud E2E; do not
+  add Amazon MSK or self-hosted Kafka to the final topology.
 - Do not add Spark, Airflow, MongoDB, Redis, Elasticsearch, Kubernetes, ML, recommendation, arbitrary SQL APIs, or another serving database.
 - Do not convert the Java Flink job to PyFlink.
 

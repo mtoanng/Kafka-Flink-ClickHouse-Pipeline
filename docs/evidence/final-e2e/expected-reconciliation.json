@@ -1,0 +1,17 @@
+{
+  "accepted_rows": 999,
+  "behavior_counts": {
+    "buy": 248,
+    "cart": 250,
+    "fav": 250,
+    "pv": 251
+  },
+  "fixture": "tests\\fixtures\\user_behavior_fixture.csv",
+  "item_500_behavior_counts": {
+    "buy": 1,
+    "cart": 1
+  },
+  "rejected_rows": 1,
+  "source_rows": 1000,
+  "unique_users": 206
+}

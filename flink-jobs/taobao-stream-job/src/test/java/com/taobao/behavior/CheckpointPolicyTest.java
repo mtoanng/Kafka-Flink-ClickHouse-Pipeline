@@ -19,10 +19,10 @@ class CheckpointPolicyTest {
 
     @Test
     void enabledCheckpointingRequiresDurableStoragePath() {
-        CheckpointPolicy policy = CheckpointPolicy.fromValues("true", "10000", "s3://demo/checkpoints");
+        CheckpointPolicy policy = CheckpointPolicy.fromValues("true", "10000", "/var/lib/flink/checkpoints");
 
         assertTrue(policy.isEnabled());
-        assertEquals("s3://demo/checkpoints", policy.getStoragePath());
+        assertEquals("/var/lib/flink/checkpoints", policy.getStoragePath());
         assertThrows(
                 IllegalArgumentException.class,
                 () -> CheckpointPolicy.fromValues("true", "10000", ""));

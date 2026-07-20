@@ -1,41 +1,21 @@
 #!/usr/bin/env bash
-# Start bounded Kafka and Schema Registry services on the integration host.
-# Usage: bash scripts/run.sh
+# Prepare the disposable EC2 host. Kafka and Schema Registry are Confluent Cloud.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+: "${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS is required}"
+: "${SCHEMA_REGISTRY_URL:?SCHEMA_REGISTRY_URL is required}"
 
-echo "Starting bounded Kafka KRaft + Schema Registry services..."
-docker compose -f infra/docker-compose.yml up -d
+if [ "${CDC_ENABLED:-false}" = "true" ]; then
+  : "${POSTGRES_DB:?POSTGRES_DB is required for CDC}"
+  : "${POSTGRES_USER:?POSTGRES_USER is required for CDC}"
+  : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for CDC}"
+  : "${KAFKA_SASL_JAAS_CONFIG:?KAFKA_SASL_JAAS_CONFIG is required for CDC}"
+  docker compose --profile cdc -f "${COMPOSE_FILE:-infra/docker-compose.yml}" up -d
+else
+  echo "Core profile selected: using Confluent Cloud; no local broker is started."
+fi
 
-echo ""
-echo "Waiting for services to be healthy (max 60s)..."
-for i in $(seq 1 12); do
-  if docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1 \
-     && curl -sf http://localhost:8081/subjects >/dev/null 2>&1; then
-    echo "  Services ready after $((i * 5))s"
-    break
-  fi
-  sleep 5
-  if [ "$i" = "12" ]; then
-    echo "  [WARN] Timeout — check: docker compose -f infra/docker-compose.yml ps"
-  fi
-done
-
-echo ""
-echo "Creating Kafka topic..."
-bash scripts/create_topic.sh || echo "  [WARN] topic creation skipped"
-
-echo ""
-echo "Registering Avro schema..."
-bash scripts/register_schemas.sh || echo "  [WARN] schema registration skipped"
-
-echo ""
-echo "=== Infrastructure ready ==="
-echo "  Kafka:           localhost:9092"
-echo "  Schema Registry: localhost:8081"
-echo ""
-echo "Next on this disposable integration host:"
-echo "  pip install -e '.[kafka]'"
-echo "  bash scripts/replay.sh"
-echo "  bash scripts/run_flink.sh"
+echo "Confluent Kafka: ${KAFKA_BOOTSTRAP_SERVERS}"
+echo "Schema Registry: ${SCHEMA_REGISTRY_URL}"
+echo "Next: bash scripts/cloud_preflight.sh"

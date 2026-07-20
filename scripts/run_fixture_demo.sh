@@ -20,20 +20,4 @@ bash scripts/replay.sh
 PYTHONPATH=producer/src python scripts/verify_clickhouse.py --run-id "$RUN_ID"
 bash scripts/lookup_current_activity.sh 100
 
-ARCHIVE_INPUT="artifacts/${RUN_ID}.events.jsonl"
-PYTHONPATH=producer/src python -m taobao_replay replay \
-  tests/fixtures/user_behavior_fixture.csv \
-  --run-id "$RUN_ID" \
-  --output "$ARCHIVE_INPUT" \
-  --invalid-output "artifacts/${RUN_ID}.invalid.jsonl" \
-  --force
-if [ -n "${S3_ARCHIVE_URI:-}" ]; then
-  PYTHONPATH=producer/src python scripts/archive_raw_events.py \
-    "$ARCHIVE_INPUT" \
-    --s3-uri "${S3_ARCHIVE_URI%/}/${RUN_ID}.events.jsonl" \
-    --manifest "artifacts/${RUN_ID}.archive.json"
-else
-  PYTHONPATH=producer/src python scripts/archive_raw_events.py \
-    "$ARCHIVE_INPUT" \
-    --manifest "artifacts/${RUN_ID}.archive.json"
-fi
+echo "Cloud core smoke completed for run ${RUN_ID}."

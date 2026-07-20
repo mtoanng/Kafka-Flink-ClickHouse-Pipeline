@@ -7,6 +7,8 @@
 - `infra/grafana/`: F1 dashboards and datasource provisioning with no active consumer.
 - F1-specific Maven reactor modules, parent metadata, dependency properties, and
   the old dataset ignore rule.
+- The S3 archive module, uploader script, archive tests, S3 Terraform resources,
+  and archive-only Makefile/configuration paths from the superseded topology.
 
 ## Archived
 

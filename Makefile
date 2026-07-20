@@ -1,6 +1,6 @@
 SHELL := bash
 
-.PHONY: test package infra-config remote-up remote-down topic schema scylla-schema publish-fixture run-job lookup-user archive-fixture checkpoint-experiment terraform-validate teardown
+.PHONY: test package infra-config remote-up remote-down schema scylla-schema publish-fixture run-job checkpoint-experiment terraform-validate teardown
 
 test:
 	PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
@@ -20,9 +20,6 @@ remote-up:
 remote-down:
 	bash scripts/stop.sh
 
-topic:
-	bash scripts/create_topic.sh
-
 schema:
 	bash scripts/register_schemas.sh
 
@@ -37,9 +34,6 @@ run-job:
 
 lookup-user:
 	bash scripts/lookup_current_activity.sh $(USER_ID)
-
-archive-fixture:
-	PYTHONPATH=producer/src python scripts/archive_raw_events.py artifacts/events.jsonl --manifest artifacts/events.archive.json
 
 checkpoint-experiment:
 	bash scripts/run_checkpoint_experiment.sh
