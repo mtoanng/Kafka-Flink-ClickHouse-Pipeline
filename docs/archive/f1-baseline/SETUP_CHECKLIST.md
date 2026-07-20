@@ -289,7 +289,7 @@ python --version
 
 #### Step 1.1: Start Kafka + Schema Registry ✅
 ```powershell
-cd c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres
+cd c:\Users\ADMIN\STREAMING\Kafka-Flink-ClickHouse-Pipeline
 
 # Start services
 docker compose -f infra/docker-compose.yml up -d
@@ -767,7 +767,7 @@ choco install maven
 # Edit scripts/register_schemas.sh line 18
 
 # 3. Build project
-cd c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres
+cd c:\Users\ADMIN\STREAMING\Kafka-Flink-ClickHouse-Pipeline
 mvn clean package -DskipTests
 
 # 4. Download dataset

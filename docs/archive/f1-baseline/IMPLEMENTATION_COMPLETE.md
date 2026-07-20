@@ -347,7 +347,7 @@ Map<String, String> clientOptions = Map.of(
 ## File Structure
 
 ```
-Real-time-processing-with-Kafka-Flink-Postgres/
+Kafka-Flink-ClickHouse-Pipeline/
 ├── pom.xml                                      [UPDATED]
 ├── .env                                         [CONFIGURE]
 ├── flink-jobs/f1-telemetry-job/

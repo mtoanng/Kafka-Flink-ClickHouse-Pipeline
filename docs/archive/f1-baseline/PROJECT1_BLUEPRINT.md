@@ -1,6 +1,6 @@
 # Blueprint — VES-Monitor → "F1 Live Telemetry Platform" (Modern Streaming Platform)
 
-Repo: `Real-time-processing-with-Kafka-Flink-Postgres`
+Repo: `Kafka-Flink-ClickHouse-Pipeline`
 
 > **Phiên bản này đã gọt phần domain complexity** (anomaly detection rolling-average, Canvas track map, ground-truth overlay) để tập trung effort vào **engineering value**: managed Kafka, Avro/Schema Registry, stateful stream processing, CDC, ClickHouse serving, Kafka Connect S3, Terraform, GitLab CI.
 

@@ -255,7 +255,7 @@ choco install vscode -y
 
 **Navigate to project**:
 ```powershell
-cd c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres
+cd c:\Users\ADMIN\STREAMING\Kafka-Flink-ClickHouse-Pipeline
 ```
 
 **Check Git status**:
@@ -344,7 +344,7 @@ USE f1_telemetry;
 ```
 
 4. **Copy DDL script from local file**:
-   - Open file: `c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres\infra\clickhouse\01_tables.sql`
+   - Open file: `c:\Users\ADMIN\STREAMING\Kafka-Flink-ClickHouse-Pipeline\infra\clickhouse\01_tables.sql`
    - Copy toàn bộ nội dung (từ CREATE DATABASE... đến cuối)
 
 5. **Paste vào SQL console** và click **"Run"**
@@ -526,7 +526,7 @@ docker ps
 ### Step 5.2: Navigate to Project Directory ⏱️ 1 min
 
 ```bash
-cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+cd /c/Users/ADMIN/STREAMING/Kafka-Flink-ClickHouse-Pipeline
 ```
 
 ---
@@ -868,7 +868,7 @@ echo $CLICKHOUSE_HOST  # Should print your host
 
 **Open Git Bash Terminal 1**:
 ```bash
-cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+cd /c/Users/ADMIN/STREAMING/Kafka-Flink-ClickHouse-Pipeline
 bash scripts/replay.sh
 ```
 
@@ -894,7 +894,7 @@ INFO  Published 2000 events | driver=44 speed=312km/h
 
 **Open New Git Bash Terminal 2**:
 ```bash
-cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+cd /c/Users/ADMIN/STREAMING/Kafka-Flink-ClickHouse-Pipeline
 bash scripts/run_flink.sh
 ```
 
@@ -1021,7 +1021,7 @@ LIMIT 20;
 
 3. **Upload dashboard JSON**:
    - Click **"Upload JSON file"**
-   - Select: `c:\Users\ADMIN\STREAMING\Real-time-processing-with-Kafka-Flink-Postgres\infra\grafana\dashboards\f1-live-telemetry.json`
+   - Select: `c:\Users\ADMIN\STREAMING\Kafka-Flink-ClickHouse-Pipeline\infra\grafana\dashboards\f1-live-telemetry.json`
 
 4. **Configure import**:
    ```
@@ -1185,7 +1185,7 @@ bash scripts/register_schemas.sh
 
 # 4. Restart Flink job
 # Ctrl+C in Terminal 2, then restart with Git Bash
-cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+cd /c/Users/ADMIN/STREAMING/Kafka-Flink-ClickHouse-Pipeline
 bash scripts/run_flink.sh
 ```
 
@@ -1248,7 +1248,7 @@ FROM f1_telemetry.raw_telemetry;
 ```bash
 # Increase JVM heap when running Flink
 export MAVEN_OPTS="-Xms1G -Xmx2G"
-cd /c/Users/ADMIN/STREAMING/Real-time-processing-with-Kafka-Flink-Postgres
+cd /c/Users/ADMIN/STREAMING/Kafka-Flink-ClickHouse-Pipeline
 bash scripts/run_flink.sh
 ```
 
