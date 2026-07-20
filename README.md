@@ -2,7 +2,7 @@
 
 A streaming data platform for Alibaba/Taobao `UserBehavior.csv` events.
 
-<img width="1468" height="716" alt="image" src="https://github.com/user-attachments/assets/53224a9a-0b78-4244-8ea6-db6a38acce8a" />
+<img width="1376" height="634" alt="image" src="https://github.com/user-attachments/assets/a1d466a8-20e6-4af0-9167-291875042065" />
 
 
 ```text
