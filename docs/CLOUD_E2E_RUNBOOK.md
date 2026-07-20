@@ -18,16 +18,17 @@ The preparation gate stops after `validate` and `plan`; it does not run `apply`.
 ## Remote Profile
 
 ```bash
-docker compose -f infra/docker-compose.yml config --quiet
-bash scripts/run.sh
+docker compose --profile core -f infra/docker-compose.yml config --quiet
 bash scripts/cloud_preflight.sh
 bash scripts/run_cloud_smoke.sh
 ```
 
-The `core` profile uses Confluent Cloud directly; it has no local broker
-container. The `cdc` profile starts only PostgreSQL and Debezium Connect on the
-EC2 host. ClickHouse, ScyllaDB, and Grafana are external endpoints supplied
-through environment variables.
+The local `run.sh` launcher is for the plaintext Compose profile. A managed
+cloud run must use the external Kafka and Schema Registry endpoints from the
+cloud environment contract and submit the built JAR with `run_flink.sh`; it
+must not treat the local broker as the managed Kafka service. ClickHouse,
+ScyllaDB, and Grafana are external endpoints supplied through environment
+variables. The CDC profile adds local PostgreSQL and Debezium only when enabled.
 
 ## Smoke, Release, Evidence, Teardown
 

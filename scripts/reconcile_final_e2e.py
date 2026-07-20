@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build credential-free expected counts for the bounded release fixture."""
+
 from __future__ import annotations
 
 import json

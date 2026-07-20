@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.taobao.behavior.avro.BehaviorRule;
 import com.taobao.behavior.processing.RuleVersionPolicy;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 class RuleVersionPolicyTest {
@@ -34,7 +35,7 @@ class RuleVersionPolicyTest {
                 .setThresholdSeconds(thresholdSeconds)
                 .setEnabled(enabled)
                 .setVersion(version)
-                .setUpdatedAt(1_700_000_000_000L + version)
+                .setUpdatedAt(Instant.ofEpochMilli(1_700_000_000_000L + version))
                 .build();
     }
 }

@@ -1,8 +1,7 @@
 {
   "type": "record",
-  "name": "BehaviorRule",
-  "namespace": "com.taobao.behavior.avro",
-  "aliases": ["taobao.public.behavior_rules.BehaviorRuleValue"],
+  "name": "BehaviorRuleValue",
+  "namespace": "taobao.public.behavior_rules",
   "fields": [
     {"name": "rule_id", "type": "string"},
     {"name": "rule_type", "type": "string"},

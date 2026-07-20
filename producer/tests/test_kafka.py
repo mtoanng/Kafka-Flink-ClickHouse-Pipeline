@@ -4,7 +4,12 @@ import unittest
 from pathlib import Path
 
 from taobao_replay.contracts import parse_event
-from taobao_replay.kafka import KafkaEventPublisher, event_to_avro, kafka_key
+from taobao_replay.kafka import (
+    KafkaEventPublisher,
+    event_to_avro,
+    kafka_key,
+    kafka_security_options,
+)
 
 
 class FakeProducer:
@@ -59,6 +64,40 @@ class KafkaPublisherTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "1 message"):
             publisher.close(timeout=0.1)
+
+    def test_plaintext_security_mode_needs_no_sasl_values(self) -> None:
+        self.assertEqual(kafka_security_options({}), {"security.protocol": "PLAINTEXT"})
+
+    def test_managed_sasl_ssl_security_mode_maps_credentials(self) -> None:
+        options = kafka_security_options(
+            {
+                "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+                "KAFKA_SASL_MECHANISM": "PLAIN",
+                "KAFKA_SASL_USERNAME": "key",
+                "KAFKA_SASL_PASSWORD": "secret",
+            }
+        )
+        self.assertEqual(
+            options,
+            {
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanism": "PLAIN",
+                "sasl.username": "key",
+                "sasl.password": "secret",
+            },
+        )
+
+    def test_partial_sasl_configuration_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "KAFKA_SASL_MECHANISM"):
+            kafka_security_options({"KAFKA_SECURITY_PROTOCOL": "SASL_SSL"})
+        with self.assertRaisesRegex(ValueError, "provided together"):
+            kafka_security_options(
+                {
+                    "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+                    "KAFKA_SASL_MECHANISM": "PLAIN",
+                    "KAFKA_SASL_USERNAME": "key",
+                }
+            )
 
     def test_confluent_avro_wire_round_trip_uses_registered_schema_id(self) -> None:
         from confluent_kafka.schema_registry import SchemaRegistryClient

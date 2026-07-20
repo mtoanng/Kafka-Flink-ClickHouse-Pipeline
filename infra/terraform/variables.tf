@@ -63,6 +63,59 @@ variable "root_volume_size_gb" {
   }
 }
 
+variable "flink_version" {
+  description = "Apache Flink distribution version installed on the temporary host."
+  type        = string
+  default     = "1.20.1"
+}
+
+variable "flink_download_url" {
+  description = "HTTPS URL for the pinned Flink binary distribution."
+  type        = string
+  default     = "https://archive.apache.org/dist/flink/flink-1.20.1/flink-1.20.1-bin-scala_2.12.tgz"
+}
+
+variable "flink_sha256" {
+  description = "SHA-256 for flink_download_url; empty disables checksum enforcement."
+  type        = string
+  default     = ""
+}
+
+variable "application_jar_url" {
+  description = "HTTPS URL for the versioned shaded Taobao Flink application JAR."
+  type        = string
+  default     = ""
+}
+
+variable "application_jar_sha256" {
+  description = "SHA-256 for application_jar_url; empty disables checksum enforcement."
+  type        = string
+  default     = ""
+}
+
+variable "runtime_bundle_url" {
+  description = "HTTPS URL for a repository runtime bundle containing Compose and scripts."
+  type        = string
+  default     = ""
+}
+
+variable "runtime_profile" {
+  description = "Initial runtime profile loaded by the host bootstrap."
+  type        = string
+  default     = "core"
+
+  validation {
+    condition     = contains(["core", "serving", "cdc", "observability"], var.runtime_profile)
+    error_message = "runtime_profile must be core, serving, cdc, or observability."
+  }
+}
+
+variable "auto_start_runtime" {
+  description = "Start Compose and submit Flink after bootstrap when artifacts/configuration exist."
+  type        = bool
+  default     = false
+}
+
 variable "enable_confluent_resources" {
   description = "Enable Confluent Cloud resources in a credentialed operator plan."
   type        = bool

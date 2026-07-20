@@ -8,7 +8,6 @@ import com.taobao.behavior.model.BehaviorAlert;
 import com.taobao.behavior.model.InvalidBehaviorEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import com.taobao.behavior.model.ItemRunKey;
-import com.taobao.behavior.model.UserCurrentActivity;
 import com.taobao.behavior.processing.CurrentActivityProjector;
 import com.taobao.behavior.processing.CheckpointPolicy;
 import com.taobao.behavior.processing.CartAbandonmentRuleProcessor;
@@ -18,7 +17,6 @@ import com.taobao.behavior.processing.LateEventRouter;
 import com.taobao.behavior.sink.ClickHouseSinkFactory;
 import com.taobao.behavior.sink.ScyllaCurrentActivitySink;
 import java.time.Duration;
-import java.util.Properties;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -35,32 +33,25 @@ public final class TaobaoStreamJob {
     private TaobaoStreamJob() {}
 
     public static void main(String[] args) throws Exception {
-        String bootstrapServers = environment("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092");
-        String topic = environment("KAFKA_TOPIC", "user-behavior-events");
-        String consumerGroup = environment("KAFKA_CONSUMER_GROUP", "taobao-stream-job");
-        String schemaRegistryUrl = environment("SCHEMA_REGISTRY_URL", "http://localhost:8081");
-        Properties kafkaProperties = kafkaProperties();
-        String rulesTopic = environment("RULES_KAFKA_TOPIC", "behavior-rules");
-        String rulesConsumerGroup = environment("RULES_CONSUMER_GROUP", "taobao-rule-broadcast");
-        String clickHouseEndpoint = environment("CLICKHOUSE_ENDPOINT", "https://localhost:8443");
-        String clickHouseUser = environment("CLICKHOUSE_USER", "default");
-        String clickHousePassword = environment("CLICKHOUSE_PASSWORD", "");
-        String clickHouseDatabase = environment("CLICKHOUSE_DATABASE", "taobao_behavior");
-        String scyllaHost = environment("SCYLLA_HOST", "localhost");
-        int scyllaPort = Integer.parseInt(environment("SCYLLA_PORT", "9042"));
-        String scyllaLocalDatacenter = environment("SCYLLA_LOCAL_DATACENTER", "datacenter1");
-        String scyllaUser = environment("SCYLLA_USER", "");
-        String scyllaPassword = environment("SCYLLA_PASSWORD", "");
-        String scyllaKeyspace = environment("SCYLLA_KEYSPACE", "taobao_behavior");
+        RuntimeProfileConfig configuration = RuntimeProfileConfig.fromEnvironment(System.getenv());
+        String bootstrapServers = configuration.value("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092");
+        String topic = configuration.value("KAFKA_TOPIC", "user-behavior-events");
+        String consumerGroup = configuration.value("KAFKA_CONSUMER_GROUP", "taobao-stream-job");
+        String schemaRegistryUrl = configuration.value(
+                "SCHEMA_REGISTRY_URL", "http://localhost:8081/apis/ccompat/v7");
+        String clickHouseEndpoint = configuration.value("CLICKHOUSE_ENDPOINT", "https://localhost:8443");
+        String clickHouseUser = configuration.value("CLICKHOUSE_USER", "default");
+        String clickHousePassword = configuration.value("CLICKHOUSE_PASSWORD", "");
+        String clickHouseDatabase = configuration.value("CLICKHOUSE_DATABASE", "taobao_behavior");
         CheckpointPolicy checkpointPolicy =
                 CheckpointPolicy.fromValues(
-                        environment("FLINK_CHECKPOINTING_ENABLED", "false"),
-                        environment("FLINK_CHECKPOINT_INTERVAL_MS", "60000"),
-                        environment("FLINK_CHECKPOINT_DIR", ""));
+                        configuration.value("FLINK_CHECKPOINTING_ENABLED", "false"),
+                        configuration.value("FLINK_CHECKPOINT_INTERVAL_MS", "60000"),
+                        configuration.value("FLINK_CHECKPOINT_DIR", ""));
 
         StreamExecutionEnvironment execution =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        execution.setParallelism(Integer.parseInt(environment("FLINK_PARALLELISM", "1")));
+        execution.setParallelism(Integer.parseInt(configuration.value("FLINK_PARALLELISM", "1")));
         if (checkpointPolicy.isEnabled()) {
             execution.enableCheckpointing(
                     checkpointPolicy.getIntervalMs(), CheckpointingMode.AT_LEAST_ONCE);
@@ -71,7 +62,7 @@ public final class TaobaoStreamJob {
                 .setBootstrapServers(bootstrapServers)
                 .setTopics(topic)
                 .setGroupId(consumerGroup)
-                .setProperties(kafkaProperties)
+                .setProperties(configuration.kafkaProperties())
                 .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(
                         ConfluentRegistryAvroDeserializationSchema.forSpecific(
@@ -117,31 +108,6 @@ public final class TaobaoStreamJob {
         DataStream<UserBehaviorEvent> windowLate =
                 metrics.getSideOutput(LateEventRouter.LATE_EVENTS);
 
-        SingleOutputStreamOperator<UserCurrentActivity> currentActivity = onTime
-                .keyBy(UserBehaviorEvent::getUserId)
-                .process(new CurrentActivityProjector())
-                .name("ProjectCurrentUserActivity")
-                .uid("project-current-user-activity");
-
-        KafkaSource<BehaviorRule> rulesSource = KafkaSource.<BehaviorRule>builder()
-                .setBootstrapServers(bootstrapServers)
-                .setTopics(rulesTopic)
-                .setGroupId(rulesConsumerGroup)
-                .setProperties(kafkaProperties)
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setValueOnlyDeserializer(
-                        ConfluentRegistryAvroDeserializationSchema.forSpecific(
-                                BehaviorRule.class, schemaRegistryUrl))
-                .build();
-        DataStream<BehaviorRule> ruleChanges = execution.fromSource(
-                        rulesSource, WatermarkStrategy.noWatermarks(), "KafkaBehaviorRulesSource")
-                .uid("kafka-behavior-rules-source");
-        DataStream<BehaviorAlert> alerts = onTime
-                .keyBy(UserBehaviorEvent::getUserId)
-                .connect(ruleChanges.broadcast(CartAbandonmentRuleProcessor.RULES_STATE))
-                .process(new CartAbandonmentRuleProcessor())
-                .name("ApplyBroadcastBehaviorRules")
-                .uid("apply-broadcast-behavior-rules");
 
         valid.sinkTo(
                         ClickHouseSinkFactory.createRawSink(
@@ -163,48 +129,48 @@ public final class TaobaoStreamJob {
                                 "item_metrics_1m"))
                 .name("WriteItemMetrics1m")
                 .uid("write-item-metrics-1m");
-        currentActivity
-                .addSink(
-                        new ScyllaCurrentActivitySink(
-                                scyllaHost,
-                                scyllaPort,
-                                scyllaLocalDatacenter,
-                                scyllaUser,
-                                scyllaPassword,
-                                scyllaKeyspace,
-                                "user_current_activity"))
-                .name("WriteCurrentUserActivity")
-                .uid("write-current-user-activity");
-        alerts.print("behavior-alert");
+        if (configuration.isServingEnabled()) {
+            onTime
+                    .keyBy(UserBehaviorEvent::getUserId)
+                    .process(new CurrentActivityProjector())
+                    .name("ProjectCurrentUserActivity")
+                    .uid("project-current-user-activity")
+                    .addSink(
+                            new ScyllaCurrentActivitySink(
+                                    configuration.value("SCYLLA_HOST", ""),
+                                    Integer.parseInt(configuration.value("SCYLLA_PORT", "9042")),
+                                    configuration.value("SCYLLA_LOCAL_DATACENTER", ""),
+                                    configuration.value("SCYLLA_USER", ""),
+                                    configuration.value("SCYLLA_PASSWORD", ""),
+                                    configuration.value("SCYLLA_KEYSPACE", "taobao_behavior"),
+                                    "user_current_activity"))
+                    .name("WriteCurrentUserActivity")
+                    .uid("write-current-user-activity");
+        }
+        if (configuration.isCdcEnabled()) {
+            KafkaSource<BehaviorRule> rulesSource = KafkaSource.<BehaviorRule>builder()
+                    .setBootstrapServers(bootstrapServers)
+                    .setTopics(configuration.value("RULES_KAFKA_TOPIC", "behavior-rules"))
+                    .setGroupId(configuration.value("RULES_CONSUMER_GROUP", "taobao-rule-broadcast"))
+                    .setProperties(configuration.kafkaProperties())
+                    .setStartingOffsets(OffsetsInitializer.earliest())
+                    .setValueOnlyDeserializer(
+                            ConfluentRegistryAvroDeserializationSchema.forSpecific(
+                                    BehaviorRule.class, schemaRegistryUrl))
+                    .build();
+            DataStream<BehaviorRule> ruleChanges = execution.fromSource(
+                            rulesSource, WatermarkStrategy.noWatermarks(), "KafkaBehaviorRulesSource")
+                    .uid("kafka-behavior-rules-source");
+            DataStream<BehaviorAlert> alerts = onTime
+                    .keyBy(UserBehaviorEvent::getUserId)
+                    .connect(ruleChanges.broadcast(CartAbandonmentRuleProcessor.RULES_STATE))
+                    .process(new CartAbandonmentRuleProcessor())
+                    .name("ApplyBroadcastBehaviorRules")
+                    .uid("apply-broadcast-behavior-rules");
+            alerts.print("behavior-alert");
+        }
 
         execution.execute("Taobao User Behavior Phase 6");
     }
 
-    private static String environment(String key, String defaultValue) {
-        String value = System.getenv(key);
-        return value == null || value.isBlank() ? defaultValue : value;
-    }
-
-    private static Properties kafkaProperties() {
-        Properties properties = new Properties();
-        setIfPresent(properties, "security.protocol", System.getenv("KAFKA_SECURITY_PROTOCOL"));
-        setIfPresent(properties, "sasl.mechanism", System.getenv("KAFKA_SASL_MECHANISM"));
-        String jaas = System.getenv("KAFKA_SASL_JAAS_CONFIG");
-        if (jaas == null || jaas.isBlank()) {
-            String username = System.getenv("KAFKA_SASL_USERNAME");
-            String password = System.getenv("KAFKA_SASL_PASSWORD");
-            if (username != null && !username.isBlank() && password != null && !password.isBlank()) {
-                jaas = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""
-                        + username + "\" password=\"" + password + "\";";
-            }
-        }
-        setIfPresent(properties, "sasl.jaas.config", jaas);
-        return properties;
-    }
-
-    private static void setIfPresent(Properties properties, String key, String value) {
-        if (value != null && !value.isBlank()) {
-            properties.setProperty(key, value);
-        }
-    }
 }

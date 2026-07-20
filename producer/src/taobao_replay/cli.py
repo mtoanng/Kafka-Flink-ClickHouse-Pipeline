@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import IO
 
 from taobao_replay.contracts import UserBehaviorEvent
-from taobao_replay.kafka import DEFAULT_TOPIC, KafkaEventPublisher, build_confluent_producer
+from taobao_replay.kafka import DEFAULT_TOPIC, KafkaEventPublisher, build_schema_registry_producer
 from taobao_replay.profile import profile_file
 from taobao_replay.reader import ParseIssue
 from taobao_replay.replay import replay_file
@@ -55,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_parser.add_argument(
         "--schema-registry-url",
-        default=os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081"),
+        default=os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081/apis/ccompat/v7"),
     )
     publish_parser.add_argument("--topic", default=os.getenv("KAFKA_TOPIC", DEFAULT_TOPIC))
     publish_parser.add_argument(
@@ -127,7 +127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.invalid_output,
                 force=args.force,
             )
-            producer = build_confluent_producer(
+            producer = build_schema_registry_producer(
                 bootstrap_servers=args.bootstrap_servers,
                 schema_registry_url=args.schema_registry_url,
                 schema_path=args.schema,

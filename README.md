@@ -1,24 +1,21 @@
 # Taobao Real-Time Customer Behavior Platform
 
-Final cloud topology:
-
 ```text
-Python Replay -> Confluent Cloud Kafka + Schema Registry -> one Java Flink job
-                                                        -> ClickHouse Cloud
-                                                        -> ScyllaDB Cloud
+Taobao replay -> Kafka + Schema Registry -> Java Flink DataStream -> ClickHouse
+                                                       \-> ScyllaDB (optional)
+PostgreSQL -> Debezium -> compacted config topic -> Flink Broadcast State (optional)
 ```
 
-The temporary AWS EC2 host runs the replay engine and Flink CLI. The optional
-`cdc` Compose profile adds PostgreSQL and Debezium Kafka Connect on that host.
-There is no S3 data sink, Amazon MSK, AWS Managed Service for Apache Flink, or
-Kubernetes deployment.
+Kafka configuration is provider-neutral: local development uses `PLAINTEXT`;
+managed Kafka uses `SASL_SSL` entirely through environment variables. There is
+no S3 event-data sink.
 
 ## Authoritative Documents
 
 - [Final blueprint](docs/PROJECT1_BLUEPRINT_FINAL.md)
-- [Cloud architecture inventory](docs/CLOUD_E2E_ARCHITECTURE.md)
-- [Cloud E2E runbook](docs/CLOUD_E2E_RUNBOOK.md)
-- [Cloud cleanup audit](docs/CLEANUP_AUDIT.md)
+- [Codebase closure plan](docs/CODEBASE_CLOSURE_PLAN.md)
+- [Deployment code status](docs/DEPLOYMENT_CODE_STATUS.md)
+- [Proposed deletions](docs/PROPOSED_DELETIONS.md)
 - [Dataset notes](docs/DATASET_NOTES.md)
 - [Phase reports](docs/evidence/)
 
@@ -29,54 +26,34 @@ pip install -e '.[kafka]'
 PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
 ruff check producer scripts
 ruff format --check producer scripts
-mvn -B test
-mvn -B -pl flink-jobs/taobao-stream-job -am package
-terraform -chdir=infra/terraform fmt -check
-terraform -chdir=infra/terraform validate
+mvn -B -pl flink-jobs/taobao-stream-job -am test
+docker compose --profile core -f infra/docker-compose.yml config --quiet
 ```
 
 The ignored `data/UserBehavior.csv` is the audited Alibaba Tianchi raw source.
 The committed fixture under `tests/fixtures/` is the only dataset used for local
 bounded tests.
 
-## Core And CDC Profiles
+## Runtime Profiles
 
-The Compose file is a disposable remote-host profile. `core` runs Kafka and
-Schema Registry; ClickHouse Cloud and ScyllaDB Cloud are external services from
-environment variables. `cdc` adds PostgreSQL and Debezium Connect locally on the
-same EC2 host.
+Copy `.env.example` to an ignored local `.env`, then select profiles with the
+configuration flags below. `core` is fully independent of ScyllaDB, PostgreSQL,
+Debezium, and Grafana credentials.
 
 ```bash
 docker compose --profile core -f infra/docker-compose.yml up -d
-docker compose --profile cdc -f infra/docker-compose.yml up -d
+SERVING_ENABLED=true docker compose --profile serving -f infra/docker-compose.yml up -d
+CDC_ENABLED=true docker compose --profile cdc -f infra/docker-compose.yml up -d
+OBSERVABILITY_ENABLED=true docker compose --profile observability -f infra/docker-compose.yml up -d
 ```
 
-Copy `.env.cloud.example` to a private ignored `.env.cloud` and inject secrets at
-runtime. Never commit credentials or provider state.
+`serving` enables the ScyllaDB sink only when `SCYLLA_HOST` and
+`SCYLLA_LOCAL_DATACENTER` are supplied. `cdc` enables PostgreSQL, Debezium
+Connect, and Flink Broadcast State only when the complete control-plane
+configuration is supplied. `observability` provisions Grafana with ClickHouse.
 
-## Cloud Preparation And E2E
-
-Terraform describes only the temporary EC2/VPC/network/security-group/Elastic IP
-and optional Confluent Cloud resources. Existing ClickHouse, ScyllaDB, and Grafana
-Cloud services are environment variables only.
-
-```bash
-terraform -chdir=infra/terraform init -backend=false -input=false
-terraform -chdir=infra/terraform validate
-terraform -chdir=infra/terraform plan -refresh=false -var-file=terraform.tfvars
-```
-
-Do not run `terraform apply` from this preparation workflow. On the disposable
-host, use:
-
-```bash
-bash scripts/cloud_preflight.sh
-bash scripts/run_cloud_smoke.sh
-RELEASE_E2E_CONFIRM=YES bash scripts/run_release_e2e.sh
-bash scripts/collect_cloud_evidence.sh
-bash scripts/verify_cloud_teardown.sh
-```
-
-Evidence remains `NOT VERIFIED` until a real bounded run reconciles input rows,
-ClickHouse raw/rollup results, Scylla current state, Flink recovery, and optional
-CDC rule updates.
+The replay engine and Flink job run separately from Compose. Use
+`scripts/register_schemas.sh` to register schemas and `scripts/run_flink.sh` to
+submit the built job after Kafka, Schema Registry, and ClickHouse are reachable.
+Cloud deployment and end-to-end verification remain unverified and are not part
+of this runtime closure phase.

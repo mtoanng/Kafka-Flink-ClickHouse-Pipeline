@@ -4,7 +4,7 @@ Repository: `mtoanng/Kafka-Flink-ClickHouse-Pipeline`
 
 Target name: **Taobao Real-Time Customer Behavior Platform**
 
-Status: **Final architecture, junior-first delivery plan**
+Status: **Final architecture, junior-first delivery plan, documentation-aligned**
 
 This file is the source of truth for Project 1. The architecture is intentionally designed to remain useful for years, but implementation must begin with a small end-to-end system that can actually run, be explained, and be verified by a junior Data Engineer.
 
@@ -14,7 +14,7 @@ This file is the source of truth for Project 1. The architecture is intentionall
 
 Build a real-time data platform for Alibaba/Taobao user-behavior events.
 
-The project must first prove the core streaming path:
+The project must first prove the independently runnable core streaming path:
 
 ```text
 Taobao events
@@ -29,7 +29,7 @@ After that path is stable, extend it with:
 ```text
 ScyllaDB current-state serving
 PostgreSQL + Debezium control-plane CDC
-basic observability and Terraform
+basic observability and the repository's deployment artifacts
 ```
 
 The project is about streaming infrastructure, not recommendation, machine learning, frontend development, or application authentication.
@@ -94,21 +94,50 @@ ONE Java Flink DataStream job
   - event-time timestamps and watermarks
   - invalid/late event side outputs
   - item-level 1-minute aggregation
-  - keyed user activity state
-  - optional cart timer logic
-  - checkpointing
+  - keyed user activity state when serving is enabled
+  - cart timer logic when CDC/rules are enabled
+  - checkpointing when explicitly configured
         |
         +------------------> ClickHouse
         |                    - raw_behavior_events
         |                    - item_metrics_1m
         |                    - behavior_alerts
         |
-        +------------------> ScyllaDB
+        +------------------> ScyllaDB (serving profile only)
         |                    - user_current_activity
         |
 ```
 
-### 3.2 Control plane — advanced, not an MVP blocker
+### 3.2 Runtime profiles
+
+Profiles are additive and use the same single Java Flink job:
+
+| Profile | Enabled path | Required external services |
+| --- | --- | --- |
+| `core` | Replay, Kafka/Schema Registry, Flink, ClickHouse | Kafka, Schema Registry, ClickHouse |
+| `serving` | `core` plus latest user state in ScyllaDB | Core services plus ScyllaDB |
+| `cdc` | `core` plus PostgreSQL, Debezium and a compacted rules topic feeding Broadcast State | Core services plus PostgreSQL/Kafka Connect |
+| `observability` | Metrics/log export and Grafana dashboards for the enabled path | Grafana and its configured datasource |
+
+The `core` profile must start and process events when ScyllaDB and CDC are
+disabled. Optional profiles must not create their clients, sources, sinks,
+timers, or required configuration during Flink startup. Profiles may be
+combined without creating a second Flink job.
+
+### 3.3 Kafka and Schema Registry portability
+
+Kafka and Schema Registry endpoints, security protocol, SASL mechanism,
+credentials, topic names, group names, and registry authentication are supplied
+through environment variables. The same data-plane code must support local
+plaintext (`PLAINTEXT`, no SASL) and managed `SASL_SSL` without source changes.
+Provider-specific Terraform resources, image names, and cloud APIs must not
+leak into the Java or Python application contract.
+
+S3 is not an event-data sink. Checkpoints, Terraform state, or unrelated
+deployment storage must never be represented as raw-event archival behavior or
+as another branch of the data plane.
+
+### 3.4 Control plane — advanced, not an MVP blocker
 
 ```text
 PostgreSQL.behavior_rules
@@ -128,6 +157,9 @@ Rules:
 - PostgreSQL contains exactly one project table: `behavior_rules`.
 - PostgreSQL is not a serving database.
 - Debezium is implemented only after the main data plane works.
+- The generated Debezium value schema must pass an automated Avro
+  reader/writer compatibility test against `BehaviorRule` before a live
+  connector is used.
 - No CRUD application, user table, authentication, or admin frontend is required.
 
 ---
@@ -141,11 +173,14 @@ Rules:
 - Java Flink DataStream API: stream processing.
 - ClickHouse: raw and aggregated analytical serving.
 - GitLab CI or equivalent repository CI.
+- Provider-neutral Kafka configuration supporting local plaintext and managed
+  `SASL_SSL` through environment variables.
 
 ### Required for the full junior project
 
 - ScyllaDB: latest user state lookup.
-- Terraform: minimal cloud resources used by the demo.
+- Terraform, Docker Compose, bootstrap, CI, verification, and teardown code are
+  part of the complete repository and must remain aligned with this blueprint.
 - Basic operational evidence: logs, counts, checkpoint status, and query screenshots.
 
 ### Advanced extension
@@ -154,6 +189,24 @@ Rules:
 - Cart-abandonment event-time timers.
 - Savepoint upgrade demonstration.
 - Managed observability dashboard.
+
+### Deployment prerequisites
+
+Any deployment artifact must document and validate installation of:
+
+1. a supported Java runtime matching the Flink job target;
+2. an Apache Flink distribution and CLI compatible with the compiled job;
+3. the versioned application artifact, generated schemas, and required runtime
+   configuration on the target host;
+4. Kafka topic, consumer-group, producer, consumer, and Schema Registry
+   read/write/describe permissions for every identity used by replay, Flink,
+   and Debezium;
+5. the external ClickHouse, ScyllaDB, PostgreSQL, and Grafana endpoints only
+   when the corresponding profile is enabled.
+
+Bootstrap may install software and copy artifacts, but it must not embed
+credentials. A successful Terraform plan or container start is not deployment
+verification.
 
 ### Do not add
 
@@ -298,6 +351,8 @@ Acceptance criteria:
 - item rollups match a manually calculated expected result;
 - one out-of-order event test documents whether it is accepted or late;
 - all credential-independent tests pass.
+- the core profile runs without ScyllaDB or CDC configuration;
+- optional profile startup is not required for a core Flink submission.
 
 Milestone A is sufficient for the first resume-ready release.
 
@@ -310,7 +365,7 @@ Deliver:
 1. ScyllaDB `user_current_activity` sink;
 2. fixed read endpoint or CLI lookup for current state;
 3. checkpoint/restart experiment;
-4. minimal Terraform for the temporary cloud host and approved managed resources;
+4. valid Terraform, Docker, bootstrap, verification and guarded teardown artifacts;
 6. CI for Python, Maven, schemas, and Terraform;
 7. bounded cloud demo and teardown guide.
 
@@ -319,7 +374,8 @@ Acceptance criteria:
 - one user lookup returns the expected latest event;
 - replaying the fixture does not corrupt current state;
 - Flink restart behavior is documented with real logs;
-- teardown is verified.
+- teardown procedure is statically validated; real teardown remains a separate
+  deployment gate.
 
 Milestone B is the junior Definition of Done.
 
@@ -337,6 +393,10 @@ Deliver:
 6. alert output and optional Grafana dashboard;
 7. savepoint-based upgrade exercise.
 
+The CDC deliverable also requires a compatibility test that serializes the
+Debezium-generated `behavior_rules` value schema and resolves it with the
+canonical `BehaviorRule` reader schema.
+
 Milestone C must never block Milestone A or B.
 
 ---
@@ -347,7 +407,7 @@ Codex must implement one phase per run.
 
 ### Phase 0 — Inventory and freeze baseline
 
-- inspect current F1 code and tests;
+- inspect superseded legacy code and tests;
 - record what still builds;
 - create a migration map;
 - do not delete working code yet.
@@ -427,7 +487,8 @@ Use Codespaces or another temporary machine for:
 
 ### Managed trials
 
-Activate only after the client code and smoke scripts are ready:
+Activate only after the client code and smoke scripts are ready. Provider choice
+is a deployment concern and must not alter application code:
 
 - ClickHouse Cloud;
 - ScyllaDB Cloud;
@@ -435,6 +496,15 @@ Activate only after the client code and smoke scripts are ready:
 - optional Grafana Cloud.
 
 Use bounded-demo data, capture evidence, and destroy resources.
+
+### Deployment handover contract
+
+The deployment package must install Java, Apache Flink, the built application
+artifact, generated Avro/schema assets, and profile-specific configuration
+before submitting a job. It must document complete Kafka permissions for
+topics, consumer groups, schema subjects, and registry operations. Missing
+optional-service credentials must disable that profile rather than fail core
+startup.
 
 ---
 
@@ -450,7 +520,12 @@ Minimum junior test set:
 - ClickHouse mapping/DDL contract test;
 - fixture end-to-end count and rollup test;
 - ScyllaDB latest-state test for Milestone B;
-- Terraform `fmt -check` and `validate` when IaC is added.
+- CDC `BehaviorRule` Avro reader/writer compatibility test;
+- core/serving/CDC/observability startup-configuration tests;
+- provider-neutral Kafka plaintext and `SASL_SSL` configuration tests;
+- Terraform `fmt -check` and `validate` when IaC is added;
+- Docker Compose rendering, bootstrap prerequisite, verification and teardown
+  contract checks.
 
 One controlled failure experiment is required per phase after Phase 1.
 
@@ -473,7 +548,30 @@ PostgreSQL/Debezium is not required for the junior Definition of Done. It remain
 
 ---
 
-## 11. Target repository structure
+## 11. Release gates
+
+### CODEBASE-READY
+
+This gate is credential-independent. It passes only when application modules,
+schemas, Terraform, Docker Compose, bootstrap, CI, verification, teardown
+scripts and documentation are internally consistent; core/serving/CDC/
+observability profiles are defined; optional components are startup-optional;
+all unit, contract, formatting, compilation and static configuration checks
+pass; and no active S3 event-data sink is present.
+
+`CODEBASE-READY` does not mean Kafka, Flink, sinks, CDC, Grafana, cloud
+resources or recovery have run.
+
+### DEPLOYMENT-VERIFIED
+
+This separate gate requires real bounded evidence from the target environment:
+Kafka delivery and permissions, Schema Registry compatibility, Flink execution,
+ClickHouse results, optional Scylla serving, CDC `BehaviorRule` compatibility
+and live rule update, observability output, recovery behavior, and teardown.
+Until that evidence exists, the status is `NOT VERIFIED`; Terraform plan,
+Compose rendering, or a process start is insufficient.
+
+## 12. Target repository structure
 
 ```text
 AGENTS.md
@@ -513,7 +611,7 @@ CDC-specific files may be added only in Phase 6.
 
 ---
 
-## 12. Codex rules
+## 13. Codex rules
 
 - Read `AGENTS.md` and this blueprint before editing.
 - Implement exactly one phase.
@@ -522,3 +620,27 @@ CDC-specific files may be added only in Phase 6.
 - Never provision cloud resources without explicit approval.
 - Never claim a cloud, recovery, performance, or connector result without evidence.
 - End each run with changed files, commands, results, blockers, one student learning task, and three teach-back questions.
+
+---
+
+## 14. Blueprint change log
+
+This change log records the documentation-only alignment performed on
+2026-07-21. It distinguishes architecture-contract changes from implementation
+defects that still require a later code phase.
+
+| Audit finding | Classification | Blueprint consequence |
+| --- | --- | --- |
+| Core startup is coupled to ScyllaDB and the rules source | Implementation defect | Core is explicitly independent; serving and CDC branches must be runtime-optional. |
+| Compose `core` does not contain the broker/registry path it documents | Implementation defect | Runtime profiles and the required core path are explicit; Compose must be corrected in a code phase. |
+| Kafka security differs between local and managed examples | Architecture clarification | One provider-neutral contract now covers plaintext and `SASL_SSL`. |
+| S3 archive language survived in configuration and historical evidence | Architecture clarification plus cleanup defect | S3 is explicitly excluded from event data; stale active references remain proposed cleanup. |
+| Terraform, bootstrap, CI, verification and teardown were treated as release add-ons | Scope clarification | They are part of the complete codebase and the `CODEBASE-READY` gate. |
+| EC2 bootstrap lacks Java, Flink and application artifact installation | Implementation defect | Deployment prerequisites now require all three before job submission. |
+| Kafka ACL coverage is incomplete | Implementation defect | Complete topic, group and Schema Registry permissions are now required. |
+| Debezium writer-schema compatibility was assumed | Implementation defect | A `BehaviorRule` Avro reader/writer compatibility test is mandatory. |
+| No active Taobao Grafana artifact exists | Implementation defect | Observability is a named runtime profile and a codebase-ready artifact requirement. |
+| Static plan/rendering was conflated with deployment | Governance clarification | `CODEBASE-READY` and `DEPLOYMENT-VERIFIED` are separate gates. |
+
+Existing application, test, Terraform, Compose, CI, deployment and report files
+were not modified in this documentation phase. No deployment result is claimed.

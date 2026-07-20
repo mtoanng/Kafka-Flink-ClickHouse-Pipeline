@@ -27,21 +27,46 @@ def kafka_key(event: UserBehaviorEvent) -> str:
     return str(event.user_id)
 
 
-def _optional_environment_config(environment: Mapping[str, str]) -> dict[str, str]:
-    mappings = {
-        "KAFKA_SECURITY_PROTOCOL": "security.protocol",
-        "KAFKA_SASL_MECHANISM": "sasl.mechanism",
-        "KAFKA_SASL_USERNAME": "sasl.username",
-        "KAFKA_SASL_PASSWORD": "sasl.password",
+def kafka_security_options(environment: Mapping[str, str]) -> dict[str, str]:
+    protocol = environment.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").strip().upper()
+    if protocol not in {"PLAINTEXT", "SASL_SSL"}:
+        raise ValueError("KAFKA_SECURITY_PROTOCOL must be PLAINTEXT or SASL_SSL")
+
+    options = {"security.protocol": protocol}
+    sasl_values = {
+        "KAFKA_SASL_MECHANISM": environment.get("KAFKA_SASL_MECHANISM", "").strip(),
+        "KAFKA_SASL_USERNAME": environment.get("KAFKA_SASL_USERNAME", "").strip(),
+        "KAFKA_SASL_PASSWORD": environment.get("KAFKA_SASL_PASSWORD", "").strip(),
+        "KAFKA_SASL_JAAS_CONFIG": environment.get("KAFKA_SASL_JAAS_CONFIG", "").strip(),
     }
-    return {
-        target: environment[source]
-        for source, target in mappings.items()
-        if environment.get(source, "").strip()
-    }
+    if protocol == "PLAINTEXT":
+        if any(sasl_values.values()):
+            raise ValueError("SASL settings require KAFKA_SECURITY_PROTOCOL=SASL_SSL")
+        return options
+
+    if not sasl_values["KAFKA_SASL_MECHANISM"]:
+        raise ValueError("KAFKA_SASL_MECHANISM is required for SASL_SSL")
+    has_user_password = bool(sasl_values["KAFKA_SASL_USERNAME"]) and bool(
+        sasl_values["KAFKA_SASL_PASSWORD"]
+    )
+    if bool(sasl_values["KAFKA_SASL_USERNAME"]) != bool(sasl_values["KAFKA_SASL_PASSWORD"]):
+        raise ValueError("KAFKA_SASL_USERNAME and KAFKA_SASL_PASSWORD must be provided together")
+    if not has_user_password and not sasl_values["KAFKA_SASL_JAAS_CONFIG"]:
+        raise ValueError(
+            "SASL_SSL requires KAFKA_SASL_JAAS_CONFIG or both "
+            "KAFKA_SASL_USERNAME and KAFKA_SASL_PASSWORD"
+        )
+
+    options["sasl.mechanism"] = sasl_values["KAFKA_SASL_MECHANISM"]
+    if has_user_password:
+        options["sasl.username"] = sasl_values["KAFKA_SASL_USERNAME"]
+        options["sasl.password"] = sasl_values["KAFKA_SASL_PASSWORD"]
+    if sasl_values["KAFKA_SASL_JAAS_CONFIG"]:
+        options["sasl.jaas.config"] = sasl_values["KAFKA_SASL_JAAS_CONFIG"]
+    return options
 
 
-def _load_confluent() -> tuple[type[Any], type[Any], type[Any], type[Any]]:
+def _load_schema_registry_client() -> tuple[type[Any], type[Any], type[Any], type[Any]]:
     try:
         from confluent_kafka import SerializingProducer
         from confluent_kafka.schema_registry import SchemaRegistryClient
@@ -54,7 +79,7 @@ def _load_confluent() -> tuple[type[Any], type[Any], type[Any], type[Any]]:
     return SerializingProducer, SchemaRegistryClient, AvroSerializer, StringSerializer
 
 
-def build_confluent_producer(
+def build_schema_registry_producer(
     *,
     bootstrap_servers: str,
     schema_registry_url: str,
@@ -68,7 +93,9 @@ def build_confluent_producer(
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     schema_text = json.dumps(schema, separators=(",", ":"))
-    producer_type, registry_type, avro_serializer_type, string_serializer_type = _load_confluent()
+    producer_type, registry_type, avro_serializer_type, string_serializer_type = (
+        _load_schema_registry_client()
+    )
 
     active_environment = os.environ if environment is None else environment
     registry_config: dict[str, str] = {"url": schema_registry_url}
@@ -90,7 +117,7 @@ def build_confluent_producer(
         "enable.idempotence": True,
         "acks": "all",
     }
-    producer_config.update(_optional_environment_config(active_environment))
+    producer_config.update(kafka_security_options(active_environment))
     return producer_type(producer_config)
 
 

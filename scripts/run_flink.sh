@@ -18,10 +18,10 @@ if [ ! -f "$JAR_PATH" ]; then
   exit 1
 fi
 
-echo "Submitting Taobao Phase 6 job (data plane + broadcast rules)"
+echo "Submitting Taobao Flink job"
 echo "  Kafka: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
 echo "  Topic: ${KAFKA_TOPIC:-user-behavior-events}"
-echo "  Schema Registry: ${SCHEMA_REGISTRY_URL:-http://localhost:8081}"
+echo "  Schema Registry: ${SCHEMA_REGISTRY_URL:-http://localhost:8081/apis/ccompat/v7}"
 echo "  ClickHouse: ${CLICKHOUSE_ENDPOINT:-https://localhost:8443}"
 echo "  ScyllaDB: ${SCYLLA_HOST:-localhost}:${SCYLLA_PORT:-9042}"
 echo "  Rules topic: ${RULES_KAFKA_TOPIC:-behavior-rules}"

@@ -1,14 +1,10 @@
 # Repository Cleanup Audit
 
-## Removed
+## Historical Cleanup
 
-- `data-generators/f1-replay-engine/`: obsolete Java F1 replay module.
-- `flink-jobs/f1-telemetry-job/`: obsolete second Flink job and F1 Avro contract.
-- `infra/grafana/`: F1 dashboards and datasource provisioning with no active consumer.
-- F1-specific Maven reactor modules, parent metadata, dependency properties, and
-  the old dataset ignore rule.
-- The S3 archive module, uploader script, archive tests, S3 Terraform resources,
-  and archive-only Makefile/configuration paths from the superseded topology.
+The former F1 modules and S3 archive implementation were removed in earlier
+approved cleanup work. Their archived reports remain historical evidence only;
+neither F1 telemetry nor S3 event archival is part of the active codebase.
 
 ## Archived
 
@@ -18,10 +14,8 @@
 
 ## Kept
 
-- `infra/docker-compose.yml` and its lifecycle scripts remain because they provide
-  the bounded Kafka/Schema Registry integration profile on a disposable remote
-  host. They do not start PostgreSQL, Debezium, Flink, ClickHouse, or Scylla on
-  the laptop.
+- `infra/docker-compose.yml` and its lifecycle scripts provide core, serving, CDC,
+  and observability profiles on a disposable runtime host.
 - `scripts/create_topic.sh` and `scripts/create_behavior_rules_topic.sh` remain
   because they create different Kafka topics.
 - `scripts/run.sh`, `run_fixture_demo.sh`, and `run_phase6_demo.sh` remain because
@@ -38,5 +32,5 @@
 - All shell scripts parsed with Git Bash.
 - Docker Compose config, Terraform format, Terraform validation, and
   `git diff --check` passed.
-- No notebooks, diagrams, F1 source modules, or unused active dashboard files
-  remain outside the documented archive/evidence areas.
+- No notebooks, diagrams, F1 source modules, S3 event sink, or unused active
+  dashboard files remain outside the documented archive/evidence areas.
