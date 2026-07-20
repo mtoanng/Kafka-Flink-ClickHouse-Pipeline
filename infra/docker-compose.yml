@@ -1,5 +1,5 @@
 # =============================================================
-#  Taobao Phase 2 integration services: Kafka KRaft + Schema Registry.
+#  Taobao integration services: Kafka KRaft + Schema Registry.
 #  Run this on a disposable integration host, not on the laptop.
 #  Memory: Kafka 768MB + Schema Registry 512MB = ~1.3GB + Docker overhead ~2GB
 #  Run: docker compose -f infra/docker-compose.yml up -d

@@ -4,21 +4,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.f1telemetry</groupId>
-    <artifactId>f1-telemetry-parent</artifactId>
+    <groupId>com.taobao.behavior</groupId>
+    <artifactId>taobao-behavior-platform</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>F1 Live Telemetry Streaming Platform (Parent)</name>
-    <description>
-        Parent POM cho streaming platform replay dữ liệu F1 telemetry thật.
-        Pipeline: TracingInsights JSON → Replay Engine → Kafka KRaft (Avro)
-        → Flink (1 job, aggregate) → ClickHouse → Grafana.
-    </description>
+    <name>Taobao Real-Time Customer Behavior Platform</name>
+    <description>Parent build for the Taobao Python replay and Java Flink streaming platform.</description>
 
     <modules>
-        <module>data-generators/f1-replay-engine</module>
-        <module>flink-jobs/f1-telemetry-job</module>
         <module>flink-jobs/taobao-stream-job</module>
     </modules>
 
@@ -27,21 +21,13 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
 
-        <!-- Versions dùng chung -->
         <flink.version>1.20.2</flink.version>
         <clickhouse.flink.version>0.2.0</clickhouse.flink.version>
         <kafka.connector.version>3.3.0-1.20</kafka.connector.version>
-        <kafka.version>3.6.1</kafka.version>
-        <jackson.version>2.15.2</jackson.version>
         <avro.version>1.11.3</avro.version>
-        <confluent.version>7.6.0</confluent.version>
         <scylla.driver.version>4.19.0.9</scylla.driver.version>
-        <lombok.version>1.18.30</lombok.version>
-        <slf4j.version>2.0.9</slf4j.version>
-        <logback.version>1.4.11</logback.version>
         <junit.version>5.10.1</junit.version>
 
-        <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <maven.shade.plugin.version>3.4.0</maven.shade.plugin.version>
         <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
@@ -49,7 +35,6 @@
     </properties>
 
     <repositories>
-        <!-- Maven Central — must be explicit once any <repositories> block is declared -->
         <repository>
             <id>central</id>
             <name>Maven Central</name>
@@ -57,8 +42,6 @@
             <releases><enabled>true</enabled></releases>
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
-
-        <!-- Confluent — for kafka-avro-serializer + flink-avro-confluent-registry -->
         <repository>
             <id>confluent</id>
             <name>Confluent</name>
@@ -67,27 +50,6 @@
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
-
-    <dependencyManagement>
-        <dependencies>
-            <!-- Force Jackson version để tránh conflict -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <pluginManagement>

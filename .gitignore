@@ -1,8 +1,6 @@
-# =============================================================
-#  F1 Live Telemetry Streaming Platform — Root .gitignore
-# =============================================================
+# Taobao repository ignore rules
 
-# ── Build outputs ──────────────────────────────────────────
+# Build outputs
 target/
 build/
 out/
@@ -12,7 +10,7 @@ out/
 *.ear
 !**/.mvn/wrapper/maven-wrapper.jar
 
-# ── IDE / Editor ───────────────────────────────────────────
+# IDE and editor files
 .idea/
 .idea./
 *.iml
@@ -26,39 +24,32 @@ out/
 *.swp
 *.swo
 
-# ── OS files ───────────────────────────────────────────────
+# OS files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ── Logs ───────────────────────────────────────────────────
+# Logs
 *.log
 logs/
 build-logs/
 
-# ── Environment / Secrets ──────────────────────────────────
+# Environment and secrets
 .env
 .env.local
 .env.*.local
 
-# ── Docker ─────────────────────────────────────────────────
+# Docker local state
 .docker/
 
-# ── Maven Wrapper ──────────────────────────────────────────
+# Maven wrapper and generated Avro sources
 .mvn/wrapper/maven-wrapper.properties.copy
 .mvn/timing.properties
-
-# ── F1 telemetry dataset (tải riêng, KHÔNG commit — ~150MB) ─
-data-generators/f1-replay-engine/src/main/resources/datasets/
-
-# ── Avro generated sources (từ avro-maven-plugin) ──────────
 **/generated-sources/
 
-# ── Test / Coverage ────────────────────────────────────────
+# Test and Python caches
 coverage/
 *.exec
-
-# Python
 __pycache__/
 *.py[cod]
 .venv/
@@ -68,7 +59,7 @@ __pycache__/
 *.egg-info/
 dist/
 
-# Taobao source and generated demo data (fixtures remain tracked)
+# Taobao source and generated demo data
 /data/
 /artifacts/
 
@@ -77,7 +68,7 @@ infra/terraform/.terraform/
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
 
-# ── Large temporary files ──────────────────────────────────
+# Large temporary files
 *.tmp
 *.bak
 nul

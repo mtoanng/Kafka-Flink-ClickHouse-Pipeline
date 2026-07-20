@@ -1,4 +1,4 @@
--- Phase 3 verification query pack. Replace fixture-run with the replay run ID.
+-- ClickHouse verification query pack. Replace fixture-run with the replay run ID.
 
 -- One accepted, valid source event is stored once per replay event.
 SELECT count() AS raw_count

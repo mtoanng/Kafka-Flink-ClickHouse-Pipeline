@@ -10,7 +10,7 @@ FIXTURE_WINDOW_START = "2017-11-26 01:00:00"
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description="Verify the Phase 3 ClickHouse fixture assertions")
+    result = argparse.ArgumentParser(description="Verify ClickHouse fixture assertions")
     result.add_argument("--run-id", required=True)
     result.add_argument("--expected-raw-count", type=int, default=999)
     result.add_argument("--endpoint", default=os.getenv("CLICKHOUSE_ENDPOINT"))

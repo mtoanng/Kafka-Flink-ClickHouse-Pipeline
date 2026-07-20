@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Register and verify the Phase 3 Avro value schema.
+# Register and verify the Taobao event Avro value schema.
 # Usage: bash scripts/register_schemas.sh
 set -euo pipefail
 

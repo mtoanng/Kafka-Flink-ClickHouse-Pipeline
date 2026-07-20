@@ -8,7 +8,7 @@ from taobao_replay.clickhouse import ClickHouseHttpClient, split_sql_statements
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description="Apply the Phase 3 ClickHouse DDL over HTTPS")
+    result = argparse.ArgumentParser(description="Apply the ClickHouse DDL over HTTPS")
     result.add_argument("--endpoint", default=os.getenv("CLICKHOUSE_ENDPOINT"))
     result.add_argument("--user", default=os.getenv("CLICKHOUSE_USER", "default"))
     result.add_argument("--password", default=os.getenv("CLICKHOUSE_PASSWORD", ""))

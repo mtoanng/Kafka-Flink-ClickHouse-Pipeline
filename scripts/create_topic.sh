@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create the Phase 3 Kafka topic inside the integration broker container.
+# Create the Taobao event Kafka topic inside the integration broker container.
 # Usage: bash scripts/create_topic.sh
 set -euo pipefail
 

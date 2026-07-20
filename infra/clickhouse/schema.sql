@@ -1,4 +1,4 @@
--- Taobao real-time customer behavior, Phase 3.
+-- Taobao real-time customer behavior tables.
 -- Apply with: PYTHONPATH=producer/src python scripts/apply_clickhouse_schema.py
 
 CREATE DATABASE IF NOT EXISTS taobao_behavior;
