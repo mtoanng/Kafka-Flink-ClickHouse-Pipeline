@@ -2,6 +2,9 @@
 
 A streaming data platform for Alibaba/Taobao `UserBehavior.csv` events.
 
+<img width="1468" height="716" alt="image" src="https://github.com/user-attachments/assets/53224a9a-0b78-4244-8ea6-db6a38acce8a" />
+
+
 ```text
 Taobao UserBehavior.csv
         -> Python replay producer
