@@ -54,16 +54,9 @@
             <classifier>all</classifier>
         </dependency>
         <dependency>
-            <groupId>com.scylladb</groupId>
-            <artifactId>java-driver-core-shaded</artifactId>
-            <version>${scylla.driver.version}</version>
-            <exclusions>
-                <!-- The ClickHouse bundle carries the same HdrHistogram 2.2.2 classes. -->
-                <exclusion>
-                    <groupId>org.hdrhistogram</groupId>
-                    <artifactId>HdrHistogram</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.apache.cassandra</groupId>
+            <artifactId>java-driver-core</artifactId>
+            <version>${cassandra.driver.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>

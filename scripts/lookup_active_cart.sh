@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Read exactly one user_current_activity row through the native CQL driver.
+# Read active cart items for exactly one user through the native CQL driver.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 if [ "$#" -ne 1 ] || ! [[ "$1" =~ ^[1-9][0-9]*$ ]]; then
-  echo "usage: bash scripts/lookup_current_activity.sh <positive-user-id>"
+  echo "usage: bash scripts/lookup_active_cart.sh <positive-user-id>"
   exit 2
 fi
 
@@ -16,4 +16,4 @@ if [ ! -f "$JAR_PATH" ]; then
   exit 1
 fi
 
-exec java -cp "$JAR_PATH" com.taobao.behavior.ScyllaLookupCli "$1"
+exec java -cp "$JAR_PATH" com.taobao.behavior.ActiveCartLookupCli --user-id "$1"

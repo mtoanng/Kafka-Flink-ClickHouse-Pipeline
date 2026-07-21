@@ -10,7 +10,7 @@ resource was deleted, moved, archived, applied, or destroyed during this audit.
 | `.env.example`: `S3_ARCHIVE_URI` | Completed | The active environment has no event archive variable. |
 | `docs/evidence/phase-5/PHASE_REPORT.md`: S3 archive claims | Retain as immutable historical evidence | It describes a superseded phase and is not active guidance. |
 | `docs/evidence/final-e2e/README.md`: S3 archive evidence item | Completed | The active checklist now excludes event archival. |
-| `docs/evidence/phase-6/PHASE_REPORT.md`: path ending in ClickHouse/Scylla/S3 | Retain as immutable historical evidence | Historical phase text is not an active architecture contract. |
+| `docs/evidence/phase-6/PHASE_REPORT.md`: historical storage-path reference | Retain as immutable historical evidence | Historical phase text is not an active architecture contract. |
 
 No active Python module, Maven dependency, Java class, uploader script,
 Terraform resource, or test currently implements an S3 event sink. Terraform
@@ -42,7 +42,7 @@ Do not delete the following merely because live deployment is unverified:
 - preflight, smoke, evidence, recovery and teardown scripts after correction;
 - PostgreSQL, Debezium, compacted-topic and broadcast-state artifacts;
 - checkpoint configuration and recovery procedure;
-- ClickHouse and ScyllaDB schemas and verification tools;
+- ClickHouse and Cassandra schemas and verification tools;
 - deterministic fixtures and expected reconciliation data.
 
 Generated `target/`, Python caches, Terraform provider cache, raw dataset and

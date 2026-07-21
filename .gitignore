@@ -40,6 +40,8 @@ build-logs/
 .env.*.local
 .env.cloud
 .env.cloud.local
+secrets/
+secure-connect-*.zip
 
 # Docker local state
 .docker/
@@ -69,6 +71,9 @@ dist/
 infra/terraform/.terraform/
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
+infra/terraform/*.tfplan
+infra/terraform/*.tfvars
+!infra/terraform/terraform.tfvars.example
 
 # Large temporary files
 *.tmp

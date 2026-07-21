@@ -30,15 +30,28 @@ check_tcp() {
 require KAFKA_BOOTSTRAP_SERVERS
 require SCHEMA_REGISTRY_URL
 require CLICKHOUSE_ENDPOINT
-require SCYLLA_HOST
-require SCYLLA_PORT
 
 KAFKA_HOST="${KAFKA_BOOTSTRAP_SERVERS%:*}"
 KAFKA_PORT="${KAFKA_BOOTSTRAP_SERVERS##*:}"
 check_tcp "Kafka" "$KAFKA_HOST" "$KAFKA_PORT"
 check_url "Schema Registry" "${SCHEMA_REGISTRY_URL%/}/subjects"
 check_url "ClickHouse" "$CLICKHOUSE_ENDPOINT"
-check_tcp "ScyllaDB" "$SCYLLA_HOST" "$SCYLLA_PORT"
+if [ "${CASSANDRA_ENABLED:-false}" = "true" ]; then
+  require CASSANDRA_PROVIDER
+  require CASSANDRA_KEYSPACE
+  require CASSANDRA_TABLE
+  require ASTRA_DB_SECURE_BUNDLE_PATH
+  require ASTRA_DB_APPLICATION_TOKEN
+  if [ "$CASSANDRA_PROVIDER" != "astra" ]; then
+    echo "ERROR: CASSANDRA_PROVIDER must be astra" >&2
+    exit 2
+  fi
+  if [ ! -f "$ASTRA_DB_SECURE_BUNDLE_PATH" ]; then
+    echo "ERROR: ASTRA_DB_SECURE_BUNDLE_PATH must reference a readable file" >&2
+    exit 2
+  fi
+  echo "Apache Cassandra/Astra: runtime secret configuration present"
+fi
 
 if [ -n "${GRAFANA_ENDPOINT:-}" ]; then
   check_url "Grafana" "${GRAFANA_ENDPOINT%/}/api/health"

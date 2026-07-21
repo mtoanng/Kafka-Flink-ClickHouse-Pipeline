@@ -8,15 +8,19 @@ Taobao UserBehavior.csv
         -> Kafka + Schema Registry (Avro)
         -> one Java Apache Flink DataStream job
         -> ClickHouse
-             \-> ScyllaDB current user state (optional)
+             \-> Apache Cassandra active cart lookup (optional; DataStax Astra DB Serverless target)
 
 PostgreSQL -> Debezium -> compacted Kafka topic -> Flink Broadcast State (optional)
 ```
 
 The core path processes raw events, writes analytical history and one-minute
-item metrics to ClickHouse, and is designed to run without ScyllaDB or CDC.
+item metrics to ClickHouse, and is designed to run without Cassandra or CDC.
 The project does not use S3 as an event-data sink and does not include ML,
 recommendation logic, or a frontend.
+
+Flink materializes the same behavior stream into two query-optimized views:
+ClickHouse for historical analytics and Apache Cassandra for low-latency
+per-user active-cart serving.
 
 ## Repository status
 
@@ -77,16 +81,23 @@ only for the services you enable. Profiles are additive:
 docker compose --profile core -f infra/docker-compose.yml up -d
 
 # Optional branches
-SERVING_ENABLED=true docker compose --profile serving -f infra/docker-compose.yml up -d
+CASSANDRA_ENABLED=true docker compose --profile serving -f infra/docker-compose.yml up -d
 CDC_ENABLED=true docker compose --profile cdc -f infra/docker-compose.yml up -d
 OBSERVABILITY_ENABLED=true docker compose --profile observability -f infra/docker-compose.yml up -d
 ```
 
-The `serving` profile adds the ScyllaDB current-state sink when
-`SCYLLA_HOST` and `SCYLLA_LOCAL_DATACENTER` are configured. The `cdc` profile
+The `serving` profile adds the Apache Cassandra active-cart sink only when
+`CASSANDRA_ENABLED=true` and the Astra Secure Connect Bundle/token contract is configured. The `cdc` profile
 adds PostgreSQL, Debezium, and Flink Broadcast State when its complete
 configuration is present. The `observability` profile provisions Grafana for
 ClickHouse. Optional services must not be required by the core path.
+
+For Astra, provision the database and keyspace separately, download its Secure
+Connect Bundle to an ignored runtime path such as `secrets/secure-connect-*.zip`,
+and supply `ASTRA_DB_APPLICATION_TOKEN` through the environment or secret
+management. `ASTRA_DB_DATABASE_ID` is for provisioning records and is not
+required by the Java CQL session. The application never creates a keyspace;
+`bash scripts/apply_cassandra_schema.sh` idempotently creates only the table.
 
 Stop the local runtime with:
 
@@ -121,7 +132,7 @@ make infra-config         Validate Compose rendering
 make schema               Register Avro schemas
 make publish-fixture      Publish the configured fixture
 make run-job              Submit the Flink job
-make lookup-user USER_ID=...  Read Scylla current state
+make lookup-user USER_ID=...  Read Apache Cassandra active cart
 make terraform-validate   Format-check and validate Terraform
 make teardown             Run guarded demo teardown
 ```
@@ -136,7 +147,7 @@ The Avro event contract is in
 uses `user_id` as the message key. Flink assigns event-time timestamps and
 watermarks, handles invalid/late data explicitly, and produces item-level
 one-minute aggregates. ClickHouse stores raw accepted events and rollups;
-ScyllaDB stores only bounded latest-user state when serving is enabled.
+Apache Cassandra stores only bounded active-cart state when enabled; the initial managed target is DataStax Astra DB Serverless and the CQL path uses the Apache Cassandra Java Driver.
 
 ## Project layout
 
@@ -146,7 +157,7 @@ flink-jobs/taobao-stream-job/     Java Flink job and tests
 schemas/                          Avro contracts
 infra/docker-compose.yml          Local runtime services
 infra/clickhouse/                 ClickHouse DDL and verification SQL
-infra/scylladb/                   ScyllaDB schema and checks
+infra/cassandra/                  Apache Cassandra schema and checks
 infra/postgres/                   CDC control-plane schema
 infra/debezium/                   Debezium configuration
 infra/terraform/                  Cloud deployment definitions

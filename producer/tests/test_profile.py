@@ -17,7 +17,7 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(profile.invalid_rows, 1)
         self.assertEqual(
             profile.behavior_counts,
-            {"buy": 248, "cart": 250, "fav": 250, "pv": 251},
+            {"buy": 248, "cart": 251, "fav": 250, "pv": 250},
         )
         self.assertEqual(profile.backward_time_jumps, 1)
         self.assertEqual(profile.min_event_time_ms, 1_511_658_000_000)

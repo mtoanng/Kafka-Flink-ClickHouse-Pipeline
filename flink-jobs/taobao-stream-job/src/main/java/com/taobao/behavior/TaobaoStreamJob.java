@@ -8,14 +8,14 @@ import com.taobao.behavior.model.BehaviorAlert;
 import com.taobao.behavior.model.InvalidBehaviorEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import com.taobao.behavior.model.ItemRunKey;
-import com.taobao.behavior.processing.CurrentActivityProjector;
+import com.taobao.behavior.processing.ActiveCartProjector;
 import com.taobao.behavior.processing.CheckpointPolicy;
 import com.taobao.behavior.processing.CartAbandonmentRuleProcessor;
 import com.taobao.behavior.processing.EventValidator;
 import com.taobao.behavior.processing.ImmediateBoundedOutOfOrdernessGenerator;
 import com.taobao.behavior.processing.LateEventRouter;
 import com.taobao.behavior.sink.ClickHouseSinkFactory;
-import com.taobao.behavior.sink.ScyllaCurrentActivitySink;
+import com.taobao.behavior.sink.CassandraActiveCartSink;
 import java.time.Duration;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -129,23 +129,16 @@ public final class TaobaoStreamJob {
                                 "item_metrics_1m"))
                 .name("WriteItemMetrics1m")
                 .uid("write-item-metrics-1m");
-        if (configuration.isServingEnabled()) {
+        if (configuration.isCassandraEnabled()) {
             onTime
                     .keyBy(UserBehaviorEvent::getUserId)
-                    .process(new CurrentActivityProjector())
-                    .name("ProjectCurrentUserActivity")
-                    .uid("project-current-user-activity")
+                    .process(new ActiveCartProjector())
+                    .name("ProjectUserActiveCart")
+                    .uid("project-user-active-cart")
                     .addSink(
-                            new ScyllaCurrentActivitySink(
-                                    configuration.value("SCYLLA_HOST", ""),
-                                    Integer.parseInt(configuration.value("SCYLLA_PORT", "9042")),
-                                    configuration.value("SCYLLA_LOCAL_DATACENTER", ""),
-                                    configuration.value("SCYLLA_USER", ""),
-                                    configuration.value("SCYLLA_PASSWORD", ""),
-                                    configuration.value("SCYLLA_KEYSPACE", "taobao_behavior"),
-                                    "user_current_activity"))
-                    .name("WriteCurrentUserActivity")
-                    .uid("write-current-user-activity");
+                            new CassandraActiveCartSink(configuration.cassandraConfig()))
+                    .name("WriteUserActiveCart")
+                    .uid("write-user-active-cart");
         }
         if (configuration.isCdcEnabled()) {
             KafkaSource<BehaviorRule> rulesSource = KafkaSource.<BehaviorRule>builder()

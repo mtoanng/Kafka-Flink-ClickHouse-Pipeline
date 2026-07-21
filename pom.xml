@@ -25,7 +25,7 @@
         <clickhouse.flink.version>0.2.0</clickhouse.flink.version>
         <kafka.connector.version>3.3.0-1.20</kafka.connector.version>
         <avro.version>1.11.3</avro.version>
-        <scylla.driver.version>4.19.0.9</scylla.driver.version>
+        <cassandra.driver.version>4.19.2</cassandra.driver.version>
         <junit.version>5.10.1</junit.version>
 
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>

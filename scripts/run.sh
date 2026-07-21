@@ -7,9 +7,12 @@ compose_file="${COMPOSE_FILE:-infra/docker-compose.yml}"
 profiles=(--profile core)
 profile_names=(core)
 
-if [ "${SERVING_ENABLED:-false}" = "true" ]; then
-  : "${SCYLLA_HOST:?SCYLLA_HOST is required when SERVING_ENABLED=true}"
-  : "${SCYLLA_LOCAL_DATACENTER:?SCYLLA_LOCAL_DATACENTER is required when SERVING_ENABLED=true}"
+if [ "${CASSANDRA_ENABLED:-false}" = "true" ]; then
+  : "${CASSANDRA_PROVIDER:?CASSANDRA_PROVIDER is required when CASSANDRA_ENABLED=true}"
+  : "${CASSANDRA_KEYSPACE:?CASSANDRA_KEYSPACE is required when CASSANDRA_ENABLED=true}"
+  : "${CASSANDRA_TABLE:?CASSANDRA_TABLE is required when CASSANDRA_ENABLED=true}"
+  : "${ASTRA_DB_SECURE_BUNDLE_PATH:?ASTRA_DB_SECURE_BUNDLE_PATH is required when CASSANDRA_ENABLED=true}"
+  : "${ASTRA_DB_APPLICATION_TOKEN:?ASTRA_DB_APPLICATION_TOKEN is required when CASSANDRA_ENABLED=true}"
   profiles+=(--profile serving)
   profile_names+=(serving)
 fi

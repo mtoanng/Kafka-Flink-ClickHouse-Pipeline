@@ -61,3 +61,11 @@ terraform_validate:
     - terraform -chdir=infra/terraform fmt -check
     - terraform -chdir=infra/terraform init -backend=false -input=false
     - terraform -chdir=infra/terraform validate
+
+static_contracts:
+  stage: validate
+  image: python:3.12-slim
+  script:
+    - python -c "import json; [json.load(open(path)) for path in ['infra/grafana/provisioning/dashboards/json/taobao-overview.json', 'infra/debezium/postgres-behavior-rules.json']]"
+    - python -c "from pathlib import Path; import re; missing=[]; [missing.append((str(path), target)) for path in Path('.').rglob('*.md') if 'archive' not in path.parts and 'evidence' not in path.parts for target in re.findall(r'\[[^]]+\]\(([^)#]+)', path.read_text(encoding='utf-8')) if not target.startswith(('http://', 'https://', 'mailto:')) and not (path.parent / target).exists()]; assert not missing, missing"
+    - python -c "from pathlib import Path; forbidden=[path for path in Path('.').rglob('*') if path.is_file() and ('secure-connect-' in path.name or path.name == '.env') and '.git' not in path.parts]; assert not forbidden, forbidden"

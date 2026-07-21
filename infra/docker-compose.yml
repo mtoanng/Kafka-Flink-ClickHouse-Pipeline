@@ -1,7 +1,7 @@
 name: ${COMPOSE_PROJECT_NAME:-taobao-runtime}
 
 # Runtime profiles are additive. Core supplies the local Kafka/Schema Registry
-# path; serving uses an external ScyllaDB endpoint; CDC adds PostgreSQL and
+# path; serving uses an external Apache Cassandra/Astra endpoint; CDC adds PostgreSQL and
 # Debezium Connect; observability provisions Grafana against ClickHouse.
 services:
   kafka:

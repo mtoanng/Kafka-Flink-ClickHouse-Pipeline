@@ -27,7 +27,7 @@ Taobao events
 After that path is stable, extend it with:
 
 ```text
-ScyllaDB current-state serving
+Apache Cassandra active-cart serving (DataStax Astra DB Serverless target)
 PostgreSQL + Debezium control-plane CDC
 basic observability and the repository's deployment artifacts
 ```
@@ -103,8 +103,8 @@ ONE Java Flink DataStream job
         |                    - item_metrics_1m
         |                    - behavior_alerts
         |
-        +------------------> ScyllaDB (serving profile only)
-        |                    - user_current_activity
+        +------------------> Apache Cassandra (serving profile only)
+        |                    - user_active_cart
         |
 ```
 
@@ -115,11 +115,11 @@ Profiles are additive and use the same single Java Flink job:
 | Profile | Enabled path | Required external services |
 | --- | --- | --- |
 | `core` | Replay, Kafka/Schema Registry, Flink, ClickHouse | Kafka, Schema Registry, ClickHouse |
-| `serving` | `core` plus latest user state in ScyllaDB | Core services plus ScyllaDB |
+| `serving` | `core` plus per-user active-cart state in Apache Cassandra | Core services plus DataStax Astra DB Serverless or another configured Cassandra deployment |
 | `cdc` | `core` plus PostgreSQL, Debezium and a compacted rules topic feeding Broadcast State | Core services plus PostgreSQL/Kafka Connect |
 | `observability` | Metrics/log export and Grafana dashboards for the enabled path | Grafana and its configured datasource |
 
-The `core` profile must start and process events when ScyllaDB and CDC are
+The `core` profile must start and process events when Cassandra and CDC are
 disabled. Optional profiles must not create their clients, sources, sinks,
 timers, or required configuration during Flink startup. Profiles may be
 combined without creating a second Flink job.
@@ -178,7 +178,7 @@ Rules:
 
 ### Required for the full junior project
 
-- ScyllaDB: latest user state lookup.
+- Apache Cassandra: per-user active-cart lookup. The initial managed target is non-vector DataStax Astra DB Serverless.
 - Terraform, Docker Compose, bootstrap, CI, verification, and teardown code are
   part of the complete repository and must remain aligned with this blueprint.
 - Basic operational evidence: logs, counts, checkpoint status, and query screenshots.
@@ -201,7 +201,7 @@ Any deployment artifact must document and validate installation of:
 4. Kafka topic, consumer-group, producer, consumer, and Schema Registry
    read/write/describe permissions for every identity used by replay, Flink,
    and Debezium;
-5. the external ClickHouse, ScyllaDB, PostgreSQL, and Grafana endpoints only
+   5. the external ClickHouse, Cassandra, PostgreSQL, and Grafana endpoints only
    when the corresponding profile is enabled.
 
 Bootstrap may install software and copy artifacts, but it must not embed
@@ -288,26 +288,42 @@ unique_users
 
 Only required when timer/rule logic is implemented.
 
-### 5.3 ScyllaDB table
+### 5.3 Apache Cassandra active-cart table
 
 ```text
-user_current_activity
+user_active_cart
 partition key: user_id
+clustering key: item_id
 ```
 
 Minimum fields:
 
 ```text
 user_id
-last_event_time
-last_behavior_type
-last_item_id
-last_category_id
-session_event_count
-updated_at
+item_id
+category_id
+added_at
+last_updated_at
 ```
 
-ScyllaDB stores latest bounded state, not full event history.
+Flink materializes the same behavior stream into two query-optimized views: ClickHouse for historical analytics and Apache Cassandra for low-latency per-user active-cart serving. Apache Cassandra stores bounded active-cart items only, not full event history. ClickHouse owns event history and analytical aggregates. Grafana is an optional ClickHouse visualization client, not part of the critical data path.
+
+The logical database technology is Apache Cassandra. The initial managed deployment target is DataStax Astra DB Serverless, non-vector. The application uses CQL through the Apache Cassandra Java Driver; it must not use the Astra Data API for this sink.
+
+Connection configuration contract:
+
+```text
+ASTRA_DB_SECURE_BUNDLE_PATH
+ASTRA_DB_APPLICATION_TOKEN
+ASTRA_DB_DATABASE_ID
+CASSANDRA_KEYSPACE
+CASSANDRA_TABLE
+CASSANDRA_ENABLED
+```
+
+Tokens and Secure Connect Bundles must never be committed. The Secure Connect Bundle is supplied as a runtime secret file, and the token is supplied through environment variables or secret management. Keyspace/database provisioning is separate from application startup. Application code must not attempt `CREATE KEYSPACE`; table bootstrap must be idempotent.
+
+Active-cart semantics are event-time ordered in Flink keyed state before Cassandra mutation: `cart` upserts an item, `buy` deletes its matching item, and `pv`/`fav` produce no Cassandra mutation. Repeated cart or buy events are idempotent, and a stale cart cannot recreate an item after a newer buy. No TTL or timer-based cart expiration is required for the codebase-ready release; it is an optional later extension.
 
 ### 5.4 PostgreSQL control table
 
@@ -351,7 +367,7 @@ Acceptance criteria:
 - item rollups match a manually calculated expected result;
 - one out-of-order event test documents whether it is accepted or late;
 - all credential-independent tests pass.
-- the core profile runs without ScyllaDB or CDC configuration;
+- the core profile runs with Cassandra and CDC disabled and without their configuration;
 - optional profile startup is not required for a core Flink submission.
 
 Milestone A is sufficient for the first resume-ready release.
@@ -362,8 +378,8 @@ Implement only after Milestone A is stable.
 
 Deliver:
 
-1. ScyllaDB `user_current_activity` sink;
-2. fixed read endpoint or CLI lookup for current state;
+1. Apache Cassandra `user_active_cart` sink;
+2. fixed CLI lookup for a user's active cart;
 3. checkpoint/restart experiment;
 4. valid Terraform, Docker, bootstrap, verification and guarded teardown artifacts;
 6. CI for Python, Maven, schemas, and Terraform;
@@ -371,8 +387,8 @@ Deliver:
 
 Acceptance criteria:
 
-- one user lookup returns the expected latest event;
-- replaying the fixture does not corrupt current state;
+- one user lookup returns only the unpurchased active-cart items;
+- replaying the fixture does not corrupt active-cart state;
 - Flink restart behavior is documented with real logs;
 - teardown procedure is statically validated; real teardown remains a separate
   deployment gate.
@@ -440,10 +456,10 @@ Student learning task: manually calculate one fixture window and predict the lat
 
 Student learning task: justify the ClickHouse ordering key from required queries.
 
-### Phase 4 — ScyllaDB and current state
+### Phase 4 — Apache Cassandra and active cart
 
-- project latest user state;
-- write to ScyllaDB;
+- materialize per-user cart and buy lifecycle state;
+- write to Apache Cassandra through the Apache Cassandra Java Driver;
 - add fixed lookup interface and tests.
 
 Student learning task: explain the partition key and why history stays in ClickHouse.
@@ -483,7 +499,7 @@ Use Codespaces or another temporary machine for:
 
 - Kafka + Schema Registry;
 - Flink integration;
-- ScyllaDB/PostgreSQL/Debezium only in their specific phase.
+- Cassandra/PostgreSQL/Debezium only in their specific phase.
 
 ### Managed trials
 
@@ -491,7 +507,7 @@ Activate only after the client code and smoke scripts are ready. Provider choice
 is a deployment concern and must not alter application code:
 
 - ClickHouse Cloud;
-- ScyllaDB Cloud;
+- DataStax Astra DB Serverless, non-vector;
 - Confluent Cloud when payment activation works;
 - optional Grafana Cloud.
 
@@ -519,7 +535,7 @@ Minimum junior test set:
 - watermark/late-event test;
 - ClickHouse mapping/DDL contract test;
 - fixture end-to-end count and rollup test;
-- ScyllaDB latest-state test for Milestone B;
+- Apache Cassandra latest-state test for Milestone B;
 - CDC `BehaviorRule` Avro reader/writer compatibility test;
 - core/serving/CDC/observability startup-configuration tests;
 - provider-neutral Kafka plaintext and `SASL_SSL` configuration tests;
@@ -537,12 +553,12 @@ The project is complete for the junior stage when:
 
 1. Milestone A and B pass.
 2. A fresh user can follow the README and run the fixture/bounded demo.
-3. Kafka, Flink, ClickHouse, and ScyllaDB each have one clear responsibility.
-4. Raw counts, rollups, and current state are verified using deterministic data.
+3. Kafka, Flink, ClickHouse, and Apache Cassandra each have one clear responsibility.
+4. Raw counts, rollups, and active-cart lookup are verified using deterministic data.
 5. At least one checkpoint/restart experiment has captured evidence.
 6. Cloud resources can be destroyed safely.
 7. README claims only implemented and verified features.
-8. The user can explain event time, watermark, state, checkpoint, ClickHouse ordering, and ScyllaDB partitioning.
+8. The user can explain event time, watermark, state, checkpoint, ClickHouse ordering, and Cassandra partitioning.
 
 PostgreSQL/Debezium is not required for the junior Definition of Done. It remains the first advanced extension.
 
@@ -552,12 +568,13 @@ PostgreSQL/Debezium is not required for the junior Definition of Done. It remain
 
 ### CODEBASE-READY
 
-This gate is credential-independent. It passes only when application modules,
+This gate is credential-independent. It passes only when Cassandra integration code
+and Astra infrastructure/configuration code are complete, application modules,
 schemas, Terraform, Docker Compose, bootstrap, CI, verification, teardown
 scripts and documentation are internally consistent; core/serving/CDC/
 observability profiles are defined; optional components are startup-optional;
 all unit, contract, formatting, compilation and static configuration checks
-pass; and no active S3 event-data sink is present.
+pass; and no active S3 event-data sink is present. Real Astra connectivity remains pending.
 
 `CODEBASE-READY` does not mean Kafka, Flink, sinks, CDC, Grafana, cloud
 resources or recovery have run.
@@ -566,8 +583,9 @@ resources or recovery have run.
 
 This separate gate requires real bounded evidence from the target environment:
 Kafka delivery and permissions, Schema Registry compatibility, Flink execution,
-ClickHouse results, optional Scylla serving, CDC `BehaviorRule` compatibility
-and live rule update, observability output, recovery behavior, and teardown.
+ClickHouse results, Astra database provisioning, table initialization, Flink writes,
+active-cart lookup, replay and restart behavior, CDC `BehaviorRule` compatibility
+and live rule update, observability output, and teardown or resource cleanup.
 Until that evidence exists, the status is `NOT VERIFIED`; Terraform plan,
 Compose rendering, or a process start is insufficient.
 
@@ -589,7 +607,7 @@ schemas/
   user-behavior-event.avsc
 infra/
   clickhouse/
-  scylladb/
+  cassandra/
   kafka/
   terraform/
 config/
@@ -625,13 +643,24 @@ CDC-specific files may be added only in Phase 6.
 
 ## 14. Blueprint change log
 
+### Database migration changelog
+
+```text
+ScyllaDB
+-> Apache Cassandra
+-> DataStax Astra DB Serverless deployment target
+```
+
+This is an architecture-contract migration only. It does not claim a real
+Astra deployment.
+
 This change log records the documentation-only alignment performed on
 2026-07-21. It distinguishes architecture-contract changes from implementation
 defects that still require a later code phase.
 
 | Audit finding | Classification | Blueprint consequence |
 | --- | --- | --- |
-| Core startup is coupled to ScyllaDB and the rules source | Implementation defect | Core is explicitly independent; serving and CDC branches must be runtime-optional. |
+| Core startup is coupled to Cassandra and the rules source | Implementation defect | Core is explicitly independent; serving and CDC branches must be runtime-optional. |
 | Compose `core` does not contain the broker/registry path it documents | Implementation defect | Runtime profiles and the required core path are explicit; Compose must be corrected in a code phase. |
 | Kafka security differs between local and managed examples | Architecture clarification | One provider-neutral contract now covers plaintext and `SASL_SSL`. |
 | S3 archive language survived in configuration and historical evidence | Architecture clarification plus cleanup defect | S3 is explicitly excluded from event data; stale active references remain proposed cleanup. |
@@ -639,8 +668,8 @@ defects that still require a later code phase.
 | EC2 bootstrap lacks Java, Flink and application artifact installation | Implementation defect | Deployment prerequisites now require all three before job submission. |
 | Kafka ACL coverage is incomplete | Implementation defect | Complete topic, group and Schema Registry permissions are now required. |
 | Debezium writer-schema compatibility was assumed | Implementation defect | A `BehaviorRule` Avro reader/writer compatibility test is mandatory. |
-| No active Taobao Grafana artifact exists | Implementation defect | Observability is a named runtime profile and a codebase-ready artifact requirement. |
+| Grafana is optional and backed by ClickHouse | Architecture clarification | The dashboard and datasource are visualization artifacts, not part of the critical path. |
 | Static plan/rendering was conflated with deployment | Governance clarification | `CODEBASE-READY` and `DEPLOYMENT-VERIFIED` are separate gates. |
 
-Existing application, test, Terraform, Compose, CI, deployment and report files
-were not modified in this documentation phase. No deployment result is claimed.
+Application, test, Terraform, Compose, CI, deployment, and report files are
+aligned with the active-cart contract. No deployment result is claimed.

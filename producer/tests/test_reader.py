@@ -47,7 +47,17 @@ class ReaderTests(unittest.TestCase):
             rows = list(csv.reader(handle))
         self.assertEqual(rows[4], rows[7])
         self.assertIn(["100", "500", "50", "cart", "1511658000"], rows)
+        self.assertIn(["100", "501", "51", "cart", "1511658010"], rows)
         self.assertIn(["100", "500", "50", "buy", "1511658020"], rows)
+        active_items: set[str] = set()
+        for user_id, item_id, _category_id, behavior, _timestamp in rows:
+            if user_id != "100":
+                continue
+            if behavior == "cart":
+                active_items.add(item_id)
+            elif behavior == "buy":
+                active_items.discard(item_id)
+        self.assertEqual({"501"}, active_items)
         self.assertIn(["101", "501", "51", "cart", "1511658021"], rows)
         self.assertFalse(any(row[:4] == ["101", "501", "51", "buy"] for row in rows))
 

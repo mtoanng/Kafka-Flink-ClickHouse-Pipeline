@@ -1,6 +1,6 @@
 SHELL := bash
 
-.PHONY: test package infra-config remote-up remote-down schema scylla-schema publish-fixture run-job checkpoint-experiment terraform-validate teardown
+.PHONY: test package infra-config remote-up remote-down schema cassandra-schema publish-fixture run-job checkpoint-experiment terraform-validate teardown
 
 test:
 	PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
@@ -23,8 +23,8 @@ remote-down:
 schema:
 	bash scripts/register_schemas.sh
 
-scylla-schema:
-	bash scripts/apply_scylla_schema.sh
+cassandra-schema:
+	bash scripts/apply_cassandra_schema.sh
 
 publish-fixture:
 	bash scripts/replay.sh
@@ -33,7 +33,7 @@ run-job:
 	bash scripts/run_flink.sh
 
 lookup-user:
-	bash scripts/lookup_current_activity.sh $(USER_ID)
+	bash scripts/lookup_active_cart.sh $(USER_ID)
 
 checkpoint-experiment:
 	bash scripts/run_checkpoint_experiment.sh

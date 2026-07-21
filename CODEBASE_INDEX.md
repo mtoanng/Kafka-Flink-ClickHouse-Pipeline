@@ -6,7 +6,7 @@ Taobao real-time customer behavior platform:
 
 `UserBehavior.csv -> Python replay -> Kafka/Avro -> one Java Flink job -> ClickHouse`
 
-The completed extensions add ScyllaDB current state and a PostgreSQL/Debezium
+The completed extensions add Apache Cassandra active-cart serving, with DataStax Astra DB Serverless as the managed deployment target, and a PostgreSQL/Debezium
 rule control plane.
 
 ## Main Entry Points
@@ -19,7 +19,7 @@ rule control plane.
 | Flink tests | `flink-jobs/taobao-stream-job/src/test/` | Avro, aggregation, watermark, state, sink and contract tests |
 | Avro schemas | `schemas/` | `UserBehaviorEvent` and `BehaviorRule` contracts |
 | ClickHouse | `infra/clickhouse/` | DDL and verification query pack |
-| ScyllaDB | `infra/scylladb/` | Current-activity CQL schema and verification |
+| Apache Cassandra | `infra/cassandra/` | Per-user active-cart CQL schema and verification |
 | PostgreSQL | `infra/postgres/` | Single `behavior_rules` control-plane table |
 | Debezium | `infra/debezium/` | PostgreSQL connector template and CDC notes |
 | Kafka contracts | `infra/kafka/` | Compacted behavior-rules topic contract |

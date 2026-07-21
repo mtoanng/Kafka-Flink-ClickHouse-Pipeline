@@ -60,10 +60,10 @@ set -euo pipefail
 source /etc/taobao-runtime.env
 cd "$${RUNTIME_ROOT:?RUNTIME_ROOT is required}"
 test -f "$COMPOSE_FILE"
-export SERVING_ENABLED=false CDC_ENABLED=false OBSERVABILITY_ENABLED=false
+export CASSANDRA_ENABLED=false CDC_ENABLED=false OBSERVABILITY_ENABLED=false
 case "$${RUNTIME_PROFILE:?RUNTIME_PROFILE is required}" in
   core) ;;
-  serving) export SERVING_ENABLED=true ;;
+  serving) export CASSANDRA_ENABLED=true ;;
   cdc) export CDC_ENABLED=true ;;
   observability) export OBSERVABILITY_ENABLED=true ;;
   *) echo "Unsupported RUNTIME_PROFILE" >&2; exit 2 ;;

@@ -4,7 +4,10 @@ This directory plans a disposable AWS VPC, public subnet, route, restricted SSH
 security group, Elastic IP, and one EC2 host. The optional Confluent resources
 create a Confluent Cloud environment, Basic Kafka cluster, topics, service account,
 API key, ACL, and Avro schemas. No S3 resource, data sink, backend, secret, MSK,
-managed Flink, Kubernetes, ClickHouse, ScyllaDB, or Grafana resource is defined.
+managed Flink, Kubernetes, ClickHouse, or Grafana resource is defined. The optional
+`modules/astra` module defines a non-vector DataStax Astra DB Serverless database
+and its initial keyspace when explicitly enabled; it does not download or manage
+Secure Connect Bundles.
 
 ## Host Bootstrap Contract
 
@@ -42,3 +45,10 @@ terraform plan -refresh=false -var-file=terraform.tfvars
 credentialed operator may set it to `true` and provide Confluent credentials via
 environment variables for a review-only plan. This preparation workflow never
 runs `terraform apply`.
+
+`enable_astra_resources=false` is also the credential-independent default. A
+credentialed operator supplies `astra_token` privately, selects the database
+name, keyspace, cloud provider, and region, and may review a plan. The module
+sets `deletion_protection=false` for the explicitly temporary demo, but this
+repository never applies or destroys it. After provisioning, obtain the Secure
+Connect Bundle outside Terraform and place it in an ignored runtime secret path.

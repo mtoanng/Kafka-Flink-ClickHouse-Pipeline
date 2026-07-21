@@ -12,7 +12,7 @@ AWS VPC -> public subnet -> temporary EC2 host
 CDC profile adds local Docker Compose PostgreSQL + Debezium Connect containers.
 
 External managed services, represented only by environment variables:
-  ClickHouse Cloud, ScyllaDB Cloud, Grafana Cloud, PostgreSQL/Debezium
+  ClickHouse Cloud, DataStax Astra DB Serverless, Grafana Cloud, PostgreSQL/Debezium
 ```
 
 | Component | Owner | Terraform status |
@@ -22,7 +22,8 @@ External managed services, represented only by environment variables:
 | Confluent environment, Basic cluster, topics, schemas, service accounts, API keys, ACLs | Confluent Cloud | Optional Terraform-managed resources |
 | Kafka + Schema Registry | Confluent Cloud | Endpoint and credentials supplied through environment variables |
 | Flink and Python replay | EC2 operator workflow | Not Terraform-managed |
-| ClickHouse/Scylla/Grafana Cloud | External providers | Environment variables only |
+| ClickHouse/Grafana Cloud | External providers | Environment variables only |
+| Apache Cassandra / DataStax Astra DB Serverless | Optional `datastax/astra` Terraform module and runtime secret contract | Not applied; Secure Connect Bundle is operator-supplied |
 
 The laptop runs validation and plan only. No secret, provider token, managed-service
 password, private key, or Terraform backend is stored in this profile.

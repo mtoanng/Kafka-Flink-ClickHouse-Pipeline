@@ -12,24 +12,28 @@ import org.junit.jupiter.api.Test;
 
 class RuntimeProfileConfigTest {
     @Test
-    void coreDoesNotRequireServingOrCdcValues() {
+    void coreDoesNotRequireCassandraOrCdcValues() {
         RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(Map.of());
 
-        assertFalse(config.isServingEnabled());
+        assertFalse(config.isCassandraEnabled());
         assertFalse(config.isCdcEnabled());
         assertFalse(config.isObservabilityEnabled());
         assertEquals("PLAINTEXT", config.kafkaProperties().getProperty("security.protocol"));
     }
 
     @Test
-    void servingProfileRequiresOnlyServingConfiguration() {
+    void cassandraProfileRequiresOnlyCassandraConfiguration() throws Exception {
+        java.nio.file.Path secureBundle = java.nio.file.Files.createTempFile("secure-connect-", ".zip");
         RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(
                 Map.of(
-                        "SERVING_ENABLED", "true",
-                        "SCYLLA_HOST", "scylla.internal",
-                        "SCYLLA_LOCAL_DATACENTER", "dc1"));
+                        "CASSANDRA_ENABLED", "true",
+                        "CASSANDRA_PROVIDER", "astra",
+                        "CASSANDRA_KEYSPACE", "taobao_streaming",
+                        "CASSANDRA_TABLE", "user_active_cart",
+                        "ASTRA_DB_SECURE_BUNDLE_PATH", secureBundle.toString(),
+                        "ASTRA_DB_APPLICATION_TOKEN", "test-token"));
 
-        assertTrue(config.isServingEnabled());
+        assertTrue(config.isCassandraEnabled());
         assertFalse(config.isCdcEnabled());
     }
 
@@ -38,18 +42,18 @@ class RuntimeProfileConfigTest {
         RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(cdcEnvironment());
 
         assertTrue(config.isCdcEnabled());
-        assertFalse(config.isServingEnabled());
+        assertFalse(config.isCassandraEnabled());
     }
 
     @Test
     void partialOptionalConfigurationIsRejectedOnlyWhenEnabled() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> RuntimeProfileConfig.fromEnvironment(Map.of("SERVING_ENABLED", "true")));
+                () -> RuntimeProfileConfig.fromEnvironment(Map.of("CASSANDRA_ENABLED", "true")));
         Map<String, String> cdc = cdcEnvironment();
         cdc.remove("CONNECT_URL");
         assertThrows(IllegalArgumentException.class, () -> RuntimeProfileConfig.fromEnvironment(cdc));
-        RuntimeProfileConfig.fromEnvironment(Map.of("SCYLLA_HOST", "ignored-when-disabled"));
+        RuntimeProfileConfig.fromEnvironment(Map.of("ASTRA_DB_APPLICATION_TOKEN", "ignored-when-disabled"));
     }
 
     @Test

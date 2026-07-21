@@ -2,16 +2,17 @@ package com.taobao.behavior;
 
 import java.util.Map;
 import java.util.Properties;
+import com.taobao.behavior.sink.CassandraConfig;
 
 final class RuntimeProfileConfig {
     private final Map<String, String> environment;
-    private final boolean servingEnabled;
+    private final boolean cassandraEnabled;
     private final boolean cdcEnabled;
     private final boolean observabilityEnabled;
 
     private RuntimeProfileConfig(Map<String, String> environment) {
         this.environment = environment;
-        servingEnabled = booleanValue("SERVING_ENABLED", false);
+        cassandraEnabled = booleanValue("CASSANDRA_ENABLED", false);
         cdcEnabled = booleanValue("CDC_ENABLED", false);
         observabilityEnabled = booleanValue("OBSERVABILITY_ENABLED", false);
         validateOptionalProfiles();
@@ -22,8 +23,8 @@ final class RuntimeProfileConfig {
         return new RuntimeProfileConfig(environment);
     }
 
-    boolean isServingEnabled() {
-        return servingEnabled;
+    boolean isCassandraEnabled() {
+        return cassandraEnabled;
     }
 
     boolean isCdcEnabled() {
@@ -37,6 +38,13 @@ final class RuntimeProfileConfig {
     String value(String key, String defaultValue) {
         String value = environment.get(key);
         return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    CassandraConfig cassandraConfig() {
+        if (!cassandraEnabled) {
+            throw new IllegalStateException("Cassandra is disabled");
+        }
+        return CassandraConfig.fromEnvironment(environment);
     }
 
     Properties kafkaProperties() {
@@ -82,10 +90,8 @@ final class RuntimeProfileConfig {
     }
 
     private void validateOptionalProfiles() {
-        if (servingEnabled) {
-            required("SCYLLA_HOST");
-            required("SCYLLA_LOCAL_DATACENTER");
-            optionalPair("SCYLLA_USER", "SCYLLA_PASSWORD");
+        if (cassandraEnabled) {
+            CassandraConfig.fromEnvironment(environment);
         }
         if (cdcEnabled) {
             required("RULES_KAFKA_TOPIC");

@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 compose_file="${COMPOSE_FILE:-infra/docker-compose.yml}"
 profiles=(--profile core)
-[ "${SERVING_ENABLED:-false}" = true ] && profiles+=(--profile serving)
+[ "${CASSANDRA_ENABLED:-false}" = true ] && profiles+=(--profile serving)
 [ "${CDC_ENABLED:-false}" = true ] && profiles+=(--profile cdc)
 [ "${OBSERVABILITY_ENABLED:-false}" = true ] && profiles+=(--profile observability)
 docker compose -f "$compose_file" "${profiles[@]}" ps --status running --services | sort

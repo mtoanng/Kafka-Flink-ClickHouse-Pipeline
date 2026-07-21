@@ -12,7 +12,7 @@ TOTAL_ROWS = 1_000
 def fixture_rows() -> list[tuple[object, object, object, str, object]]:
     rows: list[tuple[object, object, object, str, object]] = [
         (100, 500, 50, "cart", 1_511_658_000),
-        (102, 502, 50, "pv", 1_511_658_010),
+        (100, 501, 51, "cart", 1_511_658_010),
         (100, 500, 50, "buy", 1_511_658_020),
         (101, 501, 51, "cart", 1_511_658_021),
         (103, 503, 52, "fav", 1_511_658_022),

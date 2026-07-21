@@ -27,7 +27,7 @@ The local `run.sh` launcher is for the plaintext Compose profile. A managed
 cloud run must use the external Kafka and Schema Registry endpoints from the
 cloud environment contract and submit the built JAR with `run_flink.sh`; it
 must not treat the local broker as the managed Kafka service. ClickHouse,
-ScyllaDB, and Grafana are external endpoints supplied through environment
+Apache Cassandra/DataStax Astra DB Serverless, and Grafana are external endpoints supplied through environment
 variables. The CDC profile adds local PostgreSQL and Debezium only when enabled.
 
 ## Smoke, Release, Evidence, Teardown
@@ -42,3 +42,14 @@ bash scripts/verify_cloud_teardown.sh
 
 These commands are remote/operator workflows and are not executed during this
 preparation task.
+
+## Astra Serving Setup
+
+Set `enable_astra_resources=true` only for a credentialed operator plan with
+`astra_token` supplied privately. Terraform is not applied by this repository
+workflow. After a database and initial keyspace exist, download its Secure
+Connect Bundle to an ignored runtime secret path, set `CASSANDRA_ENABLED=true`,
+`CASSANDRA_PROVIDER=astra`, `CASSANDRA_KEYSPACE`, `CASSANDRA_TABLE`,
+`ASTRA_DB_SECURE_BUNDLE_PATH`, and `ASTRA_DB_APPLICATION_TOKEN`, then run the
+idempotent table bootstrap. Do not commit the bundle or token. `ASTRA_DB_DATABASE_ID`
+is recorded for provisioning and setup, not required by the Java CQL session.

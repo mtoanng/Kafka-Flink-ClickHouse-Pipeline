@@ -8,8 +8,9 @@ No deployment was performed and no existing artifact was changed or removed.
 
 ```text
 UserBehavior.csv -> Python replay -> Kafka + Schema Registry
-                 -> one Java Flink DataStream job -> ClickHouse -> Grafana
-                                                  -> ScyllaDB current state
+                 -> one Java Flink DataStream job -> ClickHouse
+                                                  -> optional Grafana visualization
+                                                  -> Apache Cassandra active-cart lookup
 
 PostgreSQL -> Debezium -> compacted rules topic -> Flink Broadcast State
 ```
@@ -23,24 +24,23 @@ verified scale.
 | Area | Classification | Evidence and gap |
 | --- | --- | --- |
 | Python replay package and tests | VALID AND COMPLETE | Bounded reader, deterministic IDs, validation, replay and Kafka mapping; 29 tests pass. |
-| Java Flink module and tests | VALID BUT INCOMPLETE | Compiles and 20 tests pass, but Scylla and control-plane branches cannot be disabled for a core-only run. |
+| Java Flink module and tests | VALID AND LOCALLY VERIFIED | Cassandra-disabled core and enabled active-cart branches are covered by the current test suite. |
 | Avro schemas | VALID BUT INCOMPLETE | Both parse and generate Java records; live registry compatibility and Debezium writer/reader compatibility are unverified. |
 | ClickHouse SQL and mappings | VALID AND COMPLETE | Static DDL/mapping tests pass; live inserts and retry behavior are unverified. |
-| ScyllaDB CQL and client | VALID BUT INCOMPLETE | Static contracts pass; TLS/provider topology and live driver behavior are unverified. |
+| Apache Cassandra CQL and client | VALID AND LOCALLY/STATICALLY VERIFIED | Static contracts, lifecycle, mutation mapping, and lookup shape pass; Astra behavior remains unverified. |
 | PostgreSQL/Debezium control plane | VALID BUT INCOMPLETE | Table, topic contract and broadcast logic exist; generated Debezium Avro compatibility is not proven. |
-| Grafana | VALID BUT INCOMPLETE | Architecture and environment mention Grafana, but no Taobao dashboard or provisioning artifact exists. |
-| Docker Compose profiles | CONFLICTS WITH FROZEN ARCHITECTURE | `core` contains no Kafka or Schema Registry service; only CDC containers are defined. |
-| Terraform | VALID BUT INCOMPLETE | Formatting and validation pass; EC2 bootstrap omits Java/Flink/application delivery and Kafka ACL coverage is incomplete. |
-| CI | VALID BUT INCOMPLETE | Maven, Python, Terraform and security jobs exist; Compose, shell, schema and documentation validation are absent. |
-| Runbooks and scripts | STALE | Several scripts still describe a final cloud release and disagree with Compose and environment templates. |
+| Grafana | OPTIONAL AND NOT REQUIRED | A ClickHouse datasource and Taobao dashboard artifact exist; Grafana is not on the critical processing path. |
+| Docker Compose profiles | IMPLEMENTED BUT LOCALLY UNVERIFIED | Cassandra is external and no local serving database is added; profile rendering requires a working Docker client. |
+| Terraform | TERRAFORM VALIDATED BUT NOT APPLIED | Formatting passed; provider initialization and `validate` were not completed because the Astra provider was unavailable in this run. |
+| CI | VALID BUT INCOMPLETE | Existing Maven, Python, Terraform and security jobs remain; this audit does not claim every CI job executed locally. |
+| Runbooks and scripts | ALIGNED | Active-cart lookup, external Astra serving, optional Grafana, and secret handling are documented without deployment claims. |
 
 ## Closure Sequence
 
-1. Make the single Flink job profile-aware. Keep ClickHouse as core; gate
-   Scylla and the rules source/broadcast branch with explicit environment flags.
-2. Repair the deployment contract. Make Compose `core` represent Kafka and
-   Schema Registry, make `cdc` add PostgreSQL and Debezium, and align advertised
-   listeners, connector converters and topic creation.
+1. Preserve the profile-aware single Flink job. Keep ClickHouse as core; gate
+   Cassandra and the rules source/broadcast branch with explicit environment flags.
+2. Verify the deployment contract. Keep Cassandra as an external managed
+   serving dependency and retain the documented Compose profiles.
 3. Complete provisioning. Install a supported Java runtime and Flink on the
    temporary host, define application artifact transfer, and add the minimum
    Kafka topic ACLs needed by replay, Flink and Connect identities.
@@ -48,8 +48,8 @@ verified scale.
    Terraform and scripts from one documented variable matrix. Remove the stale
    event-archive variable while retaining legitimate infrastructure storage
    variables if introduced later.
-5. Add a Taobao Grafana dashboard and datasource template for ClickHouse raw and
-   one-minute metrics. Keep credentials environment-driven.
+5. Keep the Taobao Grafana dashboard and datasource optional and
+   credentials-driven; they are not required by the critical path.
 6. Prove the CDC contract locally at schema level: capture the actual unwrapped
    Debezium writer schema and add an Avro resolution test against `BehaviorRule`.
 7. Resolve build hygiene: format `scripts/reconcile_final_e2e.py`, review the
@@ -65,7 +65,7 @@ verified scale.
 ## Resume-Ready Exit Criteria
 
 - A reviewer can trace each frozen-architecture arrow to code or configuration.
-- Core starts without requiring ScyllaDB, PostgreSQL or Debezium.
+- Core starts without requiring Cassandra, PostgreSQL or Debezium.
 - Both deployment profiles render from documented environment templates.
 - Grafana has a Taobao-only dashboard artifact backed by ClickHouse queries.
 - All credential-independent checks pass, including Ruff formatting.
@@ -78,17 +78,17 @@ verified scale.
 
 | Check | Result |
 | --- | --- |
-| Python unit tests | PASS: 29 |
+| Python unit tests | PASS: 35 |
 | Python compilation | PASS |
 | Ruff lint | PASS |
-| Ruff format | FAIL: `scripts/reconcile_final_e2e.py` would be reformatted |
-| Maven clean test | PASS: 20 Java tests |
+| Ruff format | PASS |
+| Maven tests | PASS: 35 tests |
 | Maven package | PASS with duplicate-class/resource shade warnings |
 | Maven dependency analysis | PASS with used-undeclared and aggregate-JUnit warnings |
 | Avro/JSON parsing | PASS |
-| Shell syntax | PASS |
-| Compose `core` and `cdc` rendering | PASS syntactically; semantic profile conflict remains |
-| Terraform format and validate | PASS |
-| Markdown links | PASS |
-| High-confidence secret patterns | None found; `gitleaks` unavailable |
-
+| Shell syntax | NOT VERIFIED: WSL has no installed distribution; Git Bash validation remains pending |
+| Compose profile rendering | NOT VERIFIED: Docker config access was denied by the local Docker client |
+| Terraform format | PASS: recursive formatting check |
+| Terraform validate | NOT VERIFIED: provider initialization was unavailable/interrupted |
+| Markdown links | NOT VERIFIED: local link scan remains pending |
+| High-confidence secret patterns | PASS: no tracked credentials or Secure Connect Bundles; `gitleaks` unavailable |

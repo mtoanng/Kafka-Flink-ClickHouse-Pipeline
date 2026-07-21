@@ -17,7 +17,7 @@ class RuntimeProfileFilesTests(unittest.TestCase):
     def test_optional_profiles_are_declared(self) -> None:
         self.assertIn('profiles: ["cdc"]', self.compose)
         self.assertIn('profiles: ["observability"]', self.compose)
-        self.assertIn("SERVING_ENABLED=false", self.environment)
+        self.assertIn("CASSANDRA_ENABLED=false", self.environment)
         self.assertIn("CDC_ENABLED=false", self.environment)
         self.assertIn("OBSERVABILITY_ENABLED=false", self.environment)
 

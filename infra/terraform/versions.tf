@@ -10,6 +10,10 @@ terraform {
       source  = "confluentinc/confluent"
       version = "~> 2.0"
     }
+    astra = {
+      source  = "datastax/astra"
+      version = "2.4.2"
+    }
   }
 }
 
@@ -23,4 +27,8 @@ provider "aws" {
 provider "confluent" {
   cloud_api_key    = var.confluent_cloud_api_key
   cloud_api_secret = var.confluent_cloud_api_secret
+}
+
+provider "astra" {
+  token = var.astra_token
 }

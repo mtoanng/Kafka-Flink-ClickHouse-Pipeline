@@ -105,7 +105,7 @@ Reason:
 ```text
 Taobao -> Python replay -> Kafka/Schema Registry -> one Java Flink job
         -> ClickHouse
-        -> ScyllaDB current state in Milestone B
+        -> Apache Cassandra active-cart serving in Milestone B
         -> PostgreSQL/Debezium control plane in optional Milestone C
 ```
 
@@ -114,7 +114,7 @@ Rules:
 - Python owns dataset preparation and replay.
 - Java owns the Flink DataStream core.
 - ClickHouse stores analytical history and rollups.
-- ScyllaDB stores bounded latest state only.
+- Apache Cassandra stores bounded per-user active-cart state only; DataStax Astra DB Serverless is the initial managed target.
 - PostgreSQL/Debezium is optional advanced control-plane work, not serving.
 - Confluent Cloud provides Kafka and Schema Registry for final cloud E2E; do not
   add Amazon MSK or self-hosted Kafka to the final topology.
@@ -140,7 +140,7 @@ For each phase:
 3. require the user to explain or manually verify that core decision;
 4. end with three teach-back questions and one controlled failure experiment.
 
-Core decisions include event grain, Kafka key, watermark, state/timer semantics, ClickHouse ordering, ScyllaDB partitioning, and checkpoint recovery.
+Core decisions include event grain, Kafka key, watermark, state/timer semantics, ClickHouse ordering, Cassandra partitioning, and checkpoint recovery.
 
 Do not block all implementation waiting for the user; instead clearly mark the single student learning task for the phase.
 
@@ -167,7 +167,7 @@ Typical checks:
 - Python tests for fixture/replay code;
 - Maven package and Java tests;
 - Avro compatibility;
-- ClickHouse/ScyllaDB contract tests where available;
+- ClickHouse/Cassandra contract tests where available;
 - fixture end-to-end smoke test;
 - Terraform `fmt -check` and `validate` when IaC exists.
 
