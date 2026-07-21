@@ -1,6 +1,9 @@
 # Taobao Real-Time Customer Behavior Platform
+<img width="1429" height="702" alt="image" src="https://github.com/user-attachments/assets/c89c0bc7-82f3-4df9-a41a-f456a86396ac" />
 
 A streaming data platform for Alibaba/Taobao `UserBehavior.csv` events.
+
+
 
 ```text
 Taobao UserBehavior.csv
