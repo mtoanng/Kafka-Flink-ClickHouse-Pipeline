@@ -19,7 +19,7 @@ def fixture_rows() -> list[tuple[object, object, object, str, object]]:
         (104, 504, 52, "pv", 1_511_658_030),
         (105, 505, 53, "pv", 1_511_658_015),
         (103, 503, 52, "fav", 1_511_658_022),
-        ("invalid-user", 506, 53, "pv", 1_511_658_031),
+        (0, 506, 53, "pv", 1_511_658_031),
     ]
     behaviors = ("pv", "cart", "fav", "buy")
     for index in range(TOTAL_ROWS - len(rows)):

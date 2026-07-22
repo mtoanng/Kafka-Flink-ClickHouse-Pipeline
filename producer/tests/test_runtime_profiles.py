@@ -9,17 +9,23 @@ class RuntimeProfileFilesTests(unittest.TestCase):
         self.compose = (REPOSITORY_ROOT / "infra/docker-compose.yml").read_text(encoding="utf-8")
         self.environment = (REPOSITORY_ROOT / ".env.example").read_text(encoding="utf-8")
 
-    def test_core_profile_contains_kafka_and_schema_registry(self) -> None:
-        self.assertIn("  kafka:", self.compose)
-        self.assertIn("  schema-registry:", self.compose)
-        self.assertIn('profiles: ["core", "serving", "cdc", "observability"]', self.compose)
+    def test_core_profile_contains_every_data_plane_service(self) -> None:
+        for service in ("kafka", "schema-registry", "clickhouse", "cassandra"):
+            self.assertIn(f"  {service}:", self.compose)
+        self.assertIn('profiles: ["core", "full"]', self.compose)
 
-    def test_optional_profiles_are_declared(self) -> None:
-        self.assertIn('profiles: ["cdc"]', self.compose)
-        self.assertIn('profiles: ["observability"]', self.compose)
-        self.assertIn("CASSANDRA_ENABLED=false", self.environment)
-        self.assertIn("CDC_ENABLED=false", self.environment)
-        self.assertIn("OBSERVABILITY_ENABLED=false", self.environment)
+    def test_full_profile_adds_control_plane_and_grafana(self) -> None:
+        for service in ("postgres", "debezium-connect", "grafana"):
+            self.assertIn(f"  {service}:", self.compose)
+        self.assertIn('profiles: ["full"]', self.compose)
+
+    def test_environment_makes_cassandra_and_checkpointing_core_contracts(self) -> None:
+        self.assertIn("RUNTIME_PROFILE=core", self.environment)
+        self.assertIn("RUNTIME_DEPENDENCIES=local", self.environment)
+        self.assertIn("CASSANDRA_MODE=local", self.environment)
+        self.assertIn("CASSANDRA_HOSTS=localhost", self.environment)
+        self.assertIn("FLINK_CHECKPOINTING_ENABLED=true", self.environment)
+        self.assertNotIn("CASSANDRA_ENABLED=", self.environment)
 
     def test_active_environment_has_no_s3_event_archive_variable(self) -> None:
         self.assertNotIn("S3_ARCHIVE_URI", self.environment)

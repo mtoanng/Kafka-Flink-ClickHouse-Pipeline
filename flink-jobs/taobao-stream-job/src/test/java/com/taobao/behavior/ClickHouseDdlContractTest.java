@@ -10,17 +10,28 @@ import org.junit.jupiter.api.Test;
 
 class ClickHouseDdlContractTest {
     @Test
-    void ddlMatchesTheRawAndItemMetricsSinkContract() throws IOException {
+    void ddlUsesStableReplacementKeysAndDurableAuditTables() throws IOException {
         String ddl = Files.readString(repositoryRoot().resolve("infra/clickhouse/schema.sql"));
 
         assertTrue(ddl.contains("CREATE TABLE IF NOT EXISTS taobao_behavior.raw_behavior_events"));
         assertTrue(ddl.contains("event_id String"));
         assertTrue(ddl.contains("replay_run_id String"));
+        assertTrue(ddl.contains("source_sequence UInt64"));
+        assertTrue(ddl.contains("record_version UInt64"));
         assertTrue(ddl.contains("ingested_at DateTime64(3, 'UTC') DEFAULT now64(3)"));
-        assertTrue(ddl.contains("ORDER BY (toDate(event_time), item_id, event_time, user_id)"));
+        assertTrue(ddl.contains("ENGINE = ReplacingMergeTree(record_version)"));
+        assertTrue(ddl.contains("ORDER BY (replay_run_id, event_id)"));
+        assertTrue(ddl.contains("raw_behavior_events_deduplicated"));
         assertTrue(ddl.contains("CREATE TABLE IF NOT EXISTS taobao_behavior.item_metrics_1m"));
         assertTrue(ddl.contains("unique_users UInt64"));
-        assertTrue(ddl.contains("ORDER BY (toDate(window_start), item_id, window_start, replay_run_id)"));
+        assertTrue(ddl.contains("ORDER BY (replay_run_id, window_start, item_id)"));
+        assertTrue(ddl.contains("item_metrics_1m_deduplicated"));
+        assertTrue(ddl.contains("invalid_behavior_events"));
+        assertTrue(ddl.contains("late_behavior_events"));
+        assertTrue(ddl.contains("behavior_alerts"));
+        assertTrue(ddl.contains("reason_code LowCardinality(String)"));
+        assertTrue(ddl.contains("reason_message String"));
+        assertTrue(ddl.contains("FROM taobao_behavior.raw_behavior_events FINAL"));
         assertFalse(ddl.contains("f1_telemetry"));
     }
 

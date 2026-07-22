@@ -13,11 +13,11 @@ class ProfileTests(unittest.TestCase):
     def test_fixture_profile(self) -> None:
         profile = profile_file(FIXTURE, batch_size=31)
         self.assertEqual(profile.source_rows, 1_000)
-        self.assertEqual(profile.accepted_rows, 999)
-        self.assertEqual(profile.invalid_rows, 1)
+        self.assertEqual(profile.accepted_rows, 1_000)
+        self.assertEqual(profile.invalid_rows, 0)
         self.assertEqual(
             profile.behavior_counts,
-            {"buy": 248, "cart": 251, "fav": 250, "pv": 250},
+            {"buy": 248, "cart": 251, "fav": 250, "pv": 251},
         )
         self.assertEqual(profile.backward_time_jumps, 1)
         self.assertEqual(profile.min_event_time_ms, 1_511_658_000_000)

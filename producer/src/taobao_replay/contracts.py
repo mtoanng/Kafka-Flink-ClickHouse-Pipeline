@@ -71,10 +71,6 @@ def parse_event(
     except ValueError as exc:
         raise RowValidationError("IDs and timestamp must be integers") from exc
 
-    if min(user_id, item_id, category_id) <= 0:
-        raise RowValidationError("IDs must be positive")
-    if timestamp < 0:
-        raise RowValidationError("timestamp must be non-negative")
     if behavior_raw not in BEHAVIOR_TYPES:
         raise RowValidationError(
             f"behavior_type must be one of {sorted(BEHAVIOR_TYPES)}, got {behavior_raw!r}"

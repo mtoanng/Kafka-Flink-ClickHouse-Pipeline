@@ -105,7 +105,7 @@ Reason:
 ```text
 Taobao -> Python replay -> Kafka/Schema Registry -> one Java Flink job
         -> ClickHouse
-        -> Apache Cassandra active-cart serving in Milestone B
+        -> Apache Cassandra active-cart serving in every runtime profile
         -> PostgreSQL/Debezium control plane in optional Milestone C
 ```
 
@@ -114,7 +114,9 @@ Rules:
 - Python owns dataset preparation and replay.
 - Java owns the Flink DataStream core.
 - ClickHouse stores analytical history and rollups.
-- Apache Cassandra stores bounded per-user active-cart state only; DataStax Astra DB Serverless is the initial managed target.
+- Apache Cassandra stores bounded per-user active-cart state only and is
+  mandatory for `core` and `full`; local Cassandra and DataStax Astra DB
+  Serverless share one business-logic path.
 - PostgreSQL/Debezium is optional advanced control-plane work, not serving.
 - Confluent Cloud provides Kafka and Schema Registry for final cloud E2E; do not
   add Amazon MSK or self-hosted Kafka to the final topology.

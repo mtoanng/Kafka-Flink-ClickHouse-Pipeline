@@ -29,25 +29,40 @@ public class CassandraActiveCartSink extends RichSinkFunction<CartMutation> {
 
     @Override
     public void open(Configuration parameters) {
-        session = sessionFactory.open(config);
-        upsertStatement = session.prepare(upsertCql(config.keyspace(), config.table()));
-        deleteStatement = session.prepare(deleteCql(config.keyspace(), config.table()));
+        try {
+            session = sessionFactory.open(config);
+            upsertStatement = session.prepare(upsertCql(config.keyspace(), config.table()));
+            deleteStatement = session.prepare(deleteCql(config.keyspace(), config.table()));
+        } catch (RuntimeException exception) {
+            close();
+            throw new IllegalStateException(
+                    "failed to initialize Cassandra " + config.mode()
+                            + " sink for " + config.keyspace() + "." + config.table(),
+                    exception);
+        }
     }
 
     @Override
     public void invoke(CartMutation mutation, Context context) {
         validateMutation(mutation);
         ActiveCartItem item = mutation.getItem();
-        if (mutation.getType() == CartMutation.Type.UPSERT_CART_ITEM) {
-            session.execute(upsertStatement.bind(
-                    item.getUserId(),
-                    item.getItemId(),
-                    item.getCategoryId(),
-                    Instant.ofEpochMilli(item.getAddedAtMs()),
-                    Instant.ofEpochMilli(item.getLastUpdatedAtMs())));
-            return;
+        try {
+            if (mutation.getType() == CartMutation.Type.UPSERT_CART_ITEM) {
+                session.execute(upsertStatement.bind(
+                        item.getUserId(),
+                        item.getItemId(),
+                        item.getCategoryId(),
+                        Instant.ofEpochMilli(item.getAddedAtMs()),
+                        Instant.ofEpochMilli(item.getLastUpdatedAtMs())));
+                return;
+            }
+            session.execute(deleteStatement.bind(item.getUserId(), item.getItemId()));
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException(
+                    "Cassandra " + mutation.getType() + " failed for user_id="
+                            + item.getUserId() + " item_id=" + item.getItemId(),
+                    exception);
         }
-        session.execute(deleteStatement.bind(item.getUserId(), item.getItemId()));
     }
 
     @Override

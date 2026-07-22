@@ -66,13 +66,13 @@ variable "root_volume_size_gb" {
 variable "flink_version" {
   description = "Apache Flink distribution version installed on the temporary host."
   type        = string
-  default     = "1.20.1"
+  default     = "1.20.2"
 }
 
 variable "flink_download_url" {
   description = "HTTPS URL for the pinned Flink binary distribution."
   type        = string
-  default     = "https://archive.apache.org/dist/flink/flink-1.20.1/flink-1.20.1-bin-scala_2.12.tgz"
+  default     = "https://archive.apache.org/dist/flink/flink-1.20.2/flink-1.20.2-bin-scala_2.12.tgz"
 }
 
 variable "flink_sha256" {
@@ -105,8 +105,8 @@ variable "runtime_profile" {
   default     = "core"
 
   validation {
-    condition     = contains(["core", "serving", "cdc", "observability"], var.runtime_profile)
-    error_message = "runtime_profile must be core, serving, cdc, or observability."
+    condition     = contains(["core", "full"], var.runtime_profile)
+    error_message = "runtime_profile must be core or full."
   }
 }
 

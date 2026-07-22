@@ -13,6 +13,8 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Verify ClickHouse fixture assertions")
     result.add_argument("--run-id", required=True)
     result.add_argument("--expected-raw-count", type=int, default=999)
+    result.add_argument("--expected-invalid-count", type=int, default=1)
+    result.add_argument("--expected-late-count", type=int, default=2)
     result.add_argument("--endpoint", default=os.getenv("CLICKHOUSE_ENDPOINT"))
     result.add_argument("--user", default=os.getenv("CLICKHOUSE_USER", "default"))
     result.add_argument("--password", default=os.getenv("CLICKHOUSE_PASSWORD", ""))
@@ -39,16 +41,41 @@ def main() -> int:
 
     raw_rows = query_rows(
         client,
-        f"SELECT count() AS raw_count FROM raw_behavior_events WHERE replay_run_id = {run_id}",
+        "SELECT count() AS raw_count FROM raw_behavior_events_deduplicated "
+        f"WHERE replay_run_id = {run_id}",
     )
     raw_count = int(raw_rows[0]["raw_count"])
     if raw_count != args.expected_raw_count:
         raise SystemExit(f"raw count mismatch: expected {args.expected_raw_count}, got {raw_count}")
 
+    invalid_count = int(
+        query_rows(
+            client,
+            "SELECT count() AS event_count FROM invalid_behavior_events_deduplicated "
+            f"WHERE replay_run_id = {run_id}",
+        )[0]["event_count"]
+    )
+    if invalid_count != args.expected_invalid_count:
+        raise SystemExit(
+            f"invalid count mismatch: expected {args.expected_invalid_count}, got {invalid_count}"
+        )
+
+    late_count = int(
+        query_rows(
+            client,
+            "SELECT count() AS event_count FROM late_behavior_events_deduplicated "
+            f"WHERE replay_run_id = {run_id}",
+        )[0]["event_count"]
+    )
+    if late_count != args.expected_late_count:
+        raise SystemExit(
+            f"late count mismatch: expected {args.expected_late_count}, got {late_count}"
+        )
+
     metrics_rows = query_rows(
         client,
         "SELECT pv_count, cart_count, fav_count, buy_count, unique_users "
-        "FROM item_metrics_1m "
+        "FROM item_metrics_1m_deduplicated "
         f"WHERE replay_run_id = {run_id} AND item_id = 500 "
         f"AND window_start = toDateTime64('{FIXTURE_WINDOW_START}', 3, 'UTC')",
     )
@@ -69,7 +96,17 @@ def main() -> int:
             f"got {json.dumps(actual_metrics, sort_keys=True)}"
         )
 
-    print(json.dumps({"raw_count": raw_count, "item_500_metrics": actual_metrics}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "raw_count": raw_count,
+                "invalid_count": invalid_count,
+                "late_count": late_count,
+                "item_500_metrics": actual_metrics,
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

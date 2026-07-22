@@ -16,11 +16,11 @@ GENERATOR = REPOSITORY_ROOT / "scripts/generate_fixture.py"
 
 
 class ReaderTests(unittest.TestCase):
-    def test_fixture_is_bounded_and_routes_invalid_row(self) -> None:
+    def test_fixture_is_bounded_and_keeps_semantic_invalid_row_for_flink(self) -> None:
         batches = list(iter_event_batches(FIXTURE, replay_run_id="test", batch_size=17))
         self.assertEqual(sum(batch.source_rows for batch in batches), 1_000)
-        self.assertEqual(sum(len(batch.events) for batch in batches), 999)
-        self.assertEqual(sum(len(batch.issues) for batch in batches), 1)
+        self.assertEqual(sum(len(batch.events) for batch in batches), 1_000)
+        self.assertEqual(sum(len(batch.issues) for batch in batches), 0)
         self.assertLessEqual(max(batch.source_rows for batch in batches), 17)
 
     def test_reader_preserves_out_of_order_source_event(self) -> None:
@@ -60,6 +60,7 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual({"501"}, active_items)
         self.assertIn(["101", "501", "51", "cart", "1511658021"], rows)
         self.assertFalse(any(row[:4] == ["101", "501", "51", "buy"] for row in rows))
+        self.assertIn(["0", "506", "53", "pv", "1511658031"], rows)
 
     def test_fixture_matches_generator_byte_for_byte(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

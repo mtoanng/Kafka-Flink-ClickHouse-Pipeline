@@ -1,11 +1,11 @@
 name: ${COMPOSE_PROJECT_NAME:-taobao-runtime}
 
-# Runtime profiles are additive. Core supplies the local Kafka/Schema Registry
-# path; serving uses an external Apache Cassandra/Astra endpoint; CDC adds PostgreSQL and
-# Debezium Connect; observability provisions Grafana against ClickHouse.
+# The service-free `checks` profile is implemented by Make/CI and starts no
+# containers. `core` provides local data-plane dependencies. `full` adds the
+# CDC control plane and Grafana. Flink remains one externally submitted job.
 services:
   kafka:
-    profiles: ["core", "serving", "cdc", "observability"]
+    profiles: ["core", "full"]
     image: ${KAFKA_IMAGE:-apache/kafka:3.9.0}
     hostname: kafka
     ports:
@@ -24,15 +24,55 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
   schema-registry:
-    profiles: ["core", "serving", "cdc", "observability"]
+    profiles: ["core", "full"]
     image: ${SCHEMA_REGISTRY_IMAGE:-apicurio/apicurio-registry:3.2.5}
     ports:
       - "${SCHEMA_REGISTRY_EXTERNAL_PORT:-8081}:8080"
     environment:
       APICURIO_STORAGE_KIND: mem
 
+  clickhouse:
+    profiles: ["core", "full"]
+    image: ${CLICKHOUSE_IMAGE:-clickhouse/clickhouse-server:24.8}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-taobao_behavior}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-local-clickhouse}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user $$CLICKHOUSE_USER --password $$CLICKHOUSE_PASSWORD --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  cassandra:
+    profiles: ["core", "full"]
+    image: ${CASSANDRA_IMAGE:-cassandra:5.0}
+    ports:
+      - "${CASSANDRA_PORT:-9042}:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: taobao-local
+      CASSANDRA_DC: ${CASSANDRA_DATACENTER:-datacenter1}
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 100M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+      - ./cassandra:/opt/taobao/cassandra:ro
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh 127.0.0.1 9042 -e 'SELECT release_version FROM system.local' >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
   postgres:
-    profiles: ["cdc"]
+    profiles: ["full"]
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     ports:
       - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
@@ -49,11 +89,13 @@ services:
       retries: 12
 
   debezium-connect:
-    profiles: ["cdc"]
+    profiles: ["full"]
     image: ${DEBEZIUM_CONNECT_IMAGE:-quay.io/debezium/connect:3.2}
     ports:
       - "${CONNECT_EXTERNAL_PORT:-8083}:8083"
     depends_on:
+      kafka:
+        condition: service_started
       postgres:
         condition: service_healthy
     environment:
@@ -78,7 +120,7 @@ services:
       CONNECT_PLUGIN_PATH: /kafka/connect
 
   grafana:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: ${GRAFANA_IMAGE:-grafana/grafana:11.4.0}
     ports:
       - "${GRAFANA_EXTERNAL_PORT:-3000}:3000"
@@ -92,4 +134,6 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
 
 volumes:
+  clickhouse_data:
+  cassandra_data:
   postgres_data:

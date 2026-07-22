@@ -1,6 +1,8 @@
 package com.taobao.behavior.sink;
 
 import com.taobao.behavior.avro.UserBehaviorEvent;
+import com.taobao.behavior.model.BehaviorAlert;
+import com.taobao.behavior.model.BehaviorAuditEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -20,6 +22,8 @@ final class ClickHouseRowMapper {
         row.put("behavior_type", event.getBehaviorType().toString());
         row.put("event_time", utcTime(event.getEventTimeMs()));
         row.put("replay_run_id", event.getReplayRunId().toString());
+        row.put("source_sequence", event.getSourceSequence());
+        row.put("record_version", event.getSourceSequence());
         return row;
     }
 
@@ -34,6 +38,39 @@ final class ClickHouseRowMapper {
         row.put("buy_count", metrics.getBuyCount());
         row.put("unique_users", metrics.getUniqueUsers());
         row.put("replay_run_id", metrics.getReplayRunId());
+        row.put("record_version", metrics.getWindowStart());
+        return row;
+    }
+
+    static Map<String, Object> auditValues(BehaviorAuditEvent event) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("event_id", event.getEventId());
+        row.put("replay_run_id", event.getReplayRunId());
+        row.put("user_id", event.getUserId());
+        row.put("item_id", event.getItemId());
+        row.put("category_id", event.getCategoryId());
+        row.put("event_time_ms", event.getEventTimeMs());
+        row.put("source_sequence", event.getSourceSequence());
+        row.put("reason_code", event.getReasonCode());
+        row.put("reason_message", event.getReasonMessage());
+        row.put("record_version", event.getSourceSequence());
+        return row;
+    }
+
+    static Map<String, Object> alertValues(BehaviorAlert alert) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("event_id", alert.getEventId());
+        row.put("replay_run_id", alert.getReplayRunId());
+        row.put("user_id", alert.getUserId());
+        row.put("item_id", alert.getItemId());
+        row.put("category_id", alert.getCategoryId());
+        row.put("event_time", utcTime(alert.getCartEventTimeMs()));
+        row.put("alert_time", utcTime(alert.getAlertTimeMs()));
+        row.put("rule_id", alert.getRuleId());
+        row.put("rule_version", alert.getRuleVersion());
+        row.put("reason_code", alert.getReasonCode());
+        row.put("reason_message", alert.getReasonMessage());
+        row.put("record_version", alert.getAlertTimeMs());
         return row;
     }
 

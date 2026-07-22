@@ -1,21 +1,24 @@
 package com.taobao.behavior;
 
+import com.taobao.behavior.sink.CassandraConfig;
+import java.util.Locale;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import com.taobao.behavior.sink.CassandraConfig;
 
 final class RuntimeProfileConfig {
     private final Map<String, String> environment;
-    private final boolean cassandraEnabled;
-    private final boolean cdcEnabled;
-    private final boolean observabilityEnabled;
+    private final String runtimeProfile;
 
     private RuntimeProfileConfig(Map<String, String> environment) {
         this.environment = environment;
-        cassandraEnabled = booleanValue("CASSANDRA_ENABLED", false);
-        cdcEnabled = booleanValue("CDC_ENABLED", false);
-        observabilityEnabled = booleanValue("OBSERVABILITY_ENABLED", false);
-        validateOptionalProfiles();
+        runtimeProfile = value("RUNTIME_PROFILE", "core").toLowerCase(Locale.ROOT);
+        if (!"checks".equals(runtimeProfile)
+                && !"core".equals(runtimeProfile)
+                && !"full".equals(runtimeProfile)) {
+            throw new IllegalArgumentException("RUNTIME_PROFILE must be checks, core, or full");
+        }
+        validateProfile();
         kafkaProperties();
     }
 
@@ -23,16 +26,28 @@ final class RuntimeProfileConfig {
         return new RuntimeProfileConfig(environment);
     }
 
+    String runtimeProfile() {
+        return runtimeProfile;
+    }
+
+    boolean isChecksProfile() {
+        return "checks".equals(runtimeProfile);
+    }
+
     boolean isCassandraEnabled() {
-        return cassandraEnabled;
+        return !isChecksProfile();
     }
 
     boolean isCdcEnabled() {
-        return cdcEnabled;
+        return "full".equals(runtimeProfile);
     }
 
     boolean isObservabilityEnabled() {
-        return observabilityEnabled;
+        return "full".equals(runtimeProfile);
+    }
+
+    boolean checkpointingEnabledByDefault() {
+        return !isChecksProfile();
     }
 
     String value(String key, String defaultValue) {
@@ -41,14 +56,14 @@ final class RuntimeProfileConfig {
     }
 
     CassandraConfig cassandraConfig() {
-        if (!cassandraEnabled) {
-            throw new IllegalStateException("Cassandra is disabled");
+        if (!isCassandraEnabled()) {
+            throw new IllegalStateException("Cassandra is not opened by the checks profile");
         }
         return CassandraConfig.fromEnvironment(environment);
     }
 
     Properties kafkaProperties() {
-        String protocol = value("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").toUpperCase();
+        String protocol = value("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").toUpperCase(Locale.ROOT);
         if (!"PLAINTEXT".equals(protocol) && !"SASL_SSL".equals(protocol)) {
             throw new IllegalArgumentException(
                     "KAFKA_SECURITY_PROTOCOL must be PLAINTEXT or SASL_SSL");
@@ -89,49 +104,31 @@ final class RuntimeProfileConfig {
         return properties;
     }
 
-    private void validateOptionalProfiles() {
-        if (cassandraEnabled) {
-            CassandraConfig.fromEnvironment(environment);
+    Map<String, Object> schemaRegistryProperties() {
+        Map<String, Object> properties = new HashMap<>();
+        String userInfo = optional("SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO");
+        if (userInfo != null) {
+            properties.put("basic.auth.credentials.source", "USER_INFO");
+            properties.put("basic.auth.user.info", userInfo);
         }
-        if (cdcEnabled) {
-            required("RULES_KAFKA_TOPIC");
-            required("POSTGRES_HOST");
-            required("POSTGRES_DB");
-            required("POSTGRES_USER");
-            required("POSTGRES_PASSWORD");
-            required("CONNECT_URL");
-        }
-        if (observabilityEnabled) {
-            required("GRAFANA_ENDPOINT");
-        }
+        return properties;
     }
 
-    private boolean booleanValue(String key, boolean defaultValue) {
-        String value = optional(key);
-        if (value == null) {
-            return defaultValue;
+    private void validateProfile() {
+        if (isCassandraEnabled()) {
+            CassandraConfig.fromEnvironment(environment);
         }
-        if ("true".equalsIgnoreCase(value)) {
-            return true;
+        if (isCdcEnabled()) {
+            required("RULES_KAFKA_TOPIC");
         }
-        if ("false".equalsIgnoreCase(value)) {
-            return false;
-        }
-        throw new IllegalArgumentException(key + " must be true or false");
     }
 
     private String required(String key) {
         String value = optional(key);
         if (value == null) {
-            throw new IllegalArgumentException(key + " is required when its profile is enabled");
+            throw new IllegalArgumentException(key + " is required for RUNTIME_PROFILE=" + runtimeProfile);
         }
         return value;
-    }
-
-    private void optionalPair(String first, String second) {
-        if ((optional(first) == null) != (optional(second) == null)) {
-            throw new IllegalArgumentException(first + " and " + second + " must be provided together");
-        }
     }
 
     private String optional(String key) {

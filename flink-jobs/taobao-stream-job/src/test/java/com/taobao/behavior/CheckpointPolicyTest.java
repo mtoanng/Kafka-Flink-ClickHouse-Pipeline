@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 class CheckpointPolicyTest {
     @Test
-    void checkpointingIsOptInForTheLaptop() {
+    void checkpointingCanBeDisabledForCredentialIndependentChecks() {
         CheckpointPolicy policy = CheckpointPolicy.fromValues("false", "60000", "");
 
         assertFalse(policy.isEnabled());

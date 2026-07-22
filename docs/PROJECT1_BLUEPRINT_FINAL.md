@@ -24,10 +24,10 @@ Taobao events
 -> ClickHouse
 ```
 
-After that path is stable, extend it with:
+The complete junior platform extends that path with:
 
 ```text
-Apache Cassandra active-cart serving (DataStax Astra DB Serverless target)
+Apache Cassandra active-cart serving (local development or DataStax Astra DB Serverless)
 PostgreSQL + Debezium control-plane CDC
 basic observability and the repository's deployment artifacts
 ```
@@ -94,35 +94,37 @@ ONE Java Flink DataStream job
   - event-time timestamps and watermarks
   - invalid/late event side outputs
   - item-level 1-minute aggregation
-  - keyed user activity state when serving is enabled
+  - keyed active-cart state in every runtime profile
   - cart timer logic when CDC/rules are enabled
-  - checkpointing when explicitly configured
+  - checkpointing enabled by default in runtime profiles
         |
         +------------------> ClickHouse
         |                    - raw_behavior_events
         |                    - item_metrics_1m
         |                    - behavior_alerts
         |
-        +------------------> Apache Cassandra (serving profile only)
+        +------------------> Apache Cassandra (mandatory runtime serving layer)
         |                    - user_active_cart
         |
 ```
 
 ### 3.2 Runtime profiles
 
-Profiles are additive and use the same single Java Flink job:
+The repository exposes one service-free checks profile and two runtime profiles.
+Both runtime profiles use the same single Java Flink job and always materialize
+the active cart in Cassandra:
 
 | Profile | Enabled path | Required external services |
 | --- | --- | --- |
-| `core` | Replay, Kafka/Schema Registry, Flink, ClickHouse | Kafka, Schema Registry, ClickHouse |
-| `serving` | `core` plus per-user active-cart state in Apache Cassandra | Core services plus DataStax Astra DB Serverless or another configured Cassandra deployment |
-| `cdc` | `core` plus PostgreSQL, Debezium and a compacted rules topic feeding Broadcast State | Core services plus PostgreSQL/Kafka Connect |
-| `observability` | Metrics/log export and Grafana dashboards for the enabled path | Grafana and its configured datasource |
+| `checks` | Unit/contract tests, formatting, package, Compose rendering, Terraform validation | None |
+| `core` | Replay, Kafka/Schema Registry, one Flink job, ClickHouse, and Apache Cassandra active cart | Kafka, Schema Registry, ClickHouse, Cassandra local or Astra |
+| `full` | `core` plus PostgreSQL, Debezium, compacted rules, Broadcast State, timers, and Grafana | Core services plus PostgreSQL, Kafka Connect, and Grafana |
 
-The `core` profile must start and process events when Cassandra and CDC are
-disabled. Optional profiles must not create their clients, sources, sinks,
-timers, or required configuration during Flink startup. Profiles may be
-combined without creating a second Flink job.
+The `core` and `full` profiles fail fast when Cassandra configuration is absent.
+The `checks` profile never opens Kafka, ClickHouse, Cassandra, PostgreSQL, or
+Grafana connections. The `full` profile is the only profile that creates the
+CDC source, Broadcast State, timers, and alert sink. No profile creates a
+second Flink job.
 
 ### 3.3 Kafka and Schema Registry portability
 
@@ -178,7 +180,9 @@ Rules:
 
 ### Required for the full junior project
 
-- Apache Cassandra: per-user active-cart lookup. The initial managed target is non-vector DataStax Astra DB Serverless.
+- Apache Cassandra: mandatory per-user active-cart lookup in every runtime
+  profile. Local development uses one Cassandra node; the initial managed
+  target is non-vector DataStax Astra DB Serverless.
 - Terraform, Docker Compose, bootstrap, CI, verification, and teardown code are
   part of the complete repository and must remain aligned with this blueprint.
 - Basic operational evidence: logs, counts, checkpoint status, and query screenshots.
@@ -201,8 +205,8 @@ Any deployment artifact must document and validate installation of:
 4. Kafka topic, consumer-group, producer, consumer, and Schema Registry
    read/write/describe permissions for every identity used by replay, Flink,
    and Debezium;
-   5. the external ClickHouse, Cassandra, PostgreSQL, and Grafana endpoints only
-   when the corresponding profile is enabled.
+5. ClickHouse and Cassandra for every runtime profile, and PostgreSQL/Debezium
+   plus Grafana only for `full`.
 
 Bootstrap may install software and copy artifacts, but it must not embed
 credentials. A successful Terraform plan or container start is not deployment
@@ -261,13 +265,21 @@ replay_run_id
 ingested_at
 ```
 
-Suggested first ordering key:
+The codebase-ready tables use stable logical keys with `ReplacingMergeTree`
+and deterministic version columns. Verification queries or views must use
+deduplicated results (`FINAL` or an equivalent explicit query) so replay and
+checkpoint recovery duplicates do not permanently change analytical answers.
+This is effectively-once query behavior over at-least-once transport, not a
+transactional exactly-once claim.
+
+Required raw logical key:
 
 ```sql
-ORDER BY (toDate(event_time), item_id, event_time, user_id)
+ORDER BY (replay_run_id, event_id)
 ```
 
-The final key must be justified using the actual query pack.
+The query pack may add projections for item/time analysis without changing the
+deduplication identity.
 
 #### `item_metrics_1m`
 
@@ -286,7 +298,18 @@ unique_users
 
 #### `behavior_alerts`
 
-Only required when timer/rule logic is implemented.
+Required in `full` when timer/rule logic is enabled. Invalid and late events are
+also durable ClickHouse audit tables:
+
+```text
+invalid_behavior_events
+late_behavior_events
+behavior_alerts
+```
+
+Each audit row carries a deterministic event identifier, replay run, available
+user/item/category identifiers, event time, ingestion time, reason code, and a
+concise reason message.
 
 ### 5.3 Apache Cassandra active-cart table
 
@@ -313,15 +336,26 @@ The logical database technology is Apache Cassandra. The initial managed deploym
 Connection configuration contract:
 
 ```text
-ASTRA_DB_SECURE_BUNDLE_PATH
-ASTRA_DB_APPLICATION_TOKEN
-ASTRA_DB_DATABASE_ID
+CASSANDRA_MODE             # local or astra
+CASSANDRA_HOSTS            # local, comma-separated
+CASSANDRA_PORT             # local
+CASSANDRA_DATACENTER       # local
 CASSANDRA_KEYSPACE
 CASSANDRA_TABLE
-CASSANDRA_ENABLED
+CASSANDRA_USERNAME         # optional local pair
+CASSANDRA_PASSWORD         # optional local pair
+ASTRA_DB_SECURE_BUNDLE_PATH
+ASTRA_DB_APPLICATION_TOKEN
+CASSANDRA_CONNECT_TIMEOUT_MS
+CASSANDRA_REQUEST_TIMEOUT_MS
 ```
 
-Tokens and Secure Connect Bundles must never be committed. The Secure Connect Bundle is supplied as a runtime secret file, and the token is supplied through environment variables or secret management. Keyspace/database provisioning is separate from application startup. Application code must not attempt `CREATE KEYSPACE`; table bootstrap must be idempotent.
+Tokens and Secure Connect Bundles must never be committed. The Secure Connect
+Bundle is supplied as a runtime secret file, and the token is supplied through
+environment variables or secret management. Keyspace provisioning is separate
+from application startup. Application code must not attempt `CREATE KEYSPACE`;
+table bootstrap must be idempotent. Local and Astra sessions share the same cart
+projection and prepared mutation code.
 
 Active-cart semantics are event-time ordered in Flink keyed state before Cassandra mutation: `cart` upserts an item, `buy` deletes its matching item, and `pv`/`fav` produce no Cassandra mutation. Repeated cart or buy events are idempotent, and a stale cart cannot recreate an item after a newer buy. No TTL or timer-based cart expiration is required for the codebase-ready release; it is an optional later extension.
 
@@ -367,10 +401,13 @@ Acceptance criteria:
 - item rollups match a manually calculated expected result;
 - one out-of-order event test documents whether it is accepted or late;
 - all credential-independent tests pass.
-- the core profile runs with Cassandra and CDC disabled and without their configuration;
-- optional profile startup is not required for a core Flink submission.
+- the `core` profile fails fast without Cassandra configuration and runs without
+  PostgreSQL/Debezium/Grafana configuration;
+- the `checks` profile requires no external service configuration.
 
-Milestone A is sufficient for the first resume-ready release.
+Milestone A remains the historical analytical foundation. It is not sufficient
+for the current codebase-ready runtime contract, which also requires the
+Milestone B Cassandra serving layer.
 
 ## Milestone B — Complete junior platform
 
@@ -480,6 +517,17 @@ Student learning task: explain what is and is not guaranteed after a restart.
 
 Student learning task: explain data plane versus control plane.
 
+### Final codebase-hardening phase — Cassandra core and delivery semantics
+
+- make Cassandra mandatory in `core` and `full`, supporting local and Astra;
+- enable runtime checkpointing by default without claiming global exactly once;
+- add stable ClickHouse replacement keys and deduplicated verification paths;
+- persist invalid, late, and alert audit streams in ClickHouse;
+- align checks/core/full profiles, CI, bounded verification, and runbooks.
+
+Student learning task: explain at-least-once transport, idempotent writes,
+effectively-once queries, and why they are not transactional exactly once.
+
 ---
 
 ## 8. Resource-aware deployment
@@ -519,8 +567,8 @@ The deployment package must install Java, Apache Flink, the built application
 artifact, generated Avro/schema assets, and profile-specific configuration
 before submitting a job. It must document complete Kafka permissions for
 topics, consumer groups, schema subjects, and registry operations. Missing
-optional-service credentials must disable that profile rather than fail core
-startup.
+full-only credentials must not be required by core startup. Cassandra is not
+full-only: missing Cassandra configuration must fail both runtime profiles.
 
 ---
 
@@ -537,7 +585,7 @@ Minimum junior test set:
 - fixture end-to-end count and rollup test;
 - Apache Cassandra latest-state test for Milestone B;
 - CDC `BehaviorRule` Avro reader/writer compatibility test;
-- core/serving/CDC/observability startup-configuration tests;
+- checks/core/full startup-configuration tests;
 - provider-neutral Kafka plaintext and `SASL_SSL` configuration tests;
 - Terraform `fmt -check` and `validate` when IaC is added;
 - Docker Compose rendering, bootstrap prerequisite, verification and teardown
@@ -571,8 +619,8 @@ PostgreSQL/Debezium is not required for the junior Definition of Done. It remain
 This gate is credential-independent. It passes only when Cassandra integration code
 and Astra infrastructure/configuration code are complete, application modules,
 schemas, Terraform, Docker Compose, bootstrap, CI, verification, teardown
-scripts and documentation are internally consistent; core/serving/CDC/
-observability profiles are defined; optional components are startup-optional;
+scripts and documentation are internally consistent; checks/core/full profiles
+are defined; full-only components are absent from core startup;
 all unit, contract, formatting, compilation and static configuration checks
 pass; and no active S3 event-data sink is present. Real Astra connectivity remains pending.
 
@@ -660,7 +708,7 @@ defects that still require a later code phase.
 
 | Audit finding | Classification | Blueprint consequence |
 | --- | --- | --- |
-| Core startup is coupled to Cassandra and the rules source | Implementation defect | Core is explicitly independent; serving and CDC branches must be runtime-optional. |
+| Cassandra was optional in core | Superseded architecture decision | Cassandra is mandatory in core/full; only CDC, timers, and Grafana remain full-only. |
 | Compose `core` does not contain the broker/registry path it documents | Implementation defect | Runtime profiles and the required core path are explicit; Compose must be corrected in a code phase. |
 | Kafka security differs between local and managed examples | Architecture clarification | One provider-neutral contract now covers plaintext and `SASL_SSL`. |
 | S3 archive language survived in configuration and historical evidence | Architecture clarification plus cleanup defect | S3 is explicitly excluded from event data; stale active references remain proposed cleanup. |

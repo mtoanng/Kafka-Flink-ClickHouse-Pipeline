@@ -22,7 +22,9 @@ def main() -> int:
     if not args.endpoint:
         parser().error("set CLICKHOUSE_ENDPOINT or pass --endpoint")
     statements = list(split_sql_statements(args.ddl.read_text(encoding="utf-8")))
-    client = ClickHouseHttpClient(args.endpoint, args.user, args.password, args.database)
+    # The first statement creates the target database, so execute the fully
+    # qualified DDL through ClickHouse's always-present default database.
+    client = ClickHouseHttpClient(args.endpoint, args.user, args.password, "default")
     for statement in statements:
         client.execute(statement)
     print(f"Applied {len(statements)} ClickHouse DDL statements to {args.database}.")

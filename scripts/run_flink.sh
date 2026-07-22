@@ -19,12 +19,12 @@ if [ ! -f "$JAR_PATH" ]; then
 fi
 
 echo "Submitting Taobao Flink job"
+echo "  Runtime profile: ${RUNTIME_PROFILE:-core}"
 echo "  Kafka: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
 echo "  Topic: ${KAFKA_TOPIC:-user-behavior-events}"
 echo "  Schema Registry: ${SCHEMA_REGISTRY_URL:-http://localhost:8081/apis/ccompat/v7}"
 echo "  ClickHouse: ${CLICKHOUSE_ENDPOINT:-https://localhost:8443}"
-echo "  Cassandra enabled: ${CASSANDRA_ENABLED:-false}"
-echo "  Cassandra provider: ${CASSANDRA_PROVIDER:-astra}"
+echo "  Cassandra mode: ${CASSANDRA_MODE:-missing}"
 echo "  Rules topic: ${RULES_KAFKA_TOPIC:-behavior-rules}"
 
 FLINK_ARGS=()

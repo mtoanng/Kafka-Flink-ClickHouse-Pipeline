@@ -47,6 +47,7 @@ fi
 cat > "$ENV_FILE" <<'RUNTIME_ENV'
 # Operator-owned runtime configuration. Add endpoints and secrets here after bootstrap.
 RUNTIME_PROFILE=${runtime_profile}
+RUNTIME_DEPENDENCIES=managed
 FLINK_BIN=/opt/taobao/flink/bin/flink
 COMPOSE_FILE=/opt/taobao/runtime/infra/docker-compose.yml
 RUNTIME_ROOT=/opt/taobao/runtime
@@ -60,12 +61,8 @@ set -euo pipefail
 source /etc/taobao-runtime.env
 cd "$${RUNTIME_ROOT:?RUNTIME_ROOT is required}"
 test -f "$COMPOSE_FILE"
-export CASSANDRA_ENABLED=false CDC_ENABLED=false OBSERVABILITY_ENABLED=false
 case "$${RUNTIME_PROFILE:?RUNTIME_PROFILE is required}" in
-  core) ;;
-  serving) export CASSANDRA_ENABLED=true ;;
-  cdc) export CDC_ENABLED=true ;;
-  observability) export OBSERVABILITY_ENABLED=true ;;
+  core|full) ;;
   *) echo "Unsupported RUNTIME_PROFILE" >&2; exit 2 ;;
 esac
 bash scripts/run.sh

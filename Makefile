@@ -1,6 +1,8 @@
 SHELL := bash
 
-.PHONY: test package infra-config remote-up remote-down schema cassandra-schema publish-fixture run-job checkpoint-experiment terraform-validate teardown
+.PHONY: checks test package infra-config remote-up remote-down schema cassandra-schema publish-fixture run-job checkpoint-experiment terraform-validate teardown
+
+checks: test package infra-config terraform-validate
 
 test:
 	PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
@@ -12,7 +14,8 @@ package:
 	mvn -B -pl flink-jobs/taobao-stream-job -am package
 
 infra-config:
-	docker compose -f infra/docker-compose.yml config --quiet
+	docker compose -f infra/docker-compose.yml --profile core config --quiet
+	docker compose -f infra/docker-compose.yml --profile full config --quiet
 
 remote-up:
 	bash scripts/run.sh

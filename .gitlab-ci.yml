@@ -66,6 +66,14 @@ static_contracts:
   stage: validate
   image: python:3.12-slim
   script:
-    - python -c "import json; [json.load(open(path)) for path in ['infra/grafana/provisioning/dashboards/json/taobao-overview.json', 'infra/debezium/postgres-behavior-rules.json']]"
+    - python -c "import json; from pathlib import Path; [json.load(open(path)) for path in ['infra/grafana/provisioning/dashboards/json/taobao-overview.json', 'infra/debezium/postgres-behavior-rules.json', *map(str, Path('schemas').glob('*.avsc'))]]"
+    - python -c "from pathlib import Path; ddl=Path('infra/clickhouse/schema.sql').read_text(); assert 'ReplacingMergeTree(record_version)' in ddl and 'invalid_behavior_events' in ddl and 'late_behavior_events' in ddl and 'behavior_alerts' in ddl; cql=Path('infra/cassandra/schema.cql').read_text(); assert 'PRIMARY KEY ((user_id), item_id)' in cql"
     - python -c "from pathlib import Path; import re; missing=[]; [missing.append((str(path), target)) for path in Path('.').rglob('*.md') if 'archive' not in path.parts and 'evidence' not in path.parts for target in re.findall(r'\[[^]]+\]\(([^)#]+)', path.read_text(encoding='utf-8')) if not target.startswith(('http://', 'https://', 'mailto:')) and not (path.parent / target).exists()]; assert not missing, missing"
     - python -c "from pathlib import Path; forbidden=[path for path in Path('.').rglob('*') if path.is_file() and ('secure-connect-' in path.name or path.name == '.env') and '.git' not in path.parts]; assert not forbidden, forbidden"
+
+compose_validate:
+  stage: validate
+  image: docker:27-cli
+  script:
+    - docker compose -f infra/docker-compose.yml --profile core config --quiet
+    - docker compose -f infra/docker-compose.yml --profile full config --quiet

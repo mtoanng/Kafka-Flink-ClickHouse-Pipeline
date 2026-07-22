@@ -4,10 +4,11 @@
 
 Taobao real-time customer behavior platform:
 
-`UserBehavior.csv -> Python replay -> Kafka/Avro -> one Java Flink job -> ClickHouse`
+`UserBehavior.csv -> Python replay -> Kafka/Avro -> one Java Flink job -> ClickHouse + Cassandra`
 
-The completed extensions add Apache Cassandra active-cart serving, with DataStax Astra DB Serverless as the managed deployment target, and a PostgreSQL/Debezium
-rule control plane.
+Apache Cassandra is the mandatory active-cart serving layer, with local and
+DataStax Astra deployment modes. PostgreSQL/Debezium is the full-profile rule
+control plane.
 
 ## Main Entry Points
 
@@ -32,7 +33,12 @@ rule control plane.
 - `AGENTS.md`: repository rules and learning contract.
 - `README.md`: setup, local checks, and remote demo instructions.
 - `docs/PROJECT1_BLUEPRINT_FINAL.md`: authoritative architecture and phase plan.
-- `docs/DATASET_NOTES.md`: source dataset audit and profile.
+- `docs/ARCHITECTURE.md`: current responsibilities and delivery semantics.
+- `docs/CURRENT_IMPLEMENTATION_STATUS.md`: honest verification boundary.
+- `docs/RUNTIME_CONFIGURATION.md`: checks/core/full environment contract.
+- `docs/LOCAL_RUNBOOK.md`: bounded local/disposable-host procedure.
+- `docs/CLOUD_DEPLOYMENT_RUNBOOK.md`: operator deployment and teardown procedure.
+- `docs/RECOVERY_VERIFICATION_RUNBOOK.md`: checkpoint/restart evidence procedure.
 - `docs/evidence/phase-0/` through `docs/evidence/phase-6/`: phase reports.
 
 ## Common Checks

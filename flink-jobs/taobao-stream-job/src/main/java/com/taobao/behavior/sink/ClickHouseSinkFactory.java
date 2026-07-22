@@ -3,6 +3,8 @@ package com.taobao.behavior.sink;
 import com.clickhouse.data.ClickHouseDataType;
 import com.clickhouse.data.ClickHouseFormat;
 import com.taobao.behavior.avro.UserBehaviorEvent;
+import com.taobao.behavior.model.BehaviorAlert;
+import com.taobao.behavior.model.BehaviorAuditEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,44 @@ public final class ClickHouseSinkFactory {
                 1_000,
                 2,
                 10_000);
+    }
+
+    public static Sink<BehaviorAuditEvent> createAuditSink(
+            String endpoint,
+            String user,
+            String password,
+            String database,
+            String table) {
+        return createSink(
+                endpoint,
+                user,
+                password,
+                database,
+                table,
+                BehaviorAuditEvent.class,
+                new AuditEventMapper(),
+                100,
+                2,
+                1_000);
+    }
+
+    public static Sink<BehaviorAlert> createBehaviorAlertSink(
+            String endpoint,
+            String user,
+            String password,
+            String database,
+            String table) {
+        return createSink(
+                endpoint,
+                user,
+                password,
+                database,
+                table,
+                BehaviorAlert.class,
+                new BehaviorAlertMapper(),
+                100,
+                2,
+                1_000);
     }
 
     private static <T> Sink<T> createSink(
@@ -97,7 +137,9 @@ public final class ClickHouseSinkFactory {
                     ColumnBinding.scalar("category_id", "category_id", ClickHouseDataType.UInt64),
                     ColumnBinding.scalar("behavior_type", "behavior_type", ClickHouseDataType.String),
                     ColumnBinding.dateTime64("event_time", "event_time", 3),
-                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String));
+                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("source_sequence", "source_sequence", ClickHouseDataType.UInt64),
+                    ColumnBinding.scalar("record_version", "record_version", ClickHouseDataType.UInt64));
         }
     }
 
@@ -118,7 +160,54 @@ public final class ClickHouseSinkFactory {
                     ColumnBinding.scalar("fav_count", "fav_count", ClickHouseDataType.UInt64),
                     ColumnBinding.scalar("buy_count", "buy_count", ClickHouseDataType.UInt64),
                     ColumnBinding.scalar("unique_users", "unique_users", ClickHouseDataType.UInt64),
-                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String));
+                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("record_version", "record_version", ClickHouseDataType.UInt64));
+        }
+    }
+
+    private static final class AuditEventMapper extends DataMapper<BehaviorAuditEvent> {
+        @Override
+        public void toMap(BehaviorAuditEvent event, Map<String, Object> out) {
+            out.putAll(ClickHouseRowMapper.auditValues(event));
+        }
+
+        @Override
+        public List<ColumnBinding> bindings() {
+            return List.of(
+                    ColumnBinding.scalar("event_id", "event_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("user_id", "user_id", ClickHouseDataType.Int64),
+                    ColumnBinding.scalar("item_id", "item_id", ClickHouseDataType.Int64),
+                    ColumnBinding.scalar("category_id", "category_id", ClickHouseDataType.Int64),
+                    ColumnBinding.scalar("event_time_ms", "event_time_ms", ClickHouseDataType.Int64),
+                    ColumnBinding.scalar("source_sequence", "source_sequence", ClickHouseDataType.Int64),
+                    ColumnBinding.scalar("reason_code", "reason_code", ClickHouseDataType.String),
+                    ColumnBinding.scalar("reason_message", "reason_message", ClickHouseDataType.String),
+                    ColumnBinding.scalar("record_version", "record_version", ClickHouseDataType.Int64));
+        }
+    }
+
+    private static final class BehaviorAlertMapper extends DataMapper<BehaviorAlert> {
+        @Override
+        public void toMap(BehaviorAlert alert, Map<String, Object> out) {
+            out.putAll(ClickHouseRowMapper.alertValues(alert));
+        }
+
+        @Override
+        public List<ColumnBinding> bindings() {
+            return List.of(
+                    ColumnBinding.scalar("event_id", "event_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("replay_run_id", "replay_run_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("user_id", "user_id", ClickHouseDataType.UInt64),
+                    ColumnBinding.scalar("item_id", "item_id", ClickHouseDataType.UInt64),
+                    ColumnBinding.scalar("category_id", "category_id", ClickHouseDataType.UInt64),
+                    ColumnBinding.dateTime64("event_time", "event_time", 3),
+                    ColumnBinding.dateTime64("alert_time", "alert_time", 3),
+                    ColumnBinding.scalar("rule_id", "rule_id", ClickHouseDataType.String),
+                    ColumnBinding.scalar("rule_version", "rule_version", ClickHouseDataType.UInt64),
+                    ColumnBinding.scalar("reason_code", "reason_code", ClickHouseDataType.String),
+                    ColumnBinding.scalar("reason_message", "reason_message", ClickHouseDataType.String),
+                    ColumnBinding.scalar("record_version", "record_version", ClickHouseDataType.UInt64));
         }
     }
 }

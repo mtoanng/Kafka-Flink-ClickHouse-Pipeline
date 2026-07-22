@@ -5,7 +5,7 @@ import com.taobao.behavior.aggregation.ItemMetricsWindowFunction;
 import com.taobao.behavior.avro.BehaviorRule;
 import com.taobao.behavior.avro.UserBehaviorEvent;
 import com.taobao.behavior.model.BehaviorAlert;
-import com.taobao.behavior.model.InvalidBehaviorEvent;
+import com.taobao.behavior.model.BehaviorAuditEvent;
 import com.taobao.behavior.model.ItemMetrics1m;
 import com.taobao.behavior.model.ItemRunKey;
 import com.taobao.behavior.processing.ActiveCartProjector;
@@ -19,6 +19,7 @@ import com.taobao.behavior.sink.CassandraActiveCartSink;
 import java.time.Duration;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
@@ -34,6 +35,10 @@ public final class TaobaoStreamJob {
 
     public static void main(String[] args) throws Exception {
         RuntimeProfileConfig configuration = RuntimeProfileConfig.fromEnvironment(System.getenv());
+        if (configuration.isChecksProfile()) {
+            throw new IllegalArgumentException(
+                    "RUNTIME_PROFILE=checks does not submit a Flink job; use core or full");
+        }
         String bootstrapServers = configuration.value("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092");
         String topic = configuration.value("KAFKA_TOPIC", "user-behavior-events");
         String consumerGroup = configuration.value("KAFKA_CONSUMER_GROUP", "taobao-stream-job");
@@ -45,7 +50,9 @@ public final class TaobaoStreamJob {
         String clickHouseDatabase = configuration.value("CLICKHOUSE_DATABASE", "taobao_behavior");
         CheckpointPolicy checkpointPolicy =
                 CheckpointPolicy.fromValues(
-                        configuration.value("FLINK_CHECKPOINTING_ENABLED", "false"),
+                        configuration.value(
+                                "FLINK_CHECKPOINTING_ENABLED",
+                                Boolean.toString(configuration.checkpointingEnabledByDefault())),
                         configuration.value("FLINK_CHECKPOINT_INTERVAL_MS", "60000"),
                         configuration.value("FLINK_CHECKPOINT_DIR", ""));
 
@@ -56,6 +63,8 @@ public final class TaobaoStreamJob {
             execution.enableCheckpointing(
                     checkpointPolicy.getIntervalMs(), CheckpointingMode.AT_LEAST_ONCE);
             execution.getCheckpointConfig().setCheckpointStorage(checkpointPolicy.getStoragePath());
+            execution.getCheckpointConfig().setExternalizedCheckpointCleanup(
+                    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         }
 
         KafkaSource<UserBehaviorEvent> source = KafkaSource.<UserBehaviorEvent>builder()
@@ -66,7 +75,9 @@ public final class TaobaoStreamJob {
                 .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(
                         ConfluentRegistryAvroDeserializationSchema.forSpecific(
-                                UserBehaviorEvent.class, schemaRegistryUrl))
+                                UserBehaviorEvent.class,
+                                schemaRegistryUrl,
+                                configuration.schemaRegistryProperties()))
                 .build();
 
         DataStream<UserBehaviorEvent> decoded = execution.fromSource(
@@ -77,7 +88,7 @@ public final class TaobaoStreamJob {
                 .process(new EventValidator())
                 .name("ValidateBehaviorEvent")
                 .uid("validate-behavior-event");
-        DataStream<InvalidBehaviorEvent> invalid =
+        DataStream<BehaviorAuditEvent> invalid =
                 valid.getSideOutput(EventValidator.INVALID_EVENTS);
 
         WatermarkStrategy<UserBehaviorEvent> watermarkStrategy = WatermarkStrategy
@@ -107,6 +118,15 @@ public final class TaobaoStreamJob {
 
         DataStream<UserBehaviorEvent> windowLate =
                 metrics.getSideOutput(LateEventRouter.LATE_EVENTS);
+        DataStream<BehaviorAuditEvent> lateAudit = late
+                .union(windowLate)
+                .map(event -> BehaviorAuditEvent.fromEvent(
+                        event,
+                        "LATE_EVENT",
+                        "event_time is at or behind the current watermark"))
+                .returns(BehaviorAuditEvent.class)
+                .name("BuildLateEventAudit")
+                .uid("build-late-event-audit");
 
 
         valid.sinkTo(
@@ -118,8 +138,24 @@ public final class TaobaoStreamJob {
                                 "raw_behavior_events"))
                 .name("WriteRawBehaviorEvents")
                 .uid("write-raw-behavior-events");
-        invalid.print("invalid");
-        late.union(windowLate).print("late");
+        invalid.sinkTo(
+                        ClickHouseSinkFactory.createAuditSink(
+                                clickHouseEndpoint,
+                                clickHouseUser,
+                                clickHousePassword,
+                                clickHouseDatabase,
+                                "invalid_behavior_events"))
+                .name("WriteInvalidBehaviorEvents")
+                .uid("write-invalid-behavior-events");
+        lateAudit.sinkTo(
+                        ClickHouseSinkFactory.createAuditSink(
+                                clickHouseEndpoint,
+                                clickHouseUser,
+                                clickHousePassword,
+                                clickHouseDatabase,
+                                "late_behavior_events"))
+                .name("WriteLateBehaviorEvents")
+                .uid("write-late-behavior-events");
         metrics.sinkTo(
                         ClickHouseSinkFactory.createItemMetricsSink(
                                 clickHouseEndpoint,
@@ -129,17 +165,14 @@ public final class TaobaoStreamJob {
                                 "item_metrics_1m"))
                 .name("WriteItemMetrics1m")
                 .uid("write-item-metrics-1m");
-        if (configuration.isCassandraEnabled()) {
-            onTime
-                    .keyBy(UserBehaviorEvent::getUserId)
-                    .process(new ActiveCartProjector())
-                    .name("ProjectUserActiveCart")
-                    .uid("project-user-active-cart")
-                    .addSink(
-                            new CassandraActiveCartSink(configuration.cassandraConfig()))
-                    .name("WriteUserActiveCart")
-                    .uid("write-user-active-cart");
-        }
+        onTime
+                .keyBy(UserBehaviorEvent::getUserId)
+                .process(new ActiveCartProjector())
+                .name("ProjectUserActiveCart")
+                .uid("project-user-active-cart")
+                .addSink(new CassandraActiveCartSink(configuration.cassandraConfig()))
+                .name("WriteUserActiveCart")
+                .uid("write-user-active-cart");
         if (configuration.isCdcEnabled()) {
             KafkaSource<BehaviorRule> rulesSource = KafkaSource.<BehaviorRule>builder()
                     .setBootstrapServers(bootstrapServers)
@@ -149,7 +182,9 @@ public final class TaobaoStreamJob {
                     .setStartingOffsets(OffsetsInitializer.earliest())
                     .setValueOnlyDeserializer(
                             ConfluentRegistryAvroDeserializationSchema.forSpecific(
-                                    BehaviorRule.class, schemaRegistryUrl))
+                                    BehaviorRule.class,
+                                    schemaRegistryUrl,
+                                    configuration.schemaRegistryProperties()))
                     .build();
             DataStream<BehaviorRule> ruleChanges = execution.fromSource(
                             rulesSource, WatermarkStrategy.noWatermarks(), "KafkaBehaviorRulesSource")
@@ -160,10 +195,18 @@ public final class TaobaoStreamJob {
                     .process(new CartAbandonmentRuleProcessor())
                     .name("ApplyBroadcastBehaviorRules")
                     .uid("apply-broadcast-behavior-rules");
-            alerts.print("behavior-alert");
+            alerts.sinkTo(
+                            ClickHouseSinkFactory.createBehaviorAlertSink(
+                                    clickHouseEndpoint,
+                                    clickHouseUser,
+                                    clickHousePassword,
+                                    clickHouseDatabase,
+                                    "behavior_alerts"))
+                    .name("WriteBehaviorAlerts")
+                    .uid("write-behavior-alerts");
         }
 
-        execution.execute("Taobao User Behavior Phase 6");
+        execution.execute("Taobao Real-Time Customer Behavior Platform");
     }
 
 }

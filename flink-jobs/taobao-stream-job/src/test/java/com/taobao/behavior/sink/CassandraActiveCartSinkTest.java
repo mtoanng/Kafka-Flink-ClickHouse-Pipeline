@@ -61,9 +61,27 @@ class CassandraActiveCartSinkTest {
         assertThrows(IllegalArgumentException.class, () -> sink.invoke(null, null));
     }
 
+    @Test
+    void sessionInitializationFailureHasContextWithoutCredentials() throws Exception {
+        CassandraActiveCartSink sink = new CassandraActiveCartSink(
+                config(),
+                new CassandraSessionFactory() {
+                    @Override
+                    public CqlSession open(CassandraConfig ignored) {
+                        throw new IllegalStateException("connection refused");
+                    }
+                });
+
+        IllegalStateException error = assertThrows(
+                IllegalStateException.class, () -> sink.open(new Configuration()));
+
+        assertTrue(error.getMessage().contains("Cassandra astra sink"));
+        assertTrue(!error.getMessage().contains("test-token"));
+    }
+
     private static CassandraConfig config() throws Exception {
         return CassandraConfig.fromEnvironment(Map.of(
-                "CASSANDRA_PROVIDER", "astra",
+                "CASSANDRA_MODE", "astra",
                 "CASSANDRA_KEYSPACE", "taobao_streaming",
                 "CASSANDRA_TABLE", "user_active_cart",
                 "ASTRA_DB_SECURE_BUNDLE_PATH", Files.createTempFile("secure-connect-", ".zip").toString(),

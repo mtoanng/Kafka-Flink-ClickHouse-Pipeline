@@ -80,6 +80,13 @@ public final class CartAbandonmentRuleProcessor
             if (RuleVersionPolicy.isDue(
                     cart.getEventTimeMs(), rule.getThresholdSeconds(), timestamp)) {
                 out.collect(new BehaviorAlert(
+                        "cart-abandonment:"
+                                + cart.getEventId()
+                                + ":"
+                                + rule.getVersion()
+                                + ":"
+                                + timestamp,
+                        cart.getReplayRunId().toString(),
                         cart.getUserId(),
                         cart.getItemId(),
                         cart.getCategoryId(),

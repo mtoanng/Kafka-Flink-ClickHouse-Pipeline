@@ -30,11 +30,16 @@ class ContractTests(unittest.TestCase):
             ("1", "2", "3", "unknown", "1511658000"),
             ("zero", "2", "3", "pv", "1511658000"),
             ("1", "2", "3", "pv"),
-            ("0", "2", "3", "pv", "1511658000"),
         ]
         for row in invalid_rows:
             with self.subTest(row=row), self.assertRaises(RowValidationError):
                 parse_event(row, source_sequence=0, replay_run_id="test")
+
+    def test_semantic_invalid_values_remain_encodable_for_flink_validation(self) -> None:
+        event = parse_event(("0", "2", "3", "pv", "-1"), source_sequence=0, replay_run_id="test")
+
+        self.assertEqual(0, event.user_id)
+        self.assertEqual(-1_000, event.event_time_ms)
 
 
 if __name__ == "__main__":

@@ -12,15 +12,10 @@ export REPLAY_RUN_ID="$RUN_ID"
 export KAFKA_CONSUMER_GROUP="${KAFKA_CONSUMER_GROUP:-taobao-fixture-${RUN_ID}}"
 
 PYTHONPATH=producer/src python scripts/apply_clickhouse_schema.py
-if [ "${CASSANDRA_ENABLED:-false}" = "true" ]; then
-  bash scripts/apply_cassandra_schema.sh
-fi
+bash scripts/apply_cassandra_schema.sh
 FLINK_DETACHED=true bash scripts/run_flink.sh
 sleep "${FLINK_STARTUP_WAIT_SECONDS:-10}"
 bash scripts/replay.sh
-PYTHONPATH=producer/src python scripts/verify_clickhouse.py --run-id "$RUN_ID"
-if [ "${CASSANDRA_ENABLED:-false}" = "true" ]; then
-  bash scripts/lookup_active_cart.sh 100
-fi
+bash scripts/verify_bounded_pipeline.sh "$RUN_ID"
 
-echo "Cloud core smoke completed for run ${RUN_ID}."
+echo "Bounded core smoke completed for run ${RUN_ID}."

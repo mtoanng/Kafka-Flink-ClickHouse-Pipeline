@@ -12,63 +12,66 @@ import org.junit.jupiter.api.Test;
 
 class RuntimeProfileConfigTest {
     @Test
-    void coreDoesNotRequireCassandraOrCdcValues() {
-        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(Map.of());
+    void checksProfileRequiresNoExternalServiceConfiguration() {
+        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(
+                Map.of("RUNTIME_PROFILE", "checks"));
 
+        assertTrue(config.isChecksProfile());
         assertFalse(config.isCassandraEnabled());
         assertFalse(config.isCdcEnabled());
-        assertFalse(config.isObservabilityEnabled());
+        assertFalse(config.checkpointingEnabledByDefault());
         assertEquals("PLAINTEXT", config.kafkaProperties().getProperty("security.protocol"));
     }
 
     @Test
-    void cassandraProfileRequiresOnlyCassandraConfiguration() throws Exception {
-        java.nio.file.Path secureBundle = java.nio.file.Files.createTempFile("secure-connect-", ".zip");
-        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(
-                Map.of(
-                        "CASSANDRA_ENABLED", "true",
-                        "CASSANDRA_PROVIDER", "astra",
-                        "CASSANDRA_KEYSPACE", "taobao_streaming",
-                        "CASSANDRA_TABLE", "user_active_cart",
-                        "ASTRA_DB_SECURE_BUNDLE_PATH", secureBundle.toString(),
-                        "ASTRA_DB_APPLICATION_TOKEN", "test-token"));
+    void coreRequiresCassandraAndDefaultsCheckpointingOn() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> RuntimeProfileConfig.fromEnvironment(Map.of("RUNTIME_PROFILE", "core")));
 
+        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(localCoreEnvironment());
         assertTrue(config.isCassandraEnabled());
         assertFalse(config.isCdcEnabled());
+        assertFalse(config.isObservabilityEnabled());
+        assertTrue(config.checkpointingEnabledByDefault());
+        assertEquals("local", config.cassandraConfig().mode());
     }
 
     @Test
-    void cdcProfileRequiresItsOwnConfiguration() {
-        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(cdcEnvironment());
+    void fullAddsCdcAndObservabilityToTheSameCore() {
+        Map<String, String> environment = localCoreEnvironment();
+        environment.put("RUNTIME_PROFILE", "full");
+        environment.put("RULES_KAFKA_TOPIC", "behavior-rules");
 
+        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(environment);
+
+        assertTrue(config.isCassandraEnabled());
         assertTrue(config.isCdcEnabled());
-        assertFalse(config.isCassandraEnabled());
+        assertTrue(config.isObservabilityEnabled());
+        assertTrue(config.checkpointingEnabledByDefault());
     }
 
     @Test
-    void partialOptionalConfigurationIsRejectedOnlyWhenEnabled() {
+    void fullFailsFastWithoutRulesTopic() {
+        Map<String, String> environment = localCoreEnvironment();
+        environment.put("RUNTIME_PROFILE", "full");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> RuntimeProfileConfig.fromEnvironment(Map.of("CASSANDRA_ENABLED", "true")));
-        Map<String, String> cdc = cdcEnvironment();
-        cdc.remove("CONNECT_URL");
-        assertThrows(IllegalArgumentException.class, () -> RuntimeProfileConfig.fromEnvironment(cdc));
-        RuntimeProfileConfig.fromEnvironment(Map.of("ASTRA_DB_APPLICATION_TOKEN", "ignored-when-disabled"));
+                () -> RuntimeProfileConfig.fromEnvironment(environment));
     }
 
     @Test
-    void observabilityConfigurationIsIgnoredUntilItsProfileIsEnabled() {
-        RuntimeProfileConfig.fromEnvironment(Map.of("GRAFANA_ENDPOINT", "ignored-when-disabled"));
+    void unsupportedRuntimeProfileIsRejected() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> RuntimeProfileConfig.fromEnvironment(Map.of("OBSERVABILITY_ENABLED", "true")));
-        RuntimeProfileConfig.fromEnvironment(
-                Map.of("OBSERVABILITY_ENABLED", "true", "GRAFANA_ENDPOINT", "http://grafana:3000"));
+                () -> RuntimeProfileConfig.fromEnvironment(
+                        Map.of("RUNTIME_PROFILE", "serving")));
     }
 
     @Test
     void managedSaslSslMapsToKafkaClientProperties() {
         Map<String, String> environment = new HashMap<>();
+        environment.put("RUNTIME_PROFILE", "checks");
         environment.put("KAFKA_SECURITY_PROTOCOL", "SASL_SSL");
         environment.put("KAFKA_SASL_MECHANISM", "PLAIN");
         environment.put("KAFKA_SASL_USERNAME", "key");
@@ -85,18 +88,32 @@ class RuntimeProfileConfigTest {
     void partialSaslConfigurationIsRejected() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> RuntimeProfileConfig.fromEnvironment(
-                        Map.of("KAFKA_SECURITY_PROTOCOL", "SASL_SSL")));
+                () -> RuntimeProfileConfig.fromEnvironment(Map.of(
+                        "RUNTIME_PROFILE", "checks",
+                        "KAFKA_SECURITY_PROTOCOL", "SASL_SSL")));
     }
 
-    private static Map<String, String> cdcEnvironment() {
-        return new HashMap<>(Map.of(
-                "CDC_ENABLED", "true",
-                "RULES_KAFKA_TOPIC", "behavior-rules",
-                "POSTGRES_HOST", "postgres.internal",
-                "POSTGRES_DB", "taobao_behavior",
-                "POSTGRES_USER", "connector",
-                "POSTGRES_PASSWORD", "secret",
-                "CONNECT_URL", "http://connect.internal:8083"));
+    @Test
+    void schemaRegistryBasicAuthenticationIsPassedToTheDeserializer() {
+        RuntimeProfileConfig config = RuntimeProfileConfig.fromEnvironment(Map.of(
+                "RUNTIME_PROFILE", "checks",
+                "SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO", "key:secret"));
+
+        assertEquals("USER_INFO", config.schemaRegistryProperties().get(
+                "basic.auth.credentials.source"));
+        assertEquals("key:secret", config.schemaRegistryProperties().get(
+                "basic.auth.user.info"));
+    }
+
+    private static Map<String, String> localCoreEnvironment() {
+        Map<String, String> environment = new HashMap<>();
+        environment.put("RUNTIME_PROFILE", "core");
+        environment.put("CASSANDRA_MODE", "local");
+        environment.put("CASSANDRA_HOSTS", "localhost");
+        environment.put("CASSANDRA_PORT", "9042");
+        environment.put("CASSANDRA_DATACENTER", "datacenter1");
+        environment.put("CASSANDRA_KEYSPACE", "taobao_streaming");
+        environment.put("CASSANDRA_TABLE", "user_active_cart");
+        return environment;
     }
 }

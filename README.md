@@ -1,182 +1,159 @@
 # Taobao Real-Time Customer Behavior Platform
-<img width="1429" height="702" alt="image" src="https://github.com/user-attachments/assets/c89c0bc7-82f3-4df9-a41a-f456a86396ac" />
 
-A streaming data platform for Alibaba/Taobao `UserBehavior.csv` events.
-
-
+A junior-friendly streaming portfolio project built from the raw Alibaba/Taobao
+`UserBehavior.csv` event dataset.
 
 ```text
-Taobao UserBehavior.csv
-        -> Python replay producer
-        -> Kafka + Schema Registry (Avro)
-        -> one Java Apache Flink DataStream job
-        -> ClickHouse
-             \-> Apache Cassandra active cart lookup (optional; DataStax Astra DB Serverless target)
+UserBehavior.csv -> deterministic Python replay -> Kafka + Avro/Schema Registry
+                 -> one Java Flink DataStream job
+                    |-> ClickHouse history, minute metrics, and durable audits
+                    |-> Apache Cassandra per-user active cart
 
-PostgreSQL -> Debezium -> compacted Kafka topic -> Flink Broadcast State (optional)
+PostgreSQL -> Debezium -> compacted rules topic -> Flink Broadcast State
 ```
 
-The core path processes raw events, writes analytical history and one-minute
-item metrics to ClickHouse, and is designed to run without Cassandra or CDC.
-The project does not use S3 as an event-data sink and does not include ML,
-recommendation logic, or a frontend.
+ClickHouse and Cassandra are both core serving systems. ClickHouse owns
+analytical history and rollups; Cassandra owns only the current active cart,
+partitioned by `user_id`. PostgreSQL/Debezium and Grafana belong to the `full`
+profile. The repository does not add ML, a frontend, Kubernetes, S3 event
+storage, or a second Flink job.
 
-Flink materializes the same behavior stream into two query-optimized views:
-ClickHouse for historical analytics and Apache Cassandra for low-latency
-per-user active-cart serving.
+## Status
 
-## Repository status
+| Area | Status |
+| --- | --- |
+| Python replay, Avro contracts, Java topology, DDL/CQL, tests, and packaging | **implemented and statically verified** |
+| Local or managed Kafka/Flink/ClickHouse/Cassandra runtime | **requires live deployment verification** |
+| PostgreSQL/Debezium rule updates, alert timers, and Grafana | **implemented and statically verified; requires live deployment verification** |
+| Checkpoint recovery and connector retry behavior | **requires live deployment verification** |
+| End-to-end exactly once or production readiness | **not claimed** |
 
-The application, schemas, tests, infrastructure definitions, and runtime
-profiles are implemented and covered by credential-independent checks. Live
-Kafka/Flink/ClickHouse execution, cloud deployment, connector compatibility,
-recovery, and performance are not claimed until evidence is captured.
+See [Implementation Status](docs/CURRENT_IMPLEMENTATION_STATUS.md) for the
+complete verification boundary.
 
-See [Implementation Status](docs/IMPLEMENTATION_STATUS.md), the
-[completion audit](docs/CODEBASE_COMPLETION_REPORT.md), and the
-[cloud E2E runbook](docs/CLOUD_E2E_RUNBOOK.md) for the current verification
-boundary.
+## Architecture and delivery model
+
+The Flink job consumes checkpointed Kafka input with at-least-once checkpoints.
+External sinks are not transactional with Kafka:
+
+- ClickHouse receives at-least-once writes. Stable logical keys and
+  `ReplacingMergeTree(record_version)` support effectively-once results through
+  the committed `*_deduplicated` views.
+- Cassandra uses idempotent prepared upsert/delete statements on
+  `PRIMARY KEY ((user_id), item_id)`.
+- This is not global transactional exactly-once delivery.
+
+Semantic invalid Avro events, late events, and full-profile abandonment alerts
+are written to durable ClickHouse audit tables. CSV rows that cannot be encoded
+as the Avro contract are rejected by the producer before Kafka.
+
+Detailed design: [Architecture](docs/ARCHITECTURE.md).
 
 ## Prerequisites
 
 - Python 3.11+
-- Java and Maven, matching the Flink job target
-- Docker Compose for local infrastructure checks
-- Bash for the repository scripts (Git Bash, WSL, or Linux)
-- `ruff` for Python linting and formatting checks
+- Java 11 and Maven
+- Apache Flink 1.20.2 for runtime execution
+- Docker Compose for local runtime dependencies
+- Bash for operational scripts
+- Terraform 1.6+ only for validation or an explicitly approved deployment
 
-The raw Alibaba dataset is intentionally not committed. Local tests use the
-deterministic fixture at `tests/fixtures/user_behavior_fixture.csv`.
+The full raw dataset, `.env`, credentials, Secure Connect Bundles, and Terraform
+state must remain outside Git. Credential-independent tests use
+`tests/fixtures/user_behavior_fixture.csv`.
 
-## Quick start
+## Checks profile
 
-From the repository root:
+The `checks` profile starts no services:
 
 ```bash
 python -m venv .venv
-# activate .venv using your shell's convention
+# Activate the environment using your shell's convention.
 pip install -e '.[kafka]'
-cp .env.example .env
+pip install ruff
 
-# Credential-independent checks
 make test
 make package
 make infra-config
+make terraform-validate
 ```
 
-The same checks can be run individually:
+Equivalent focused commands:
 
 ```bash
 PYTHONPATH=producer/src python -m unittest discover -s producer/tests -v
 ruff check producer scripts
 ruff format --check producer scripts
 mvn -B -pl flink-jobs/taobao-stream-job -am test
-docker compose -f infra/docker-compose.yml config --quiet
-```
-
-## Local runtime profiles
-
-Copy `.env.example` to an ignored `.env` and provide endpoints and credentials
-only for the services you enable. Profiles are additive:
-
-```bash
-# Core: Kafka, Schema Registry, Flink, and ClickHouse path
-docker compose --profile core -f infra/docker-compose.yml up -d
-
-# Optional branches
-CASSANDRA_ENABLED=true docker compose --profile serving -f infra/docker-compose.yml up -d
-CDC_ENABLED=true docker compose --profile cdc -f infra/docker-compose.yml up -d
-OBSERVABILITY_ENABLED=true docker compose --profile observability -f infra/docker-compose.yml up -d
-```
-
-The `serving` profile adds the Apache Cassandra active-cart sink only when
-`CASSANDRA_ENABLED=true` and the Astra Secure Connect Bundle/token contract is configured. The `cdc` profile
-adds PostgreSQL, Debezium, and Flink Broadcast State when its complete
-configuration is present. The `observability` profile provisions Grafana for
-ClickHouse. Optional services must not be required by the core path.
-
-For Astra, provision the database and keyspace separately, download its Secure
-Connect Bundle to an ignored runtime path such as `secrets/secure-connect-*.zip`,
-and supply `ASTRA_DB_APPLICATION_TOKEN` through the environment or secret
-management. `ASTRA_DB_DATABASE_ID` is for provisioning records and is not
-required by the Java CQL session. The application never creates a keyspace;
-`bash scripts/apply_cassandra_schema.sh` idempotently creates only the table.
-
-Stop the local runtime with:
-
-```bash
-bash scripts/stop.sh
-```
-
-## Running the pipeline
-
-The replay producer and Flink job run separately from Compose. After the
-infrastructure is reachable:
-
-```bash
-bash scripts/register_schemas.sh
 mvn -B -pl flink-jobs/taobao-stream-job -am package
-bash scripts/run_flink.sh
+docker compose -f infra/docker-compose.yml --profile core config --quiet
+docker compose -f infra/docker-compose.yml --profile full config --quiet
+```
+
+## Runtime profiles
+
+| Profile | Services and behavior |
+| --- | --- |
+| `checks` | Tests, lint, package, Compose rendering, and Terraform validation; no external services |
+| `core` | Kafka, Schema Registry, one Flink job, ClickHouse, and mandatory Cassandra active cart |
+| `full` | `core` plus PostgreSQL, Debezium, compacted behavior rules, timers, alerts, and Grafana |
+
+The local Compose model provides Kafka, Schema Registry, ClickHouse, and one
+Cassandra node for `core`; `full` adds PostgreSQL, Debezium, and Grafana. Flink
+is installed and submitted separately so the same JAR can run on a disposable
+host or an existing Flink cluster.
+
+Copy `.env.example` to ignored `.env`, export its values, then follow the
+[Local Runbook](docs/LOCAL_RUNBOOK.md). Cassandra supports both:
+
+- `CASSANDRA_MODE=local`: contact points, port, datacenter, and optional
+  username/password;
+- `CASSANDRA_MODE=astra`: ignored Secure Connect Bundle path plus application
+  token.
+
+Configuration reference: [Runtime Configuration](docs/RUNTIME_CONFIGURATION.md).
+
+## Bounded runtime workflow
+
+On a disposable integration host:
+
+```bash
+bash scripts/run.sh
+bash scripts/register_schemas.sh
+bash scripts/apply_cassandra_schema.sh
+mvn -B -pl flink-jobs/taobao-stream-job -am package
+FLINK_DETACHED=true bash scripts/run_flink.sh
 bash scripts/replay.sh
+bash scripts/verify_bounded_pipeline.sh fixture-run
 ```
 
-For a bounded fixture demonstration, inspect
-`scripts/run_fixture_demo.sh` and `scripts/verify_clickhouse.py`. The replay
-engine supports deterministic IDs, chunked CSV reading, schema validation, and
-configurable replay speed. Kafka settings are provider-neutral: local runs use
-`PLAINTEXT`; managed Kafka can use `SASL_SSL` through environment variables.
+The bounded verifier independently checks produced, valid raw, invalid, late,
+one-minute metric, and Cassandra active-cart results. It requires live services;
+its presence is not evidence that those services have run.
 
-Useful Make targets:
+## Deployment and recovery
 
-```text
-make test                 Python, Ruff, and Maven checks
-make package              Build the shaded Flink job
-make infra-config         Validate Compose rendering
-make schema               Register Avro schemas
-make publish-fixture      Publish the configured fixture
-make run-job              Submit the Flink job
-make lookup-user USER_ID=...  Read Apache Cassandra active cart
-make terraform-validate   Format-check and validate Terraform
-make teardown             Run guarded demo teardown
-```
+- [Cloud Deployment Runbook](docs/CLOUD_DEPLOYMENT_RUNBOOK.md)
+- [Recovery Verification Runbook](docs/RECOVERY_VERIFICATION_RUNBOOK.md)
+- [Final E2E evidence boundary](docs/evidence/final-e2e/README.md)
 
-## Data and processing contracts
-
-The canonical source columns are `user_id`, `item_id`, `category_id`,
-`behavior_type` (`pv`, `cart`, `fav`, or `buy`), and Unix `timestamp`.
-
-The Avro event contract is in
-[`schemas/user-behavior-event.avsc`](schemas/user-behavior-event.avsc). Kafka
-uses `user_id` as the message key. Flink assigns event-time timestamps and
-watermarks, handles invalid/late data explicitly, and produces item-level
-one-minute aggregates. ClickHouse stores raw accepted events and rollups;
-Apache Cassandra stores only bounded active-cart state when enabled; the initial managed target is DataStax Astra DB Serverless and the CQL path uses the Apache Cassandra Java Driver.
+Terraform checks and plans do not prove deployment. No repository command runs
+`terraform apply` implicitly, and teardown requires an explicit confirmation.
 
 ## Project layout
 
 ```text
-producer/                         Python replay package and tests
-flink-jobs/taobao-stream-job/     Java Flink job and tests
+producer/                         deterministic Python replay and tests
+flink-jobs/taobao-stream-job/     one Java Flink job and tests
 schemas/                          Avro contracts
-infra/docker-compose.yml          Local runtime services
-infra/clickhouse/                 ClickHouse DDL and verification SQL
-infra/cassandra/                  Apache Cassandra schema and checks
-infra/postgres/                   CDC control-plane schema
-infra/debezium/                   Debezium configuration
-infra/terraform/                  Cloud deployment definitions
-scripts/                          Build, run, replay, verify, and teardown tools
-docs/                             Blueprint, status, runbooks, and evidence
-tests/fixtures/                   Deterministic bounded test data
+infra/clickhouse/                 analytical and audit DDL/query contracts
+infra/cassandra/                  active-cart CQL contracts
+infra/postgres/, infra/debezium/  full-profile control plane
+infra/terraform/                  optional deployment definitions
+scripts/                          checks, bootstrap, run, verify, recovery, teardown
+docs/                             blueprint, status, runbooks, and evidence
+tests/fixtures/                   bounded deterministic input
 ```
 
-## Documentation
-
-- [Final architecture blueprint](docs/PROJECT1_BLUEPRINT_FINAL.md)
-- [Dataset notes](docs/DATASET_NOTES.md)
-- [Deployment code status](docs/DEPLOYMENT_CODE_STATUS.md)
-- [Cloud E2E runbook](docs/CLOUD_E2E_RUNBOOK.md)
-- [Evidence archive](docs/evidence/)
-
-Do not commit `.env`, credentials, Terraform state, or the full raw dataset.
-Cloud resources are never provisioned by the repository checks; deployment and
-teardown require an explicit operator-controlled run.
+The authoritative implementation contract is
+[PROJECT1_BLUEPRINT_FINAL.md](docs/PROJECT1_BLUEPRINT_FINAL.md).

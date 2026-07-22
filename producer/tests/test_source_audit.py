@@ -76,15 +76,15 @@ class SourceAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(DatasetContractError, "outside the five-column contract"):
                 audit_source_dataset(source, manifest)
 
-    def test_semantically_invalid_raw_row_is_preserved_for_downstream_rejection(self) -> None:
+    def test_semantically_invalid_raw_row_is_preserved_for_flink_rejection(self) -> None:
         content = RAW_ROWS + "0,14,104,pv,1511658004\n"
         with tempfile.TemporaryDirectory() as directory:
             source, manifest = self._candidate(directory, content=content, expected_rows=5)
             audit = audit_source_dataset(source, manifest)
 
         self.assertEqual(audit.status, "SATISFIED")
-        self.assertEqual(audit.profile.invalid_rows, 1)
-        self.assertEqual(audit.profile.invalid_reason_counts, {"IDs must be positive": 1})
+        self.assertEqual(audit.profile.accepted_rows, 5)
+        self.assertEqual(audit.profile.invalid_rows, 0)
 
     def test_headered_input_is_rejected(self) -> None:
         header = "user_id,item_id,category_id,behavior_type,timestamp\n"

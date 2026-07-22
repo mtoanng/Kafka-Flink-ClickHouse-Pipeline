@@ -19,7 +19,7 @@ installing a versioned application JAR under
 or application secret is embedded in user-data.
 
 Bootstrap writes an operator-owned `/etc/taobao-runtime.env` with the selected
-`runtime_profile` and paths. After adding profile-specific endpoints and
+`core` or `full` runtime profile and paths. After adding profile-specific endpoints and
 credentials, `/usr/local/bin/taobao-runtime-start` loads that file, starts the
 selected Compose profile, optionally submits the Flink JAR, and runs bounded
 health checks. `/usr/local/bin/taobao-runtime-stop` stops the profile. Set
@@ -46,7 +46,10 @@ credentialed operator may set it to `true` and provide Confluent credentials via
 environment variables for a review-only plan. This preparation workflow never
 runs `terraform apply`.
 
-`enable_astra_resources=false` is also the credential-independent default. A
+Apache Cassandra is mandatory for either runtime profile. The
+`enable_astra_resources=false` Terraform default means only that provisioning
+is opt-in; a runtime operator must still configure an existing Astra database
+or another Cassandra-compatible endpoint. A
 credentialed operator supplies `astra_token` privately, selects the database
 name, keyspace, cloud provider, and region, and may review a plan. The module
 sets `deletion_protection=false` for the explicitly temporary demo, but this

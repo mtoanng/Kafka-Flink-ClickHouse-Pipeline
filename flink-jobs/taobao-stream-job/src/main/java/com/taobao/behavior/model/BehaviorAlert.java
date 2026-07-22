@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 /** Bounded cart-abandonment alert emitted by the Phase 6 control-plane rule. */
 public final class BehaviorAlert implements Serializable {
+    private final String eventId;
+    private final String replayRunId;
     private final long userId;
     private final long itemId;
     private final long categoryId;
@@ -13,6 +15,8 @@ public final class BehaviorAlert implements Serializable {
     private final long ruleVersion;
 
     public BehaviorAlert(
+            String eventId,
+            String replayRunId,
             long userId,
             long itemId,
             long categoryId,
@@ -20,6 +24,8 @@ public final class BehaviorAlert implements Serializable {
             long alertTimeMs,
             String ruleId,
             long ruleVersion) {
+        this.eventId = eventId;
+        this.replayRunId = replayRunId;
         this.userId = userId;
         this.itemId = itemId;
         this.categoryId = categoryId;
@@ -29,6 +35,8 @@ public final class BehaviorAlert implements Serializable {
         this.ruleVersion = ruleVersion;
     }
 
+    public String getEventId() { return eventId; }
+    public String getReplayRunId() { return replayRunId; }
     public long getUserId() { return userId; }
     public long getItemId() { return itemId; }
     public long getCategoryId() { return categoryId; }
@@ -36,11 +44,15 @@ public final class BehaviorAlert implements Serializable {
     public long getAlertTimeMs() { return alertTimeMs; }
     public String getRuleId() { return ruleId; }
     public long getRuleVersion() { return ruleVersion; }
+    public String getReasonCode() { return "CART_ABANDONMENT"; }
+    public String getReasonMessage() { return "cart remained active beyond the configured event-time threshold"; }
 
     @Override
     public String toString() {
         return "BehaviorAlert{" +
-                "userId=" + userId +
+                "eventId='" + eventId + '\'' +
+                ", replayRunId='" + replayRunId + '\'' +
+                ", userId=" + userId +
                 ", itemId=" + itemId +
                 ", categoryId=" + categoryId +
                 ", cartEventTimeMs=" + cartEventTimeMs +
